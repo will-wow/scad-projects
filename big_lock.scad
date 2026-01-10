@@ -15,7 +15,7 @@ key_hole_w = key_w + 0.4;
 key_hole_h = key_h + 0.8;
 key_hole_bottom = 2;
 key_hole_pin_bar_h = 3;
-key_hole_pin_bar_w = key_hole_w / 4;
+key_hole_pin_bar_w = key_hole_pin_bar_h+1.8;
 key_hole_pin_bar_bottom = plug_d / 4;
 
 cutout_vertical_padding = 4;
@@ -221,4 +221,5 @@ plug();
 chamber();
 driver_pins(pin_n=len(key_code));
 key_pins(lengths=key_code);
+down(25)
 key(lengths=key_code);
