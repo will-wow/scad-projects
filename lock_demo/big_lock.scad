@@ -37,6 +37,8 @@ lg_pin_travel_l = pin_travel_l / 4 * 2;
 driver_pin_hole_l = driver_pin_l + pin_travel_l + 0.4;
 key_pin_hole_l = plug_d - key_h - key_hole_bottom;
 
+CLEARANCE = 0.2;
+
 // The diagonal length of a right triangle given two sides
 function diag(a, b) = sqrt(a * a + b * b);
 // The diagonal leg cut off from the side of a square to make an octagon
@@ -67,7 +69,8 @@ module for_pins(n = 4) {
 }
 
 // Polygon for octagonal pin holes
-// with a triangle on top for printing.
+// with a triangle on top for printing,
+// and on the back for stopping falling out
 module pin_hole_poly(side) {
   leg = octagon_leg(side);
   edge = octagon_edge(side);
@@ -75,13 +78,9 @@ module pin_hole_poly(side) {
   union() {
     regular_ngon(n=8, id=side, realign=true);
     // Triangle at the top of the octagon
-    fwd(side / 2)
-      rotate([0, 0, 45])
-        square(leg, anchor=CENTER);
-    // spinal slot
-    rotate([0, 0, 45])
-      translate([0, edge, 0])
-        square([edge, edge * 2], anchor=BOTTOM);
+    octagon_triangle(s=side, edge_n=4);
+    // Triangle at the back of the octagon
+    octagon_triangle(s=side, edge_n=6);
   }
 }
 
@@ -97,17 +96,33 @@ module pin_holes(bottom = 0, top = 0, pin_n = 4, reverse = false) {
 
 // Polygon for octagonal pin clamps with a viewing hole
 module clamp_poly(side, thickness = 3) {
-  s = side + thickness;
-  d = diag(s, s);
-  difference() {
-    // Draw a diamond shape
-    rotate([0, 0, 45])
-      square(s, anchor=CENTER);
-    // Cut out the pin hole again.
-    pin_hole_poly(side);
-    // cut off the top, for viewing
-    square([d, d / 2], anchor=TOP);
+  d = diag(side, side);
+
+  leg = octagon_leg(side);
+  edge = octagon_edge(side);
+
+  union() {
+    polygon(
+      [
+        [0, -(d / 2)],
+        [0, -(d / 2 + thickness)],
+        [d / 2 - edge / 2, -(edge / 2 + thickness)],
+        [d / 2 - edge / 2, -edge / 2],
+      ]
+    );
+    on_octagon_edge(s=side, edge_n=3)
+      right_triangle([leg, leg], spin=135, anchor="hypot");
   }
+
+  //difference() {
+  //  // Draw a diamond shape
+  //  rotate([0, 0, 45])
+  //    square(s, anchor=CENTER);
+  //  // Cut out the pin hole again.
+  //  pin_hole_poly(side);
+  //  // cut off the top, for viewing
+  //  square([d, d / 2], anchor=TOP);
+  //}
 }
 
 // Re-add clamps about the bottom half of the pin holes
@@ -207,41 +222,71 @@ module lock_shell(pin_n = 4) {
   }
 }
 
+module on_octagon_edge(s, edge_n = 0) {
+  leg = octagon_leg(s);
+  edge = octagon_edge(s);
+
+  rotate([0, 0, 180 - edge_n * 45])
+    translate([0, -(leg + edge / 2), 0])
+      children();
+}
+
+// Render a triangle polygon on edge_n of an octagon of square side s
+// edge_n is 0-7. 0 is the top edge (y+), then clockwise.
+module octagon_triangle(s, edge_n = 0, spin = 0) {
+  leg = octagon_leg(s);
+
+  on_octagon_edge(s=s, edge_n=edge_n)
+    right_triangle([leg, leg], spin=45 + spin, anchor="hypot");
+}
+
+module pin_cross_section(s) {
+  leg = octagon_leg(s);
+  edge = octagon_edge(s);
+
+  difference() {
+    regular_ngon(n=8, id=s, realign=true);
+
+    mirror_if([0, 1, 0], copy=true)
+      on_octagon_edge(s=s, edge_n=7)
+        right_triangle([leg, leg], spin=135, anchor="hypot");
+  }
+}
+
 // A pin
 module pin(h, w, tip_w, spine = true, hook_top = false) {
   chamfer_h = (w - tip_w) / 2;
   chamfer_scale = tip_w / w;
 
   edge = octagon_edge(w);
+  leg = octagon_leg(w);
 
   middle_h = h - chamfer_h * 2;
+
+  scale = (tip_w - CLEARANCE * 2) / (w - CLEARANCE * 2);
 
   rotate([0, 0, 45])
     union() {
       // bottom bevel
       translate([0, 0, h - chamfer_h])
-        linear_extrude(height=chamfer_h + 0.01, scale=tip_w / w)
-          regular_ngon(n=8, id=w, realign=true);
+        linear_extrude(height=chamfer_h + 0.01, scale=scale)
+          offset(delta=-CLEARANCE)
+            regular_ngon(n=8, id=w, realign=true);
 
       // middle
       translate([0, 0, chamfer_h])
         linear_extrude(height=middle_h)
-          regular_ngon(n=8, id=w, realign=true);
-
-      // spine 
-      if (spine) {
-        translate([-w / 2, 0, chamfer_h])
-          linear_extrude(height=middle_h)
-            square(edge, anchor=RIGHT + CENTER);
-
-        translate([-w / 2, 0, chamfer_h])
-          linear_extrude(height=edge)
-            square([edge * 2, edge], anchor=RIGHT + CENTER);
-      }
+          offset(delta=-CLEARANCE)
+            pin_cross_section(s=w);
 
       // top bevel
-      linear_extrude(height=chamfer_h + 0.01, scale=w / tip_w)
-        regular_ngon(n=8, id=tip_w, realign=true);
+      linear_extrude(height=chamfer_h + 0.01, scale=1 / scale)
+        offset(delta=-CLEARANCE)
+          difference() {
+            regular_ngon(n=8, id=tip_w, realign=true);
+            on_octagon_edge(s=s, edge_n=7)
+              right_triangle([leg, leg], spin=135, anchor="hypot");
+          }
     }
 }
 
@@ -250,7 +295,7 @@ module driver_pins(pin_n = 4) {
   for_pins(pin_n) {
     back(shell_inner_d / 2 + 0.2)
       rotate([-90, 0, 0])
-        pin(h=driver_pin_l, w=pin_s - 0.4, tip_w=pin_s / 2);
+        pin(h=driver_pin_l, w=pin_s, tip_w=pin_s / 3);
   }
 }
 
@@ -342,9 +387,11 @@ TODO:
 key_code = [true, false, true, false];
 pin_n = len(key_code);
 
-color("yellow") plug(pin_n=pin_n);
+//color("yellow") plug(pin_n=pin_n);
 color("green") lock_shell(pin_n=pin_n);
 color("blue") driver_pins(pin_n=pin_n);
-color("red") key_pins(code=key_code);
-down(25)
-  color("gray") key(code=key_code);
+//color("red") key_pins(code=key_code);
+//down(25)
+//  color("gray") key(code=key_code);
+
+//pin_hole_poly(pin_s);
