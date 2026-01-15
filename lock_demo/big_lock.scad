@@ -1,5 +1,8 @@
 include <BOSL2/std.scad>;
 
+$fa = $preview ? 1 : .1;
+$fs = $preview ? 2 : .1;
+
 plug_l = 100;
 plug_d = 50;
 
