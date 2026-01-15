@@ -157,7 +157,7 @@ module pin_clamps(bottom = 0, top = 0, thickness = 3, pin_n = 4, reverse = false
 }
 
 // The plug of the lock (the part the key goes into).
-module plug(pin_n = 4) {
+module Plug(pin_n = 4) {
   union() {
     difference() {
       // Plug barrel
@@ -231,7 +231,7 @@ module plug_pin_bar_slot() {
   }
 }
 
-module plug_pin_bar() {
+module PlugPinBar() {
   tab_z = plug_pin_bar_tab_w + CLEARANCE;
   bar_l = plug_l - tab_z;
 
@@ -245,7 +245,7 @@ module plug_pin_bar() {
 
 // The shell of the lock
 // (the outer casing that holds the driver pins).
-module lock_shell(pin_n = 4) {
+module LockShell(pin_n = 4) {
   union() {
     difference() {
       // Shell body
@@ -383,7 +383,7 @@ module pin(height, width, tip_w, stopper = false, reverse_stopper = false) {
 }
 
 // Driver pins (in the shell)
-module driver_pins(pin_n = 4) {
+module DriverPins(pin_n = 4) {
   for_pins(pin_n) {
     back(shell_inner_d / 2 + 0.2) {
       rotate([-90, 0, 0]) {
@@ -394,7 +394,7 @@ module driver_pins(pin_n = 4) {
 }
 
 // Key pins (in the plug)
-module key_pins(code = [false, true, true, false]) {
+module KeyPins(code = [false, true, true, false]) {
   for (i = [1:len(code)]) {
     up((plug_l / 5) * i) {
       back(plug_d / 2) {
@@ -426,7 +426,7 @@ function pts(lengths = [false, true, true, false], i = 0) =
   );
 
 // The key
-module key(code = [false, true, true, false]) {
+module Key(code = [false, true, true, false]) {
   translate([key_w / 2 + 0.1, -0.1, 0])
     rotate([0, -90, 0])
       union() {
@@ -478,9 +478,9 @@ TODO:
 key_code = [true, false, true, false];
 pin_n = len(key_code);
 
-color("gold") plug(pin_n=pin_n);
-color("orange") plug_pin_bar();
-color("green") lock_shell(pin_n=pin_n);
-color("blue") driver_pins(pin_n=pin_n);
-color("red") key_pins(code=key_code);
-color("gray") key(code=key_code);
+color("gold") Plug(pin_n=pin_n);
+color("orange") PlugPinBar();
+color("green") LockShell(pin_n=pin_n);
+color("blue") DriverPins(pin_n=pin_n);
+color("red") KeyPins(code=key_code);
+color("gray") Key(code=key_code);
