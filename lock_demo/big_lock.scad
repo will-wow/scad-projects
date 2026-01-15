@@ -34,6 +34,10 @@ pin_travel_l = key_h - key_hole_pin_bar_top;
 sm_pin_travel_l = pin_travel_l / 4;
 lg_pin_travel_l = pin_travel_l / 4 * 2;
 
+plug_pin_bar_x = -key_hole_w / 2;
+plug_in_bar_y = -(plug_d / 2 - key_hole_bottom) + key_hole_pin_bar_bottom;
+plug_pin_bar_tab_w = 3;
+
 driver_pin_hole_l = driver_pin_l + pin_travel_l + 0.4;
 key_pin_hole_l = plug_d - key_h - key_hole_bottom;
 
@@ -168,16 +172,20 @@ module plug(pin_n = 4) {
       // Keyhole
       down(0.1)
         fwd(plug_d / 2 - key_hole_bottom)
-          linear_extrude(height=key_l + 0.1)
-            difference() {
-              // key hole cutout
-              square([key_hole_w, key_hole_h], anchor=BOTTOM);
-              // Pin bar
-              translate([-key_hole_w / 2, key_hole_pin_bar_bottom, 0])
-                square([key_hole_pin_bar_w, key_hole_pin_bar_h], anchor=BOTTOM + LEFT);
-            }
+          linear_extrude(height=plug_l + 0.2)
+            // key hole cutout
+            square([key_hole_w, key_hole_h], anchor=BOTTOM);
 
+      // Pin hones
       pin_holes(bottom=-plug_d / 2, top=plug_d / 2, pin_n=pin_n);
+
+      // Pin bar slot
+      plug_pin_bar_slot();
+    }
+
+    translate([plug_pin_bar_x, plug_in_bar_y, 0]) {
+      linear_extrude(plug_pin_bar_tab_w)
+        square([key_hole_pin_bar_w, key_hole_pin_bar_h], anchor=BOTTOM + LEFT);
     }
 
     // Pin clamps
@@ -187,6 +195,47 @@ module plug(pin_n = 4) {
       // round to match plug
       linear_extrude(height=plug_l)
         circle(d=plug_d, anchor=CENTER);
+    }
+  }
+}
+
+pin_bar_base_w = 8;
+pin_bar_base_h = 3;
+pin_bar_extra_depth = 4;
+
+module pin_bar_poly() {
+  top_bar_w = key_hole_pin_bar_w + pin_bar_extra_depth;
+
+  union() {
+    square([top_bar_w, key_hole_pin_bar_h], anchor=CENTER + LEFT);
+
+    translate([-pin_bar_base_h, 0, 0]) {
+      square([pin_bar_base_h, pin_bar_base_w], anchor=CENTER + LEFT);
+    }
+  }
+}
+
+module plug_pin_bar_slot() {
+  tab_z = plug_pin_bar_tab_w;
+  bar_l = plug_l - plug_pin_bar_tab_w + 0.1;
+
+  // Pin bar
+  translate([plug_pin_bar_x - pin_bar_extra_depth, plug_in_bar_y + key_hole_pin_bar_h / 2, tab_z]) {
+    linear_extrude(bar_l) {
+      offset(delta=CLEARANCE)
+        pin_bar_poly();
+    }
+  }
+}
+
+module plug_pin_bar() {
+  tab_z = plug_pin_bar_tab_w + CLEARANCE;
+  bar_l = plug_l - tab_z;
+
+  // Pin bar
+  translate([plug_pin_bar_x - pin_bar_extra_depth, plug_in_bar_y + key_hole_pin_bar_h / 2, tab_z]) {
+    linear_extrude(bar_l) {
+      pin_bar_poly();
     }
   }
 }
@@ -413,9 +462,6 @@ module key(code = [false, true, true, false]) {
 
 /*
 TODO:
-x two more slots in the back of the pins, opposite the hooks, to accept a clip at the tip of the pins to hold from falling out the pin holes.
-- make the pin tray an insert through the back of the plug. this will lock the pins in after insert.
-x see if the bottom of the slug can be open, so pins can be inserted from there
 - add a 5th driver pin/slot to act as a "retainer pin".
 	- this should have a printed spring to keep it pressed down.
 	- add a hole in the back of the shell to access this pin with a tool, to pull it up and allow the plug to be removed
@@ -430,8 +476,8 @@ key_code = [true, false, true, false];
 pin_n = len(key_code);
 
 color("gold") plug(pin_n=pin_n);
-//color("green") lock_shell(pin_n=pin_n);
-//color("blue") driver_pins(pin_n=pin_n);
+color("orange") plug_pin_bar();
+color("green") lock_shell(pin_n=pin_n);
+color("blue") driver_pins(pin_n=pin_n);
 color("red") key_pins(code=key_code);
-//down(25)
-//  color("gray") key(code=key_code);
+color("gray") key(code=key_code);
