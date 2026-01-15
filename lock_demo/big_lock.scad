@@ -102,41 +102,46 @@ module clamp_poly(side, thickness = 3) {
   edge = octagon_edge(side);
 
   union() {
+    // Arm
     polygon(
       [
-        [0, -(d / 2)],
-        [0, -(d / 2 + thickness)],
-        [d / 2 - edge / 2, -(edge / 2 + thickness)],
-        [d / 2 - edge / 2, -edge / 2],
+        [0, (d / 2)],
+        [0, (d / 2 + thickness)],
+        [d / 2 - edge / 2, (edge / 2 + thickness)],
+        [d / 2 - edge / 2, edge / 2],
       ]
     );
-    on_octagon_edge(s=side, edge_n=3)
-      right_triangle([leg, leg], spin=135, anchor="hypot");
-  }
+    // Hook
+    octagon_triangle(s=side, edge_n=1, spin=-90);
 
-  //difference() {
-  //  // Draw a diamond shape
-  //  rotate([0, 0, 45])
-  //    square(s, anchor=CENTER);
-  //  // Cut out the pin hole again.
-  //  pin_hole_poly(side);
-  //  // cut off the top, for viewing
-  //  square([d, d / 2], anchor=TOP);
-  //}
+    // Close the open triangle below the arm
+    octagon_triangle(s=side, edge_n=8);
+  }
 }
 
-// Re-add clamps about the bottom half of the pin holes
+// Re-add clamps around the bottom (as printed) half of the pin holes
 // To hold the pins in place, while still showing half the pin.
-module pin_clamps(bottom = 0, top = 0, thickness = 3, pin_n = 4, reverse = false) {
-  s = pin_s + 3;
-  d = diag(s, s);
+module pin_clamps(bottom = 0, top = 0, thickness = 3, pin_n = 4, reverse = false, stoppers = false) {
+  h = top - bottom;
 
   module pin_clamp() {
-    translate([0, bottom, 0])
+    translate([0, bottom, 0]) {
       mirror_if([0, 0, 1], condition=reverse)
-        rotate([-90, 0, 0])
-          linear_extrude(height=top - bottom)
-            clamp_poly(side=pin_s, thickness=3);
+        union() {
+          // Clamp
+          rotate([-90, 0, 0])
+            linear_extrude(height=h)
+              clamp_poly(side=pin_s, thickness=3);
+
+          // Stopper
+          if (stoppers) {
+            translate([0, h - thickness, 0])
+              rotate([-90, 0, 0])
+                linear_extrude(height=thickness)
+                  octagon_triangle(s=pin_s, edge_n=6);
+          }
+        }
+    }
   }
 
   for_pins(pin_n) {
@@ -156,8 +161,8 @@ module plug(pin_n = 4) {
       up(cutout_vertical_padding)
         linear_extrude(height=plug_l - cutout_vertical_padding + 0.1)
           union() {
-            fwd(shell_d / 2 - 10)
-              square([plug_d / 2, plug_d - 10 + shell_wall + 0.1], anchor=LEFT + BOTTOM);
+            fwd(plug_d / 2)
+              square([plug_d / 2, plug_d + 0.1], anchor=LEFT + BOTTOM);
           }
 
       // Keyhole
@@ -172,11 +177,13 @@ module plug(pin_n = 4) {
                 square([key_hole_pin_bar_w, key_hole_pin_bar_h], anchor=BOTTOM + LEFT);
             }
 
-      pin_holes(bottom=-plug_d / 2 + key_hole_bottom + key_hole_pin_bar_bottom + key_hole_pin_bar_h + 0.1, top=plug_d / 2, pin_n=pin_n);
+      pin_holes(bottom=-plug_d / 2, top=plug_d / 2, pin_n=pin_n);
     }
 
+    // Pin clamps
     intersection() {
-      pin_clamps(bottom=key_hole_bottom, top=plug_d / 2);
+      pin_clamps(bottom=key_hole_bottom, top=plug_d / 2, pin_n=pin_n, stoppers=true);
+
       // round to match plug
       linear_extrude(height=plug_l)
         circle(d=plug_d, anchor=CENTER);
@@ -233,11 +240,29 @@ module on_octagon_edge(s, edge_n = 0) {
 
 // Render a triangle polygon on edge_n of an octagon of square side s
 // edge_n is 0-7. 0 is the top edge (y+), then clockwise.
-module octagon_triangle(s, edge_n = 0, spin = 0) {
+module octagon_triangle(s, edge_n = 0, spin = 0, r_off = 0, l_off = 0, t_off = 0) {
   leg = octagon_leg(s);
+  edge = octagon_edge(s);
 
   on_octagon_edge(s=s, edge_n=edge_n)
-    right_triangle([leg, leg], spin=45 + spin, anchor="hypot");
+    rotate([0, 0, spin])
+      difference() {
+        right_triangle([leg, leg], spin=45, anchor="hypot");
+
+        if (l_off > 0) {
+          translate([edge / 2 - l_off, 0, 0])
+            square([l_off, edge / 2], anchor=TOP + LEFT);
+        }
+
+        if (r_off > 0) {
+          translate([edge / 2 - r_off, 0, 0])
+            square([r_off, edge / 2], anchor=TOP + RIGHT);
+        }
+
+        if (t_off > 0) {
+          square([edge, t_off], anchor=TOP + CENTER);
+        }
+      }
 }
 
 module pin_cross_section(s) {
@@ -254,61 +279,81 @@ module pin_cross_section(s) {
 }
 
 // A pin
-module pin(h, w, tip_w, spine = true, hook_top = false) {
-  chamfer_h = (w - tip_w) / 2;
-  chamfer_scale = tip_w / w;
+module pin(height, width, tip_w, stopper = false, reverse_stopper = false) {
+  w = width - CLEARANCE * 2;
+  h = height - CLEARANCE * 2;
+  tw = tip_w - CLEARANCE * 2;
+
+  chamfer_h = (w - tw) / 2;
+  chamfer_scale = tw / w;
 
   edge = octagon_edge(w);
   leg = octagon_leg(w);
 
   middle_h = h - chamfer_h * 2;
 
-  scale = (tip_w - CLEARANCE * 2) / (w - CLEARANCE * 2);
+  scale_bottom = tw / w;
+  scale_top = 1 / scale_bottom;
 
   rotate([0, 0, 45])
-    union() {
-      // bottom bevel
-      translate([0, 0, h - chamfer_h])
-        linear_extrude(height=chamfer_h + 0.01, scale=scale)
-          offset(delta=-CLEARANCE)
+    difference() {
+      union() {
+        // bottom bevel
+        translate([0, 0, h - chamfer_h])
+          linear_extrude(height=chamfer_h, scale=scale_bottom)
+            difference() {
+              regular_ngon(n=8, id=w, realign=true);
+            }
+
+        // middle
+        translate([0, 0, chamfer_h])
+          linear_extrude(height=middle_h)
             regular_ngon(n=8, id=w, realign=true);
 
-      // middle
-      translate([0, 0, chamfer_h])
-        linear_extrude(height=middle_h)
-          offset(delta=-CLEARANCE)
-            pin_cross_section(s=w);
+        // top bevel
+        linear_extrude(height=chamfer_h, scale=scale_top)
+          regular_ngon(n=8, id=tw, realign=true);
 
-      // top bevel
-      linear_extrude(height=chamfer_h + 0.01, scale=1 / scale)
-        offset(delta=-CLEARANCE)
-          difference() {
-            regular_ngon(n=8, id=tip_w, realign=true);
-            on_octagon_edge(s=s, edge_n=7)
-              right_triangle([leg, leg], spin=135, anchor="hypot");
-          }
+        // stopper
+        if (stopper) {
+          translate([0, 0, reverse_stopper ? chamfer_h : chamfer_h + middle_h - 3])
+            linear_extrude(height=3)
+              octagon_triangle(s=w, edge_n=7);
+        }
+      }
+
+      // Cut out for hook
+      linear_extrude(height=h)
+        mirror_if([1, 1, 0], copy=true)
+          offset(delta=CLEARANCE)
+            octagon_triangle(s=width, edge_n=4, spin=45 * 2);
     }
 }
 
 // Driver pins (in the shell)
 module driver_pins(pin_n = 4) {
   for_pins(pin_n) {
-    back(shell_inner_d / 2 + 0.2)
-      rotate([-90, 0, 0])
-        pin(h=driver_pin_l, w=pin_s, tip_w=pin_s / 3);
+    back(shell_inner_d / 2 + 0.2) {
+      rotate([-90, 0, 0]) {
+        pin(height=driver_pin_l, width=pin_s, tip_w=pin_s / 3);
+      }
+    }
   }
 }
 
 // Key pins (in the plug)
 module key_pins(code = [false, true, true, false]) {
-  for (i = [1:4]) {
-    up((plug_l / 5) * i)
-      back(plug_d / 2)
-        rotate([90, 0, 0])
-        // determine the pin travel.
-        let (travel = code[i - 1] ? sm_pin_travel_l : lg_pin_travel_l) {
-          pin(h=travel + key_pin_hole_l + sm_pin_travel_l, w=pin_s - 0.4, tip_w=pin_s / 2);
+  for (i = [1:len(code)]) {
+    up((plug_l / 5) * i) {
+      back(plug_d / 2) {
+        rotate([90, 0, 0]) {
+          // determine the pin travel.
+          let (travel = code[i - 1] ? sm_pin_travel_l : lg_pin_travel_l) {
+            pin(height=travel + key_pin_hole_l + sm_pin_travel_l, width=pin_s, tip_w=pin_s / 2, stopper=true);
+          }
         }
+      }
+    }
   }
 }
 
@@ -368,30 +413,25 @@ module key(code = [false, true, true, false]) {
 
 /*
 TODO:
-- [x] square off the tops to the fins to be hexagons, to hold the pins in and be better shear lines
-- [x] cut a square channel behind each pin slot. this will help hold the pin in place, and stop them from falling
-	- [x] widen chamber to fit slots
-- [x] add a small square to the spine of the key pins, to fit in the slot. the spine should get extra tall at the bottom, so it can be held in place
-- somehow lock with the spine so that the pins don't slip out the front
-- add a hole and square to the plug, such that when inserted it locks the key pins from falling out. this hole should not go all the way through the plug so it is not visible from the front
+x two more slots in the back of the pins, opposite the hooks, to accept a clip at the tip of the pins to hold from falling out the pin holes.
+- make the pin tray an insert through the back of the plug. this will lock the pins in after insert.
+x see if the bottom of the slug can be open, so pins can be inserted from there
 - add a 5th driver pin/slot to act as a "retainer pin".
 	- this should have a printed spring to keep it pressed down.
-	- add a hole in the bottom of the shell to access this pin with a tool, to pull it up and allow the plug to be removed
-	- the shell and plug should otherwise be fully enclosed around the retainer pin.
-	- add a cutout in the plug to allow this pin to hold it in place. this should only extend 45 degrees, so it stop over-rotation forwards, or any rotation backwards.
+	- add a hole in the back of the shell to access this pin with a tool, to pull it up and allow the plug to be removed
+	- the shell and plug should enclose the front of the pin slot
+	- add a cutout in the plug to allow this pin to hold it in place. this should only extend 40 degrees, so it stop over-rotation forwards, or any rotation backwards.
 - make the travel a little more dramatic
-- also square off the bottoms of the pin holes to be hexagons. This will require some math.
 - attempt to simplify the params by deriving from the plug instead of the key.
+- make a small turning box that is opened when the lock is turned.
 */
 
 key_code = [true, false, true, false];
 pin_n = len(key_code);
 
-//color("yellow") plug(pin_n=pin_n);
-color("green") lock_shell(pin_n=pin_n);
-color("blue") driver_pins(pin_n=pin_n);
-//color("red") key_pins(code=key_code);
+color("gold") plug(pin_n=pin_n);
+//color("green") lock_shell(pin_n=pin_n);
+//color("blue") driver_pins(pin_n=pin_n);
+color("red") key_pins(code=key_code);
 //down(25)
 //  color("gray") key(code=key_code);
-
-//pin_hole_poly(pin_s);
