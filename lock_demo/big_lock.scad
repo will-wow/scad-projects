@@ -3,48 +3,53 @@ include <BOSL2/std.scad>;
 $fa = $preview ? 1 : .1;
 $fs = $preview ? 2 : .1;
 
+CLEARANCE = 0.2;
+
+show_on_key = true;
+
 plug_l = 100;
 plug_d = 50;
 
 key_w = 10;
-key_h = plug_d / 2 - 0.8;
+key_h = plug_d / 2 + 4;
 key_l = plug_l - 2;
-key_pin_bar_h = 4;
-key_pin_bar_bottom = plug_d / 4;
 
+// side-to-side width of a pin
 pin_s = 10;
-
 pin_d = diag(pin_s, pin_s); // diagonal of pin square
+pin_chamfer_h = 2;
 
-key_hole_w = key_w + 0.4;
-key_hole_h = key_h + 0.8;
-key_hole_bottom = 2;
-key_hole_pin_bar_h = 3;
-key_hole_pin_bar_w = key_hole_pin_bar_h + 1.8;
-key_hole_pin_bar_bottom = plug_d / 4;
+sm_pin_travel_l = pin_chamfer_h * 2;
+lg_pin_travel_l = sm_pin_travel_l * 2;
+pin_travel_l = sm_pin_travel_l * 4;
+
+key_hole_bottom = 2; // Space from bottom of plug to bottom of key hole
+
+// Top of the pin bar, from the bottom of the plug.
+key_hole_pin_bar_top = key_hole_bottom + key_h - pin_travel_l;
+
+key_hole_w = key_w + CLEARANCE * 2;
+key_hole_h = key_h + CLEARANCE * 2;
+key_hole_pin_bar_thickness = 3;
+// The bin bar should take up half the pin width, minus clearance,
+// so the key can be the full width of the pin.
+key_hole_pin_bar_overhang = pin_s / 2 - CLEARANCE * 2;
+key_hole_pin_bar_bottom = key_hole_pin_bar_top - key_hole_pin_bar_thickness;
 
 cutout_vertical_padding = 4;
-
-key_hole_pin_bar_top = key_hole_pin_bar_bottom + key_hole_pin_bar_h;
+cutout_start_from_shell = 10;
 
 driver_pin_l = plug_d / 2;
-shell_inner_d = plug_d + 0.4;
-shell_wall = 2;
+shell_inner_d = plug_d + CLEARANCE * 2;
+shell_wall = 3;
 shell_d = shell_inner_d + shell_wall * 2;
-chamber_pin_container_w = pin_s + 14; // TODO: tune
-
-pin_travel_l = key_h - key_hole_pin_bar_top;
-sm_pin_travel_l = pin_travel_l / 4;
-lg_pin_travel_l = pin_travel_l / 4 * 2;
+chamber_pin_container_w = pin_s + 14;
 
 plug_pin_bar_x = -key_hole_w / 2;
-plug_in_bar_y = -(plug_d / 2 - key_hole_bottom) + key_hole_pin_bar_bottom;
+plug_pin_bar_y = -plug_d / 2 + key_hole_pin_bar_bottom;
 plug_pin_bar_tab_w = 3;
 
-driver_pin_hole_l = driver_pin_l + pin_travel_l + 0.4;
-key_pin_hole_l = plug_d - key_h - key_hole_bottom;
-
-CLEARANCE = 0.2;
+driver_pin_hole_l = driver_pin_l + pin_travel_l;
 
 // The diagonal length of a right triangle given two sides
 function diag(a, b) = sqrt(a * a + b * b);
@@ -158,6 +163,8 @@ module pin_clamps(bottom = 0, top = 0, thickness = 3, pin_n = 4, reverse = false
 
 // The plug of the lock (the part the key goes into).
 module Plug(pin_n = 4) {
+  cutout_start = cutout_start_from_shell - shell_wall - CLEARANCE;
+
   union() {
     difference() {
       // Plug barrel
@@ -168,8 +175,8 @@ module Plug(pin_n = 4) {
       up(cutout_vertical_padding)
         linear_extrude(height=plug_l - cutout_vertical_padding + 0.1)
           union() {
-            fwd(plug_d / 2)
-              square([plug_d / 2, plug_d + 0.1], anchor=LEFT + BOTTOM);
+            fwd(plug_d / 2 - cutout_start)
+              square([plug_d / 2, plug_d - cutout_start], anchor=LEFT + BOTTOM);
           }
 
       // Keyhole
@@ -179,21 +186,21 @@ module Plug(pin_n = 4) {
             // key hole cutout
             square([key_hole_w, key_hole_h], anchor=BOTTOM);
 
-      // Pin hones
+      // Pin holes
       pin_holes(bottom=-plug_d / 2, top=plug_d / 2, pin_n=pin_n);
 
       // Pin bar slot
       plug_pin_bar_slot();
     }
 
-    translate([plug_pin_bar_x, plug_in_bar_y, 0]) {
+    translate([plug_pin_bar_x, plug_pin_bar_y, 0]) {
       linear_extrude(plug_pin_bar_tab_w)
-        square([key_hole_pin_bar_w, key_hole_pin_bar_h], anchor=BOTTOM + LEFT);
+        square([key_hole_pin_bar_overhang, key_hole_pin_bar_thickness], anchor=BOTTOM + LEFT);
     }
 
     // Pin clamps
     intersection() {
-      pin_clamps(bottom=key_hole_bottom, top=plug_d / 2, pin_n=pin_n, stoppers=true);
+      pin_clamps(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2, pin_n=pin_n, stoppers=true);
 
       // round to match plug
       linear_extrude(height=plug_l)
@@ -207,10 +214,10 @@ pin_bar_base_h = 3;
 pin_bar_extra_depth = 4;
 
 module pin_bar_poly() {
-  top_bar_w = key_hole_pin_bar_w + pin_bar_extra_depth;
+  top_bar_w = key_hole_pin_bar_overhang + pin_bar_extra_depth;
 
   union() {
-    square([top_bar_w, key_hole_pin_bar_h], anchor=CENTER + LEFT);
+    square([top_bar_w, key_hole_pin_bar_thickness], anchor=CENTER + LEFT);
 
     translate([-pin_bar_base_h, 0, 0]) {
       square([pin_bar_base_h, pin_bar_base_w], anchor=CENTER + LEFT);
@@ -223,7 +230,7 @@ module plug_pin_bar_slot() {
   bar_l = plug_l - plug_pin_bar_tab_w + 0.1;
 
   // Pin bar
-  translate([plug_pin_bar_x - pin_bar_extra_depth, plug_in_bar_y + key_hole_pin_bar_h / 2, tab_z]) {
+  translate([plug_pin_bar_x - pin_bar_extra_depth, plug_pin_bar_y + key_hole_pin_bar_thickness / 2, tab_z]) {
     linear_extrude(bar_l) {
       offset(delta=CLEARANCE)
         pin_bar_poly();
@@ -236,7 +243,7 @@ module PlugPinBar() {
   bar_l = plug_l - tab_z;
 
   // Pin bar
-  translate([plug_pin_bar_x - pin_bar_extra_depth, plug_in_bar_y + key_hole_pin_bar_h / 2, tab_z]) {
+  translate([plug_pin_bar_x - pin_bar_extra_depth, plug_pin_bar_y + key_hole_pin_bar_thickness / 2, tab_z]) {
     linear_extrude(bar_l) {
       pin_bar_poly();
     }
@@ -245,7 +252,7 @@ module PlugPinBar() {
 
 // The shell of the lock
 // (the outer casing that holds the driver pins).
-module LockShell(pin_n = 4) {
+module Shell(pin_n = 4) {
   union() {
     difference() {
       // Shell body
@@ -272,8 +279,8 @@ module LockShell(pin_n = 4) {
       // Viewing cutout
       down(0.1)
         linear_extrude(height=plug_l - cutout_vertical_padding + 0.1) {
-          fwd(shell_d / 2 - 10)
-            square([shell_d / 2, shell_d - 10 - shell_wall + driver_pin_hole_l], anchor=LEFT + BOTTOM);
+          fwd(shell_d / 2 - cutout_start_from_shell)
+            square([shell_d / 2, shell_d - cutout_start_from_shell - shell_wall + driver_pin_hole_l], anchor=LEFT + BOTTOM);
         }
     }
 
@@ -331,12 +338,12 @@ module pin_cross_section(s) {
 }
 
 // A pin
-module pin(height, width, tip_w, stopper = false, reverse_stopper = false) {
+module pin(height, width, chamfer_h = pin_chamfer_h, stopper = false, reverse_stopper = false) {
   w = width - CLEARANCE * 2;
   h = height - CLEARANCE * 2;
-  tw = tip_w - CLEARANCE * 2;
+  // Top width is width minus a 45 chamfer on each side
+  tw = w - chamfer_h * 2;
 
-  chamfer_h = (w - tw) / 2;
   chamfer_scale = tw / w;
 
   edge = octagon_edge(w);
@@ -383,11 +390,17 @@ module pin(height, width, tip_w, stopper = false, reverse_stopper = false) {
 }
 
 // Driver pins (in the shell)
-module DriverPins(pin_n = 4) {
-  for_pins(pin_n) {
-    back(shell_inner_d / 2 + 0.2) {
-      rotate([-90, 0, 0]) {
-        pin(height=driver_pin_l, width=pin_s, tip_w=pin_s / 3);
+module DriverPins(code = [false, true, true, false]) {
+  for (i = [1:len(code)]) {
+    let (
+      travel = code[i - 1] ? lg_pin_travel_l : sm_pin_travel_l,
+    ) {
+      up((plug_l / 5) * i) {
+        back((shell_inner_d / 2 + 0.2) - (show_on_key ? 0 : travel)) {
+          rotate([-90, 0, 0]) {
+            pin(height=driver_pin_l, width=pin_s, chamfer_h=pin_chamfer_h);
+          }
+        }
       }
     }
   }
@@ -395,13 +408,17 @@ module DriverPins(pin_n = 4) {
 
 // Key pins (in the plug)
 module KeyPins(code = [false, true, true, false]) {
+  pin_above_key_l = plug_d - key_h - key_hole_bottom;
+
   for (i = [1:len(code)]) {
-    up((plug_l / 5) * i) {
-      back(plug_d / 2) {
-        rotate([90, 0, 0]) {
-          // determine the pin travel.
-          let (travel = code[i - 1] ? sm_pin_travel_l : lg_pin_travel_l) {
-            pin(height=travel + key_pin_hole_l + sm_pin_travel_l, width=pin_s, tip_w=pin_s / 2, stopper=true);
+    let (
+      travel = code[i - 1] ? lg_pin_travel_l : sm_pin_travel_l,
+    ) {
+      up((plug_l / 5) * i) {
+        back((plug_d / 2) - (show_on_key ? 0 : travel)) {
+          rotate([90, 0, 0]) {
+            // Pins are (the space from top of the key to the top of the slug) + (the full padded pin travel) - the actual travel expected from the key.
+            pin(height=pin_above_key_l + pin_travel_l - travel, width=pin_s, chamfer_h=pin_chamfer_h, stopper=true);
           }
         }
       }
@@ -410,57 +427,75 @@ module KeyPins(code = [false, true, true, false]) {
 }
 
 // Points for the key's pin cuts
-function pts(lengths = [false, true, true, false], i = 0) =
-  i == len(lengths) ? []
+function pts(code = [false, true, true, false], i = 0) =
+  i == len(code) ? []
   : let (
-    travel = lengths[i] ? lg_pin_travel_l : sm_pin_travel_l,
-    center = plug_l / (len(lengths) + 1) * (i + 1)
+    travel = code[i] ? lg_pin_travel_l : sm_pin_travel_l,
+    center = plug_l / (len(code) + 1) * (i + 1)
   ) concat(
     [
       [center - pin_s / 2 - 3.5, travel + sm_pin_travel_l],
-      [center - pin_s / 2 + 1, travel - 0.1],
-      [center + pin_s / 2 - 1, travel - 0.1],
+      [center - pin_s / 2 + 1, travel],
+      [center + pin_s / 2 - 1, travel],
       [center + pin_s / 2 + 3.5, travel + sm_pin_travel_l],
     ],
-    pts(lengths, i + 1)
+    pts(code, i + 1)
   );
 
 // The key
 module Key(code = [false, true, true, false]) {
-  translate([key_w / 2 + 0.1, -0.1, 0])
-    rotate([0, -90, 0])
+  // The section of the key over the bar + clearance above and below.
+  key_bar_h = key_hole_pin_bar_thickness + CLEARANCE * 2;
+  key_ridges_h = pin_travel_l + CLEARANCE;
+  // The keyway is the remainder of the key, after the pin travel and the pin bar w/ clearance.
+  keyway_h = key_h - key_ridges_h - key_bar_h;
+
+  key_ridges_width = key_w - key_hole_pin_bar_overhang - CLEARANCE * 2;
+
+  translate(
+    [
+      key_w / 2 + CLEARANCE / 2,
+      // Move to the bottom of the key_hole + CLEARANCE
+      -plug_d / 2 + key_hole_bottom + CLEARANCE,
+      0,
+    ]
+  ) {
+    rotate([0, -90, 0]) {
       union() {
         linear_extrude(height=key_w)
           union() {
             // keyway
-            fwd(plug_d / 2 - key_hole_bottom - 0.8)
-              square([key_l, key_h - key_hole_pin_bar_bottom], anchor=BOTTOM + LEFT);
+            square([key_l, keyway_h], anchor=BOTTOM + LEFT);
             // key handle
-            fwd(key_h / 2)
-              square(size=key_h * 1.5, anchor=CENTER + RIGHT);
+            fwd(key_h / 4)
+              square(size=key_h * 1.5, anchor=BOTTOM + RIGHT);
           }
-        linear_extrude(height=key_w - key_hole_pin_bar_h - 1.8)
-          fwd(plug_d / 2 - key_hole_bottom - key_hole_pin_bar_bottom)
+        // Key edges
+        linear_extrude(height=key_ridges_width) {
+          back(keyway_h) {
             union() {
-              square([key_l, key_hole_pin_bar_h], anchor=BOTTOM + LEFT);
+              square([key_l, key_bar_h], anchor=BOTTOM + LEFT);
 
-              let (
-                points = concat(
-                  [
-                    [0, 0],
-                    [0, pin_travel_l],
-                  ],
-                  pts(code),
-                  [
-                    [key_l, 0],
-                  ]
-                )
-              ) {
-                back(key_hole_pin_bar_h)
-                  polygon(points=points);
-              }
+              back(key_bar_h)
+                // The height of these points is pin_travel_l
+                polygon(
+                  points=concat(
+                    [
+                      [0, 0],
+                      [0, key_ridges_h],
+                    ],
+                    pts(code),
+                    [
+                      [key_l, 0],
+                    ]
+                  )
+                );
             }
+          }
+        }
       }
+    }
+  }
 }
 
 /*
@@ -470,8 +505,6 @@ TODO:
 	- add a hole in the back of the shell to access this pin with a tool, to pull it up and allow the plug to be removed
 	- the shell and plug should enclose the front of the pin slot
 	- add a cutout in the plug to allow this pin to hold it in place. this should only extend 40 degrees, so it stop over-rotation forwards, or any rotation backwards.
-- make the travel a little more dramatic
-- attempt to simplify the params by deriving from the plug instead of the key.
 - make a small turning box that is opened when the lock is turned.
 */
 
@@ -480,7 +513,9 @@ pin_n = len(key_code);
 
 color("gold") Plug(pin_n=pin_n);
 color("orange") PlugPinBar();
-color("green") LockShell(pin_n=pin_n);
-color("blue") DriverPins(pin_n=pin_n);
+color("green") Shell(pin_n=pin_n);
+color("blue") DriverPins(code=key_code);
 color("red") KeyPins(code=key_code);
-color("gray") Key(code=key_code);
+if (show_on_key) {
+  color("gray") Key(code=key_code);
+}
