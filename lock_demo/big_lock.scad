@@ -4,50 +4,66 @@ $fa = $preview ? 1 : .1;
 $fs = $preview ? 2 : .1;
 
 CLEARANCE = 0.2;
+SOLID_WALL = 3;
+
+/* Inputs */
 
 show_on_key = true;
+key_code = [true, false, true, false];
 
-plug_l = 100;
+pin_s = 10; // side-to-side width of a pin
+pin_chamfer_h = 2;
+
 plug_d = 50;
 
-key_w = 10;
+key_hole_bottom = 2; // Space from bottom of plug to bottom of key hole
+
+cutout_vertical_padding = 4;
+cutout_start_from_shell = 10;
+
+/* Derived */
+
+// Pin count (from key code)
+pin_n = len(key_code);
+
+plug_l = (pin_n + 2) * pin_s * 2;
+plug_l = 100;
+
+key_w = pin_s;
 key_h = plug_d / 2 + 4;
 key_l = plug_l - 2;
-
-// side-to-side width of a pin
-pin_s = 10;
-pin_d = diag(pin_s, pin_s); // diagonal of pin square
-pin_chamfer_h = 2;
 
 sm_pin_travel_l = pin_chamfer_h * 2;
 lg_pin_travel_l = sm_pin_travel_l * 2;
 pin_travel_l = sm_pin_travel_l * 4;
-
-key_hole_bottom = 2; // Space from bottom of plug to bottom of key hole
 
 // Top of the pin bar, from the bottom of the plug.
 key_hole_pin_bar_top = key_hole_bottom + key_h - pin_travel_l;
 
 key_hole_w = key_w + CLEARANCE * 2;
 key_hole_h = key_h + CLEARANCE * 2;
-key_hole_pin_bar_thickness = 3;
+key_hole_pin_bar_thickness = SOLID_WALL;
 // The bin bar should take up half the pin width, minus clearance,
 // so the key can be the full width of the pin.
 key_hole_pin_bar_overhang = pin_s / 2 - CLEARANCE * 2;
 key_hole_pin_bar_bottom = key_hole_pin_bar_top - key_hole_pin_bar_thickness;
 
-cutout_vertical_padding = 4;
-cutout_start_from_shell = 10;
+pin_bar_base_h = SOLID_WALL;
+// The wide part should have the small part in the middle, plus the same on each side.
+pin_bar_base_w = SOLID_WALL * 3;
+pin_bar_extra_depth = SOLID_WALL;
 
 driver_pin_l = plug_d / 2;
 shell_inner_d = plug_d + CLEARANCE * 2;
-shell_wall = 3;
+shell_wall = SOLID_WALL;
 shell_d = shell_inner_d + shell_wall * 2;
-chamber_pin_container_w = pin_s + 14;
+
+pin_d = diag(pin_s, pin_s);
+chamber_pin_container_w = pin_d + CLEARANCE * 2 + SOLID_WALL * 2;
 
 plug_pin_bar_x = -key_hole_w / 2;
 plug_pin_bar_y = -plug_d / 2 + key_hole_pin_bar_bottom;
-plug_pin_bar_tab_w = 3;
+plug_pin_bar_tab_w = cutout_vertical_padding;
 
 driver_pin_hole_l = driver_pin_l + pin_travel_l;
 
@@ -208,10 +224,6 @@ module Plug(pin_n = 4) {
     }
   }
 }
-
-pin_bar_base_w = 8;
-pin_bar_base_h = 3;
-pin_bar_extra_depth = 4;
 
 module pin_bar_poly() {
   top_bar_w = key_hole_pin_bar_overhang + pin_bar_extra_depth;
@@ -507,9 +519,6 @@ TODO:
 	- add a cutout in the plug to allow this pin to hold it in place. this should only extend 40 degrees, so it stop over-rotation forwards, or any rotation backwards.
 - make a small turning box that is opened when the lock is turned.
 */
-
-key_code = [true, false, true, false];
-pin_n = len(key_code);
 
 color("gold") Plug(pin_n=pin_n);
 color("orange") PlugPinBar();
