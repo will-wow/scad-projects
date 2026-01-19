@@ -26,12 +26,13 @@ cutout_start_from_shell = 10;
 // Pin count (from key code)
 pin_n = len(key_code);
 
-plug_l = (pin_n + 2) * pin_s * 2;
-plug_l = 100;
+pin_space = pin_s + CLEARANCE * 2 + pin_s;
+
+plug_l = pin_space * (pin_n + 2);
 
 key_w = pin_s;
 key_h = plug_d / 2 + 4;
-key_l = plug_l - 2;
+key_l = pin_space * (pin_n + 0.5);
 
 sm_pin_travel_l = pin_chamfer_h * 2;
 lg_pin_travel_l = sm_pin_travel_l * 2;
@@ -89,9 +90,9 @@ module mirror_if(v = [0, 0, 0], copy = false, condition = true) {
   }
 }
 
-module for_pins(n = 4) {
-  for (i = [1:n]) {
-    up((plug_l / (n + 1)) * i)
+module for_pins(n = 4, start = 1) {
+  for (i = [start:n]) {
+    up(pin_space * i)
       children();
   }
 }
@@ -112,14 +113,12 @@ module pin_hole_poly(side) {
   }
 }
 
-module pin_holes(bottom = 0, top = 0, pin_n = 4, reverse = false) {
-  for_pins(pin_n) {
-    translate([0, bottom - 0.1, 0])
-      mirror_if([0, 0, 1], condition=reverse)
-        rotate([-90, 0, 0])
-          linear_extrude(height=top - bottom + 0.1)
-            pin_hole_poly(pin_s);
-  }
+module pin_hole(bottom = 0, top = 0, reverse = false) {
+  translate([0, bottom - 0.1, 0])
+    mirror_if([0, 0, 1], condition=reverse)
+      rotate([-90, 0, 0])
+        linear_extrude(height=top - bottom + 0.1)
+          pin_hole_poly(pin_s);
 }
 
 // Polygon for octagonal pin clamps with a viewing hole
@@ -147,33 +146,43 @@ module clamp_poly(side, thickness = 3) {
   }
 }
 
-// Re-add clamps around the bottom (as printed) half of the pin holes
-// To hold the pins in place, while still showing half the pin.
-module pin_clamps(bottom = 0, top = 0, thickness = 3, pin_n = 4, reverse = false, stoppers = false) {
+// Re-add a clamp around the bottom (as printed) half of the pin hole,
+// to hold the pins in place while still showing half the pin.
+module pin_clamp(bottom = 0, top = 0, thickness = 3, reverse = false, stoppers = false) {
   h = top - bottom;
 
-  module pin_clamp() {
-    translate([0, bottom, 0]) {
-      mirror_if([0, 0, 1], condition=reverse)
-        union() {
-          // Clamp
-          rotate([-90, 0, 0])
-            linear_extrude(height=h)
-              clamp_poly(side=pin_s, thickness=3);
+  translate([0, bottom, 0]) {
+    mirror_if([0, 0, 1], condition=reverse)
+      union() {
+        // Clamp
+        rotate([-90, 0, 0])
+          linear_extrude(height=h)
+            clamp_poly(side=pin_s, thickness=3);
 
-          // Stopper
-          if (stoppers) {
-            translate([0, h - thickness, 0])
-              rotate([-90, 0, 0])
-                linear_extrude(height=thickness)
-                  octagon_triangle(s=pin_s, edge_n=6);
-          }
+        // Stopper
+        if (stoppers) {
+          translate([0, h - thickness, 0])
+            rotate([-90, 0, 0])
+              linear_extrude(height=thickness)
+                octagon_triangle(s=pin_s, edge_n=6);
         }
-    }
+      }
   }
+}
 
-  for_pins(pin_n) {
-    pin_clamp();
+// Re-add a clamp around the bottom (as printed) half of the pin hole,
+// to hold the pins in place while still showing half the pin.
+module pin_full_clamp(bottom = 0, top = 0, thickness = 3) {
+  h = top - bottom;
+
+  translate([0, bottom, 0]) {
+    // Clamp
+    rotate([-90, 0, 0])
+      linear_extrude(height=h)
+        difference() {
+          regular_ngon(n=8, id=pin_s + thickness, realign=true);
+          regular_ngon(n=8, id=pin_s, realign=true);
+        }
   }
 }
 
@@ -203,7 +212,15 @@ module Plug(pin_n = 4) {
             square([key_hole_w, key_hole_h], anchor=BOTTOM);
 
       // Pin holes
-      pin_holes(bottom=-plug_d / 2, top=plug_d / 2, pin_n=pin_n);
+      for_pins(pin_n) {
+        pin_hole(bottom=-plug_d / 2, top=plug_d / 2);
+      }
+
+      // Retaining pin hole
+      // only goes to the top of the key hole.
+      for_pins(pin_n + 1, start=pin_n) {
+        pin_hole(bottom=-plug_d / 2 + key_hole_bottom + key_hole_h + 3, top=plug_d / 2);
+      }
 
       // Pin bar slot
       plug_pin_bar_slot();
@@ -216,7 +233,15 @@ module Plug(pin_n = 4) {
 
     // Pin clamps
     intersection() {
-      pin_clamps(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2, pin_n=pin_n, stoppers=true);
+      union() {
+        for_pins(pin_n) {
+          pin_clamp(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2, stoppers=true);
+        }
+
+        //for_pins(pin_n + 1, start=pin_n + 1) {
+        //  pin_full_clamp(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2);
+        //}
+      }
 
       // round to match plug
       linear_extrude(height=plug_l)
@@ -286,7 +311,9 @@ module Shell(pin_n = 4) {
           circle(d=shell_inner_d, anchor=CENTER);
 
       // Pin holes
-      pin_holes(bottom=plug_d / 2 - 10, top=plug_d / 2 + driver_pin_hole_l, pin_n=pin_n, reverse=true);
+      for_pins(pin_n + 1) {
+        pin_hole(bottom=plug_d / 2 - 10, top=plug_d / 2 + driver_pin_hole_l, reverse=true);
+      }
 
       // Viewing cutout
       down(0.1)
@@ -296,7 +323,10 @@ module Shell(pin_n = 4) {
         }
     }
 
-    pin_clamps(bottom=shell_inner_d / 2, top=plug_d / 2 + driver_pin_hole_l, pin_n=pin_n, reverse=true);
+    // Pin clamps
+    for_pins(n=pin_n + 1) {
+      pin_clamp(bottom=shell_inner_d / 2, top=plug_d / 2 + driver_pin_hole_l, reverse=true);
+    }
   }
 }
 
@@ -407,7 +437,7 @@ module DriverPins(code = [false, true, true, false]) {
     let (
       travel = code[i - 1] ? lg_pin_travel_l : sm_pin_travel_l,
     ) {
-      up((plug_l / 5) * i) {
+      up(pin_space * i) {
         back((shell_inner_d / 2 + 0.2) - (show_on_key ? 0 : travel)) {
           rotate([-90, 0, 0]) {
             pin(height=driver_pin_l, width=pin_s, chamfer_h=pin_chamfer_h);
@@ -426,7 +456,7 @@ module KeyPins(code = [false, true, true, false]) {
     let (
       travel = code[i - 1] ? lg_pin_travel_l : sm_pin_travel_l,
     ) {
-      up((plug_l / 5) * i) {
+      up(pin_space * i) {
         back((plug_d / 2) - (show_on_key ? 0 : travel)) {
           rotate([90, 0, 0]) {
             // Pins are (the space from top of the key to the top of the slug) + (the full padded pin travel) - the actual travel expected from the key.
@@ -438,12 +468,12 @@ module KeyPins(code = [false, true, true, false]) {
   }
 }
 
-// Points for the key's pin cuts
-function pts(code = [false, true, true, false], i = 0) =
+// Points for the key's biting (notches and teeth)
+function bitingPoly(code = [false, true, true, false], i = 0) =
   i == len(code) ? []
   : let (
     travel = code[i] ? lg_pin_travel_l : sm_pin_travel_l,
-    center = plug_l / (len(code) + 1) * (i + 1)
+    center = pin_space * (i + 1)
   ) concat(
     [
       [center - pin_s / 2 - 3.5, travel + sm_pin_travel_l],
@@ -451,7 +481,7 @@ function pts(code = [false, true, true, false], i = 0) =
       [center + pin_s / 2 - 1, travel],
       [center + pin_s / 2 + 3.5, travel + sm_pin_travel_l],
     ],
-    pts(code, i + 1)
+    bitingPoly(code, i + 1)
   );
 
 // The key
@@ -475,28 +505,33 @@ module Key(code = [false, true, true, false]) {
     rotate([0, -90, 0]) {
       union() {
         linear_extrude(height=key_w)
-          union() {
-            // keyway
-            square([key_l, keyway_h], anchor=BOTTOM + LEFT);
-            // key handle
-            fwd(key_h / 4)
-              square(size=key_h * 1.5, anchor=BOTTOM + RIGHT);
+          difference() {
+            union() {
+              // keyway
+              square([key_l, keyway_h], anchor=BOTTOM + LEFT);
+              // key handle
+              fwd(key_h / 4)
+                square(size=key_h * 1.5, anchor=BOTTOM + RIGHT);
+            }
+            right(key_l) {
+              right_triangle([keyway_h - 1, keyway_h - 1], spin=90, anchor=BOTTOM + LEFT);
+            }
           }
-        // Key edges
+        // Over the pin bar.
         linear_extrude(height=key_ridges_width) {
           back(keyway_h) {
             union() {
               square([key_l, key_bar_h], anchor=BOTTOM + LEFT);
 
               back(key_bar_h)
-                // The height of these points is pin_travel_l
+                // The top height of the biting in the pin_travel_l.
                 polygon(
                   points=concat(
                     [
                       [0, 0],
                       [0, key_ridges_h],
                     ],
-                    pts(code),
+                    bitingPoly(code),
                     [
                       [key_l, 0],
                     ]
@@ -525,6 +560,5 @@ color("orange") PlugPinBar();
 color("green") Shell(pin_n=pin_n);
 color("blue") DriverPins(code=key_code);
 color("red") KeyPins(code=key_code);
-if (show_on_key) {
+up(show_on_key ? 0 : -plug_l)
   color("gray") Key(code=key_code);
-}
