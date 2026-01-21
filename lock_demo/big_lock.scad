@@ -598,11 +598,68 @@ module DriverPins(code = [false, true, true, false]) {
   }
 }
 
-module RetainingPin(pins_n = 4) {
-  up(pin_space * 5) {
-    back((shell_inner_d / 2) - pin_s / 2) {
-      rotate([-90, 0, 0]) {
-        pin(height=driver_pin_l, width=pin_s, chamfer_h=pin_chamfer_h);
+retaining_pin_y = (shell_inner_d / 2) - pin_s / 2;
+retaining_pin_z = pin_space * pin_n + 1;
+retaining_pin_l = driver_pin_l;
+retaining_spring_thickness = 1;
+retaining_spring_rotation = 90;
+
+module RetainingPin(pin_n = 4, chamfer_h = pin_chamfer_h) {
+  translate([0, retaining_pin_y, retaining_pin_z]) {
+    rotate([-90, 0, 0]) {
+      difference() {
+        pin(height=retaining_pin_l, width=pin_s, chamfer_h=chamfer_h);
+        up(SOLID_WALL) {
+          rotate([0, 0, retaining_spring_rotation]) {
+            linear_extrude(retaining_pin_l - SOLID_WALL) {
+              square([retaining_spring_thickness + CLEARANCE * 2, retaining_spring_thickness + CLEARANCE * 2], anchor=CENTER);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+module RetainingSpring(pin_n = 4) {
+  thickness = retaining_spring_thickness;
+  stick_depth = driver_pin_l;
+  edge = octagon_edge(pin_s);
+  inner_width = pin_s - CLEARANCE * 2 - edge;
+
+  translate([0, retaining_pin_y + driver_pin_l + SOLID_WALL, retaining_pin_z]) {
+    translate([0, thickness * 2, -thickness / 2]) {
+      rotate([0, retaining_spring_rotation, 0]) {
+        linear_extrude(thickness) {
+          union() {
+            for (i = [0:pin_n]) {
+              translate([0, (edge - thickness) * i, 0]) {
+                translate([(inner_width / 2) * (i % 2 ? 1 : -1), 0, 0]) {
+                  difference() {
+                    circle(d=edge);
+                    circle(d=edge - thickness * 2);
+                    left(i % 2 == 0 ? 0 : edge / 2) {
+                      square([edge / 2, edge], anchor=LEFT + CENTER);
+                    }
+                  }
+                }
+                back(edge / 2) {
+                  square([inner_width, thickness], anchor=CENTER + TOP);
+                }
+
+                if (i == 0) {
+                  ymove(-edge / 2) {
+                    square([inner_width / 2, thickness], anchor=RIGHT + BOTTOM);
+                  }
+
+                  ymove(-(edge / 2 - thickness)) {
+                    square([thickness, stick_depth], anchor=CENTER + TOP);
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -705,27 +762,13 @@ module Key(code = [false, true, true, false]) {
   }
 }
 
-module RetainerSpring() {
-  for (i = [0:3]) {
-    //circle(d)
-  }
-}
-
-/*
-TODO:
-- square off ends of retainer pin
-- retainer spring (boxes and circles)
-- have retainer spring have long rod that goes into the pin, so the spring can't fall out.
-- make a small turning box that is opened when the lock is turned.
-*/
-
 color("gold") Plug(pin_n=pin_n);
 color("yellow") Cap();
 color("orange") CapPin();
 color("orange") PlugPinBar();
-color("teal") RetainingPin(pins_n=pin_n);
+color("teal") RetainingPin(pin_n=pin_n, chamfer_h=0.4);
+color("aqua") RetainingSpring(pin_n=pin_n);
 color("green") Shell(pin_n=pin_n);
 color("blue") DriverPins(code=key_code);
 color("red") KeyPins(code=key_code);
-up(show_on_key ? 0 : -plug_l)
-  color("gray") Key(code=key_code);
+up(show_on_key ? 0 : -plug_l) color("gray") Key(code=key_code);
