@@ -8,7 +8,7 @@ SOLID_WALL = 3;
 
 /* Inputs */
 
-show_on_key = false;
+show_on_key = true;
 key_code = [true, false, true, false];
 
 pin_s = 10; // side-to-side width of a pin
@@ -34,9 +34,9 @@ plug_l = pin_space * (pin_n) + pin_s + CLEARANCE * 2 + pin_s / 2;
 
 key_w = pin_s;
 key_h = plug_d / 2 + 4;
-key_l = pin_space * (pin_n + 0.5) - CLEARANCE * 2;
+key_l = pin_space * (pin_n + 0.5) + pin_s / 2 - CLEARANCE * 3;
 
-cap_l = pin_s + CLEARANCE * 2 + compartment_l;
+cap_l = pin_s + CLEARANCE * 2 + SOLID_WALL + compartment_l;
 
 sm_pin_travel_l = pin_chamfer_h * 2;
 lg_pin_travel_l = sm_pin_travel_l * 2;
@@ -104,8 +104,8 @@ module for_pins(n = 4, start = 1) {
 
 // Polygon for octagonal pin holes
 // with a triangle on top for printing,
-// and on the back for stopping falling out
-module pin_hole_poly(side) {
+// and on the back for the stopper.
+module pin_hole_poly(side, stopper_slot = true) {
   leg = octagon_leg(side);
   edge = octagon_edge(side);
 
@@ -113,17 +113,24 @@ module pin_hole_poly(side) {
     regular_ngon(n=8, id=side, realign=true);
     // Triangle at the top of the octagon
     octagon_triangle(s=side, edge_n=4);
+
     // Triangle at the back of the octagon
-    octagon_triangle(s=side, edge_n=6);
+    if (stopper_slot) {
+      octagon_triangle(s=side, edge_n=6);
+    }
   }
 }
 
-module pin_hole(bottom = 0, top = 0, reverse = false) {
-  translate([0, bottom - 0.1, 0])
-    mirror_if([0, 0, 1], condition=reverse)
-      rotate([-90, 0, 0])
-        linear_extrude(height=top - bottom + 0.1)
-          pin_hole_poly(pin_s);
+module pin_hole(bottom = 0, top = 0, reverse = false, stopper_slot = true) {
+  translate([0, bottom - 0.1, 0]) {
+    mirror_if([0, 0, 1], condition=reverse) {
+      rotate([-90, 0, 0]) {
+        linear_extrude(height=top - bottom + 0.1) {
+          pin_hole_poly(pin_s, stopper_slot);
+        }
+      }
+    }
+  }
 }
 
 // Polygon for octagonal pin clamps with a viewing hole
@@ -249,7 +256,7 @@ module Plug(pin_n = 4) {
       }
     }
 
-    slug_cap_tab();
+    plug_cap_tab();
   }
 }
 
@@ -315,7 +322,7 @@ module cap_tab_slot() {
   }
 }
 
-module slug_cap_tab() {
+module plug_cap_tab() {
   // Tab for the slot cap
   difference() {
     translate(
@@ -334,7 +341,7 @@ module slug_cap_tab() {
 }
 
 // Top cap over the plug. To be printed in reverse, to allow for a square retaining pin slot.
-module SlugCap() {
+module Cap() {
   union() {
     difference() {
       // Cap body
@@ -349,9 +356,16 @@ module SlugCap() {
       // Hole for the cap tab pin
       cap_pin_hole();
 
-      // Retaining pin hole
+      // Retaining pin hole (start)
       for_pins(pin_n + 1, pin_n + 1) {
-        pin_hole(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2, reverse=true);
+        pin_hole(bottom=(plug_d / 2) - pin_s, top=plug_d / 2, reverse=true, stopper_slot=false);
+      }
+
+      // Retaining pin hole (end)
+      rotate([0, 0, 90]) {
+        for_pins(pin_n + 1, pin_n + 1) {
+          pin_hole(bottom=(plug_d / 2) - pin_s, top=plug_d / 2, reverse=true, stopper_slot=false);
+        }
       }
 
       // Retaining pin groove
@@ -364,6 +378,13 @@ module SlugCap() {
               }
             }
           }
+        }
+      }
+
+      // container
+      up(plug_l + cap_l - compartment_l) {
+        rotate([0, 0, 95]) {
+          pie_slice(r=plug_d / 2 - SOLID_WALL, h=compartment_l + 0.1, a=85);
         }
       }
     }
@@ -431,7 +452,7 @@ module Shell(pin_n = 4) {
 
       // Pin holes
       for_pins(pin_n + 1) {
-        pin_hole(bottom=plug_d / 2 - 10, top=plug_d / 2 + driver_pin_hole_l, reverse=true);
+        pin_hole(bottom=plug_d / 2 - 10, top=plug_d / 2 + driver_pin_hole_l, reverse=true, stopper_slot=false);
       }
 
       // Viewing cutout
@@ -598,7 +619,7 @@ module KeyPins(code = [false, true, true, false]) {
       up(pin_space * i) {
         back((plug_d / 2) - (show_on_key ? 0 : travel)) {
           rotate([90, 0, 0]) {
-            // Pins are (the space from top of the key to the top of the slug) + (the full padded pin travel) - the actual travel expected from the key.
+            // Pins are (the space from top of the key to the top of the plug) + (the full padded pin travel) - the actual travel expected from the key.
             pin(height=pin_above_key_l + pin_travel_l - travel, width=pin_s, chamfer_h=pin_chamfer_h, stopper=true);
           }
         }
@@ -684,17 +705,26 @@ module Key(code = [false, true, true, false]) {
   }
 }
 
+module RetainerSpring() {
+  for (i = [0:3]) {
+    //circle(d)
+  }
+}
+
 /*
 TODO:
+- square off ends of retainer pin
+- retainer spring (boxes and circles)
+- have retainer spring have long rod that goes into the pin, so the spring can't fall out.
 - make a small turning box that is opened when the lock is turned.
 */
 
 color("gold") Plug(pin_n=pin_n);
-color("yellow") SlugCap();
+color("yellow") Cap();
 color("orange") CapPin();
 color("orange") PlugPinBar();
 color("teal") RetainingPin(pins_n=pin_n);
-color("green", alpha=1) Shell(pin_n=pin_n);
+color("green") Shell(pin_n=pin_n);
 color("blue") DriverPins(code=key_code);
 color("red") KeyPins(code=key_code);
 up(show_on_key ? 0 : -plug_l)
