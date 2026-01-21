@@ -8,7 +8,7 @@ SOLID_WALL = 3;
 
 /* Inputs */
 
-show_on_key = true;
+show_on_key = false;
 key_code = [true, false, true, false];
 
 pin_s = 10; // side-to-side width of a pin
@@ -21,6 +21,8 @@ key_hole_bottom = 2; // Space from bottom of plug to bottom of key hole
 cutout_vertical_padding = 4;
 cutout_start_from_shell = 10;
 
+compartment_l = 30;
+
 /* Derived */
 
 // Pin count (from key code)
@@ -28,11 +30,13 @@ pin_n = len(key_code);
 
 pin_space = pin_s + CLEARANCE * 2 + pin_s;
 
-plug_l = pin_space * (pin_n + 2);
+plug_l = pin_space * (pin_n) + pin_s + CLEARANCE * 2 + pin_s / 2;
 
 key_w = pin_s;
 key_h = plug_d / 2 + 4;
-key_l = pin_space * (pin_n + 0.5);
+key_l = pin_space * (pin_n + 0.5) - CLEARANCE * 2;
+
+cap_l = pin_s + CLEARANCE * 2 + compartment_l;
 
 sm_pin_travel_l = pin_chamfer_h * 2;
 lg_pin_travel_l = sm_pin_travel_l * 2;
@@ -58,6 +62,7 @@ driver_pin_l = plug_d / 2;
 shell_inner_d = plug_d + CLEARANCE * 2;
 shell_wall = SOLID_WALL;
 shell_d = shell_inner_d + shell_wall * 2;
+shell_l = plug_l + cap_l + CLEARANCE * 2 + SOLID_WALL;
 
 pin_d = diag(pin_s, pin_s);
 chamber_pin_container_w = pin_d + CLEARANCE * 2 + SOLID_WALL * 2;
@@ -216,16 +221,11 @@ module Plug(pin_n = 4) {
         pin_hole(bottom=-plug_d / 2, top=plug_d / 2);
       }
 
-      // Retaining pin hole
-      // only goes to the top of the key hole.
-      for_pins(pin_n + 1, start=pin_n) {
-        pin_hole(bottom=-plug_d / 2 + key_hole_bottom + key_hole_h + 3, top=plug_d / 2);
-      }
-
       // Pin bar slot
       plug_pin_bar_slot();
     }
 
+    // Retaining bar tab
     translate([plug_pin_bar_x, plug_pin_bar_y, 0]) {
       linear_extrude(plug_pin_bar_tab_w)
         square([key_hole_pin_bar_overhang, key_hole_pin_bar_thickness], anchor=BOTTOM + LEFT);
@@ -244,8 +244,128 @@ module Plug(pin_n = 4) {
       }
 
       // round to match plug
-      linear_extrude(height=plug_l)
+      linear_extrude(height=plug_l) {
         circle(d=plug_d, anchor=CENTER);
+      }
+    }
+
+    slug_cap_tab();
+  }
+}
+
+cap_tab_x = plug_pin_bar_x - pin_bar_extra_depth - pin_bar_base_h * 2 - CLEARANCE; // aligns with the left of the pin bar slot.
+cap_tab_w = SOLID_WALL;
+
+cap_tab_y = plug_pin_bar_y + key_hole_pin_bar_thickness / 2; // aligns with the top of the pin bar slot.
+cap_tab_h = pin_bar_base_w + CLEARANCE * 2; // Width of the pin bar slot.
+
+cap_tab_z = plug_l;
+
+cap_pin_z = cap_tab_z + SOLID_WALL * 1.5;
+cap_pin_l = ( (plug_d / 2 + cap_tab_x) + (cap_tab_w + CLEARANCE * 2) + SOLID_WALL); // tab_slot_w + 3
+
+module CapPin() {
+  translate(
+    [
+      cap_tab_x + (cap_tab_w + CLEARANCE * 2) + SOLID_WALL,
+      cap_tab_y,
+      cap_pin_z,
+    ]
+  ) {
+    rotate([0, -90, 0]) {
+      linear_extrude(cap_pin_l - 4) {
+        rotate([0, 0, 45]) {
+          square([SOLID_WALL, SOLID_WALL], anchor=CENTER);
+        }
+      }
+    }
+  }
+}
+
+module cap_pin_hole() {
+  translate(
+    [
+      cap_tab_x,
+      cap_tab_y,
+      cap_pin_z,
+    ]
+  ) {
+    right((cap_tab_w + CLEARANCE * 2) + SOLID_WALL) {
+      rotate([0, -90, 0]) {
+        linear_extrude((plug_d / 2 + cap_tab_x) + (cap_tab_w + CLEARANCE * 2) + SOLID_WALL) {
+          rotate([0, 0, 45])
+            square([SOLID_WALL + CLEARANCE, SOLID_WALL + CLEARANCE], anchor=CENTER);
+        }
+      }
+    }
+  }
+}
+
+module cap_tab_slot() {
+  translate(
+    [
+      cap_tab_x - CLEARANCE,
+      cap_tab_y - CLEARANCE,
+      cap_tab_z - 0.1,
+    ]
+  ) {
+    linear_extrude(cap_tab_h + CLEARANCE * 2 + 0.1) {
+      square([cap_tab_w + CLEARANCE * 2, cap_tab_h + CLEARANCE * 2], anchor=CENTER + LEFT);
+    }
+  }
+}
+
+module slug_cap_tab() {
+  // Tab for the slot cap
+  difference() {
+    translate(
+      [
+        cap_tab_x,
+        cap_tab_y,
+        cap_tab_z,
+      ]
+    ) {
+      linear_extrude(cap_tab_h) {
+        square([pin_bar_base_h, cap_tab_h], anchor=CENTER + LEFT);
+      }
+    }
+    cap_pin_hole();
+  }
+}
+
+// Top cap over the plug. To be printed in reverse, to allow for a square retaining pin slot.
+module SlugCap() {
+  union() {
+    difference() {
+      // Cap body
+      translate([0, 0, plug_l]) {
+        linear_extrude(cap_l) {
+          circle(d=plug_d, anchor=CENTER);
+        }
+      }
+
+      // Slot for the cap tab
+      cap_tab_slot();
+      // Hole for the cap tab pin
+      cap_pin_hole();
+
+      // Retaining pin hole
+      for_pins(pin_n + 1, pin_n + 1) {
+        pin_hole(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2, reverse=true);
+      }
+
+      // Retaining pin groove
+      up(pin_space * (pin_n + 1) - pin_s / 2) {
+        rotate([0, 0, 89.9]) {
+          rotate_extrude(angle=90.01) {
+            translate([plug_d / 2 + 0.1, 0, 0]) {
+              union() {
+                square([pin_s + 0.1, pin_s], anchor=BOTTOM + RIGHT);
+              }
+            }
+          }
+        }
+      }
     }
   }
 }
@@ -266,7 +386,6 @@ module plug_pin_bar_slot() {
   tab_z = plug_pin_bar_tab_w;
   bar_l = plug_l - plug_pin_bar_tab_w + 0.1;
 
-  // Pin bar
   translate([plug_pin_bar_x - pin_bar_extra_depth, plug_pin_bar_y + key_hole_pin_bar_thickness / 2, tab_z]) {
     linear_extrude(bar_l) {
       offset(delta=CLEARANCE)
@@ -293,7 +412,7 @@ module Shell(pin_n = 4) {
   union() {
     difference() {
       // Shell body
-      linear_extrude(height=plug_l + 3)
+      linear_extrude(height=shell_l)
         union() {
           // Outer shell around the plug
           circle(d=shell_d);
@@ -307,7 +426,7 @@ module Shell(pin_n = 4) {
 
       // Plug hole
       down(0.1)
-        linear_extrude(height=plug_l + 0.4 + 0.1)
+        linear_extrude(height=plug_l + cap_l + CLEARANCE * 2)
           circle(d=shell_inner_d, anchor=CENTER);
 
       // Pin holes
@@ -317,10 +436,15 @@ module Shell(pin_n = 4) {
 
       // Viewing cutout
       down(0.1)
-        linear_extrude(height=plug_l - cutout_vertical_padding + 0.1) {
+        linear_extrude(height=plug_l + pin_space - cutout_vertical_padding + 0.1) {
           fwd(shell_d / 2 - cutout_start_from_shell)
             square([shell_d / 2, shell_d - cutout_start_from_shell - shell_wall + driver_pin_hole_l], anchor=LEFT + BOTTOM);
         }
+
+      // container door
+
+      up(shell_l - SOLID_WALL - 0.2)
+        pie_slice(r=shell_inner_d / 2 - SOLID_WALL, h=SOLID_WALL + 0.3, a=90);
     }
 
     // Pin clamps
@@ -328,6 +452,11 @@ module Shell(pin_n = 4) {
       pin_clamp(bottom=shell_inner_d / 2, top=plug_d / 2 + driver_pin_hole_l, reverse=true);
     }
   }
+}
+
+// a:angle, r:radius, h:height
+module pie_slice(a, r, h) {
+  rotate_extrude(angle=a) square([r, h]);
 }
 
 module on_octagon_edge(s, edge_n = 0) {
@@ -448,6 +577,16 @@ module DriverPins(code = [false, true, true, false]) {
   }
 }
 
+module RetainingPin(pins_n = 4) {
+  up(pin_space * 5) {
+    back((shell_inner_d / 2) - pin_s / 2) {
+      rotate([-90, 0, 0]) {
+        pin(height=driver_pin_l, width=pin_s, chamfer_h=pin_chamfer_h);
+      }
+    }
+  }
+}
+
 // Key pins (in the plug)
 module KeyPins(code = [false, true, true, false]) {
   pin_above_key_l = plug_d - key_h - key_hole_bottom;
@@ -547,17 +686,15 @@ module Key(code = [false, true, true, false]) {
 
 /*
 TODO:
-- add a 5th driver pin/slot to act as a "retainer pin".
-	- this should have a printed spring to keep it pressed down.
-	- add a hole in the back of the shell to access this pin with a tool, to pull it up and allow the plug to be removed
-	- the shell and plug should enclose the front of the pin slot
-	- add a cutout in the plug to allow this pin to hold it in place. this should only extend 40 degrees, so it stop over-rotation forwards, or any rotation backwards.
 - make a small turning box that is opened when the lock is turned.
 */
 
 color("gold") Plug(pin_n=pin_n);
+color("yellow") SlugCap();
+color("orange") CapPin();
 color("orange") PlugPinBar();
-color("green") Shell(pin_n=pin_n);
+color("teal") RetainingPin(pins_n=pin_n);
+color("green", alpha=1) Shell(pin_n=pin_n);
 color("blue") DriverPins(code=key_code);
 color("red") KeyPins(code=key_code);
 up(show_on_key ? 0 : -plug_l)
