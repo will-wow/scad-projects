@@ -452,18 +452,17 @@ module Shell(pin_n = 4) {
 
       // Pin holes
       for_pins(pin_n + 1) {
-        pin_hole(bottom=plug_d / 2 - 10, top=plug_d / 2 + driver_pin_hole_l, reverse=true, stopper_slot=false);
+        pin_hole(bottom=shell_inner_d / 2, top=shell_inner_d / 2 + driver_pin_hole_l, reverse=true, stopper_slot=false);
       }
 
       // Viewing cutout
       down(0.1)
-        linear_extrude(height=plug_l + pin_space - cutout_vertical_padding + 0.1) {
+        linear_extrude(height=plug_l + pin_space - cutout_vertical_padding) {
           fwd(shell_d / 2 - cutout_start_from_shell)
             square([shell_d / 2, shell_d - cutout_start_from_shell - shell_wall + driver_pin_hole_l], anchor=LEFT + BOTTOM);
         }
 
       // container door
-
       up(shell_l - SOLID_WALL - 0.2)
         pie_slice(r=shell_inner_d / 2 - SOLID_WALL, h=SOLID_WALL + 0.3, a=90);
     }
@@ -599,7 +598,7 @@ module DriverPins(code = [false, true, true, false]) {
 }
 
 retaining_pin_y = (shell_inner_d / 2) - pin_s / 2;
-retaining_pin_z = pin_space * pin_n + 1;
+retaining_pin_z = pin_space * (pin_n + 1);
 retaining_pin_l = driver_pin_l;
 retaining_spring_thickness = 1;
 retaining_spring_rotation = 90;
@@ -761,6 +760,20 @@ module Key(code = [false, true, true, false]) {
     }
   }
 }
+
+/*
+TODO:
+x connect shell clamps with the shell top
+- add tweezer slots around cap bar
+- increase length of key front, to make it easier to move pins
+- prettier handle on key
+- groove in top of shell to slide a cover on
+- lock picking tools
+- increase clearance on pin clamp holes?
+- stronger shorter retaining pin spring. spring can got to half length.
+- shorter driver pins.
+- a "bad" key with a different code
+*/ 
 
 color("gold") Plug(pin_n=pin_n);
 color("yellow") Cap();
