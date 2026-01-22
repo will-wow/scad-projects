@@ -8,7 +8,7 @@ SOLID_WALL = 3;
 
 /* Inputs */
 
-show_on_key = true;
+show_on_key = false;
 key_code = [true, false, true, false];
 
 pin_s = 10; // side-to-side width of a pin
@@ -33,14 +33,15 @@ pin_space = pin_s + CLEARANCE * 2 + pin_s;
 plug_l = pin_space * (pin_n) + pin_s + CLEARANCE * 2 + pin_s / 2;
 
 key_w = pin_s;
-key_h = plug_d / 2 + 4;
-key_l = pin_space * (pin_n + 0.5) + pin_s / 2 - CLEARANCE * 3;
+key_h = plug_d / 2;
+key_l = plug_l + pin_s - CLEARANCE * 2;
 
 cap_l = pin_s + CLEARANCE * 2 + SOLID_WALL + compartment_l;
 
+bump_pin_travel_l = pin_chamfer_h;
 sm_pin_travel_l = pin_chamfer_h * 2;
 lg_pin_travel_l = sm_pin_travel_l * 2;
-pin_travel_l = sm_pin_travel_l * 4;
+pin_travel_l = lg_pin_travel_l + bump_pin_travel_l + CLEARANCE * 2;
 
 // Top of the pin bar, from the bottom of the plug.
 key_hole_pin_bar_top = key_hole_bottom + key_h - pin_travel_l;
@@ -75,7 +76,7 @@ driver_pin_hole_l = driver_pin_l + pin_travel_l;
 
 // The diagonal length of a right triangle given two sides
 function diag(a, b) = sqrt(a * a + b * b);
-// The diagonal leg cut off from the side of a square to make an octagon
+// The straight legs of the triangle cut off from the side of a square to make an octagon
 function octagon_leg(square_side) = square_side / (2 + sqrt(2));
 // The edge length of an octagon inscribed in a square
 function octagon_edge(square_side) = (sqrt(2) - 1) * square_side;
@@ -106,9 +107,6 @@ module for_pins(n = 4, start = 1) {
 // with a triangle on top for printing,
 // and on the back for the stopper.
 module pin_hole_poly(side, stopper_slot = true) {
-  leg = octagon_leg(side);
-  edge = octagon_edge(side);
-
   union() {
     regular_ngon(n=8, id=side, realign=true);
     // Triangle at the top of the octagon
@@ -301,7 +299,7 @@ module cap_pin_hole() {
       rotate([0, -90, 0]) {
         linear_extrude((plug_d / 2 + cap_tab_x) + (cap_tab_w + CLEARANCE * 2) + SOLID_WALL) {
           rotate([0, 0, 45])
-            square([SOLID_WALL + CLEARANCE, SOLID_WALL + CLEARANCE], anchor=CENTER);
+            square([SOLID_WALL + CLEARANCE * 2, SOLID_WALL + CLEARANCE * 2], anchor=CENTER);
         }
       }
     }
@@ -387,6 +385,13 @@ module Cap() {
           pie_slice(r=plug_d / 2 - SOLID_WALL, h=compartment_l + 0.1, a=85);
         }
       }
+
+      // Extra keyhole
+      translate([0, -(plug_d / 2 - key_hole_bottom), plug_l])
+        fwd()
+          linear_extrude(height=pin_s)
+            // key hole cutout
+            square([key_hole_w, key_hole_h], anchor=BOTTOM);
     }
   }
 }
@@ -430,6 +435,8 @@ module PlugPinBar() {
 // The shell of the lock
 // (the outer casing that holds the driver pins).
 module Shell(pin_n = 4) {
+  cutout_h = plug_l + pin_space - cutout_vertical_padding;
+
   union() {
     difference() {
       // Shell body
@@ -456,11 +463,23 @@ module Shell(pin_n = 4) {
       }
 
       // Viewing cutout
-      down(0.1)
-        linear_extrude(height=plug_l + pin_space - cutout_vertical_padding) {
-          fwd(shell_d / 2 - cutout_start_from_shell)
-            square([shell_d / 2, shell_d - cutout_start_from_shell - shell_wall + driver_pin_hole_l], anchor=LEFT + BOTTOM);
+      down(0.1) {
+        linear_extrude(height=cutout_h) {
+          union() {
+            fwd(shell_d / 2 - cutout_start_from_shell) {
+              square([shell_d / 2, shell_d - cutout_start_from_shell - shell_wall + driver_pin_hole_l], anchor=LEFT + BOTTOM);
+            }
+          }
         }
+      }
+
+      down(0.1) {
+        linear_extrude(height=cutout_h + 2) {
+          translate([pin_s / 2 + CLEARANCE * 2, shell_inner_d / 2 + shell_wall, 0]) {
+            square([2, driver_pin_hole_l - shell_wall + 2], anchor=LEFT + BOTTOM);
+          }
+        }
+      }
 
       // container door
       up(shell_l - SOLID_WALL - 0.2)
@@ -597,10 +616,10 @@ module DriverPins(code = [false, true, true, false]) {
   }
 }
 
-retaining_pin_y = (shell_inner_d / 2) - pin_s / 2;
+retaining_pin_y = (plug_d / 2) - pin_s + CLEARANCE;
 retaining_pin_z = pin_space * (pin_n + 1);
 retaining_pin_l = driver_pin_l;
-retaining_spring_thickness = 1;
+retaining_spring_thickness = 1.4;
 retaining_spring_rotation = 90;
 
 module RetainingPin(pin_n = 4, chamfer_h = pin_chamfer_h) {
@@ -620,38 +639,39 @@ module RetainingPin(pin_n = 4, chamfer_h = pin_chamfer_h) {
   }
 }
 
-module RetainingSpring(pin_n = 4) {
+module RetainingSpring() {
   thickness = retaining_spring_thickness;
   stick_depth = driver_pin_l;
-  edge = octagon_edge(pin_s);
-  inner_width = pin_s - CLEARANCE * 2 - edge;
+  n = 4;
+  r = retaining_spring_thickness * 3;
+  inner_width = pin_s - CLEARANCE * 2 - r;
 
   translate([0, retaining_pin_y + driver_pin_l + SOLID_WALL, retaining_pin_z]) {
-    translate([0, thickness * 2, -thickness / 2]) {
+    translate([-thickness / 2, thickness * 2, 0]) {
       rotate([0, retaining_spring_rotation, 0]) {
         linear_extrude(thickness) {
           union() {
-            for (i = [0:pin_n]) {
-              translate([0, (edge - thickness) * i, 0]) {
+            for (i = [0:n]) {
+              translate([0, (r - thickness) * i, 0]) {
                 translate([(inner_width / 2) * (i % 2 ? 1 : -1), 0, 0]) {
                   difference() {
-                    circle(d=edge);
-                    circle(d=edge - thickness * 2);
-                    left(i % 2 == 0 ? 0 : edge / 2) {
-                      square([edge / 2, edge], anchor=LEFT + CENTER);
+                    circle(d=r);
+                    circle(d=r - thickness * 2);
+                    left(i % 2 == 0 ? 0 : r / 2) {
+                      square([r / 2, r], anchor=LEFT + CENTER);
                     }
                   }
                 }
-                back(edge / 2) {
+                back(r / 2) {
                   square([inner_width, thickness], anchor=CENTER + TOP);
                 }
 
                 if (i == 0) {
-                  ymove(-edge / 2) {
+                  ymove(-r / 2) {
                     square([inner_width / 2, thickness], anchor=RIGHT + BOTTOM);
                   }
 
-                  ymove(-(edge / 2 - thickness)) {
+                  ymove(-(r / 2 - thickness)) {
                     square([thickness, stick_depth], anchor=CENTER + TOP);
                   }
                 }
@@ -685,19 +705,19 @@ module KeyPins(code = [false, true, true, false]) {
 }
 
 // Points for the key's biting (notches and teeth)
-function bitingPoly(code = [false, true, true, false], i = 0) =
+function biting_poly(code = [false, true, true, false], i = 0) =
   i == len(code) ? []
   : let (
     travel = code[i] ? lg_pin_travel_l : sm_pin_travel_l,
     center = pin_space * (i + 1)
   ) concat(
     [
-      [center - pin_s / 2 - 3.5, travel + sm_pin_travel_l],
+      [center - pin_s / 2 - 2, travel + bump_pin_travel_l],
       [center - pin_s / 2 + 1, travel],
       [center + pin_s / 2 - 1, travel],
-      [center + pin_s / 2 + 3.5, travel + sm_pin_travel_l],
+      [center + pin_s / 2 + 2, travel + bump_pin_travel_l],
     ],
-    bitingPoly(code, i + 1)
+    biting_poly(code, i + 1)
   );
 
 // The key
@@ -726,18 +746,25 @@ module Key(code = [false, true, true, false]) {
               // keyway
               square([key_l, keyway_h], anchor=BOTTOM + LEFT);
               // key handle
-              fwd(key_h / 4)
-                square(size=key_h * 1.5, anchor=BOTTOM + RIGHT);
+              back(key_h * 0.5) {
+                key_handle_poly();
+              }
             }
             right(key_l) {
-              right_triangle([keyway_h - 1, keyway_h - 1], spin=90, anchor=BOTTOM + LEFT);
+              right_triangle([keyway_h - 2, keyway_h - 2], spin=90, anchor=BOTTOM + LEFT);
             }
           }
+
+
         // Over the pin bar.
         linear_extrude(height=key_ridges_width) {
           back(keyway_h) {
             union() {
-              square([key_l, key_bar_h], anchor=BOTTOM + LEFT);
+              difference() {
+                square([key_l, key_bar_h], anchor=BOTTOM + LEFT);
+                translate([key_l, 0, 0])
+                  right_triangle([key_bar_h, key_bar_h], spin=180, anchor=TOP + LEFT);
+              }
 
               back(key_bar_h)
                 // The top height of the biting in the pin_travel_l.
@@ -747,9 +774,9 @@ module Key(code = [false, true, true, false]) {
                       [0, 0],
                       [0, key_ridges_h],
                     ],
-                    bitingPoly(code),
+                    biting_poly(code),
                     [
-                      [key_l, 0],
+                      [key_l - key_bar_h, 0],
                     ]
                   )
                 );
@@ -761,27 +788,68 @@ module Key(code = [false, true, true, false]) {
   }
 }
 
+module key_handle_poly() {
+  long_side = key_h * 0.75;
+  short_side = key_h * 0.6;
+  height = key_h * 1.2;
+  triangle_point = height * 0.4;
+  triangle_out = key_h * 1.2;
+  triangle_height = height + key_h / 5;
+  triangle_round = 6;
+
+  difference() {
+    union() {
+      polygon(
+        round_corners(
+          [
+            [0, -short_side],
+            [-height, -long_side],
+            [-height, long_side],
+            [0, short_side],
+          ],
+          r=2
+        )
+      );
+
+      polygon(
+        round_corners(
+          [
+            [-triangle_point, -triangle_out],
+            [-triangle_height, 0],
+            [-triangle_point, triangle_out],
+          ],
+          r=triangle_round
+        )
+      );
+    }
+
+    translate([-height + SOLID_WALL, 0, 0]) {
+      circle(d=key_h / 3);
+    }
+  }
+}
+
 /*
 TODO:
 x connect shell clamps with the shell top
-- add tweezer slots around cap bar
-- increase length of key front, to make it easier to move pins
-- prettier handle on key
-- groove in top of shell to slide a cover on
-- lock picking tools
+x make cap pin easier to knock out
+x increase length of key front, to make it easier to move pins
+x prettier handle on key
+x groove in top of shell to slide a cover on
 - increase clearance on pin clamp holes?
-- stronger shorter retaining pin spring. spring can got to half length.
-- shorter driver pins.
+x stronger shorter retaining pin spring. spring can got to half length.
+x shorter driver pins.
+- lock picking tools
 - a "bad" key with a different code
-*/ 
+*/
 
 color("gold") Plug(pin_n=pin_n);
 color("yellow") Cap();
 color("orange") CapPin();
 color("orange") PlugPinBar();
 color("teal") RetainingPin(pin_n=pin_n, chamfer_h=0.4);
-color("aqua") RetainingSpring(pin_n=pin_n);
+color("aqua") RetainingSpring();
 color("green") Shell(pin_n=pin_n);
 color("blue") DriverPins(code=key_code);
 color("red") KeyPins(code=key_code);
-up(show_on_key ? 0 : -plug_l) color("gray") Key(code=key_code);
+up(show_on_key ? 0 : -key_l - 5) color("gray") Key(code=key_code);
