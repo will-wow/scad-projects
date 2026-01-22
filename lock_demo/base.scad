@@ -197,7 +197,7 @@ module pin_full_clamp(bottom = 0, top = 0, thickness = 3) {
 }
 
 // The plug of the lock (the part the key goes into).
-module Plug(pin_n = 4) {
+module Plug() {
   cutout_start = cutout_start_from_shell - shell_wall - CLEARANCE;
 
   union() {
@@ -434,7 +434,7 @@ module PlugPinBar() {
 
 // The shell of the lock
 // (the outer casing that holds the driver pins).
-module Shell(pin_n = 4) {
+module Shell() {
   cutout_h = plug_l + pin_space - cutout_vertical_padding;
 
   union() {
@@ -600,7 +600,8 @@ module pin(height, width, chamfer_h = pin_chamfer_h, stopper = false, reverse_st
 }
 
 // Driver pins (in the shell)
-module DriverPins(code = [false, true, true, false]) {
+module DriverPins() {
+  code = key_code;
   for (i = [1:len(code)]) {
     let (
       travel = code[i - 1] ? lg_pin_travel_l : sm_pin_travel_l,
@@ -622,7 +623,8 @@ retaining_pin_l = driver_pin_l;
 retaining_spring_thickness = 1.4;
 retaining_spring_rotation = 90;
 
-module RetainingPin(pin_n = 4, chamfer_h = pin_chamfer_h) {
+module RetainingPin() {
+  chamfer_h = 0.4;
   translate([0, retaining_pin_y, retaining_pin_z]) {
     rotate([-90, 0, 0]) {
       difference() {
@@ -685,7 +687,8 @@ module RetainingSpring() {
 }
 
 // Key pins (in the plug)
-module KeyPins(code = [false, true, true, false]) {
+module KeyPins() {
+  code = key_code;
   pin_above_key_l = plug_d - key_h - key_hole_bottom;
 
   for (i = [1:len(code)]) {
@@ -721,7 +724,9 @@ function biting_poly(code = [false, true, true, false], i = 0) =
   );
 
 // The key
-module Key(code = [false, true, true, false]) {
+module Key() {
+  // make me
+  code = key_code;
   // The section of the key over the bar + clearance above and below.
   key_bar_h = key_hole_pin_bar_thickness + CLEARANCE * 2;
   key_ridges_h = pin_travel_l + CLEARANCE;
@@ -754,7 +759,6 @@ module Key(code = [false, true, true, false]) {
               right_triangle([keyway_h - 2, keyway_h - 2], spin=90, anchor=BOTTOM + LEFT);
             }
           }
-
 
         // Over the pin bar.
         linear_extrude(height=key_ridges_width) {
@@ -842,14 +846,3 @@ x shorter driver pins.
 - lock picking tools
 - a "bad" key with a different code
 */
-
-color("gold") Plug(pin_n=pin_n);
-color("yellow") Cap();
-color("orange") CapPin();
-color("orange") PlugPinBar();
-color("teal") RetainingPin(pin_n=pin_n, chamfer_h=0.4);
-color("aqua") RetainingSpring();
-color("green") Shell(pin_n=pin_n);
-color("blue") DriverPins(code=key_code);
-color("red") KeyPins(code=key_code);
-up(show_on_key ? 0 : -key_l - 5) color("gray") Key(code=key_code);
