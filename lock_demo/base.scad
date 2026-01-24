@@ -8,9 +8,9 @@ SOLID_WALL = 3;
 
 /* Inputs */
 
-show_on_key = false;
+show_on_key = true;
 key_code = [true, false, true, false];
-
+bad_key_code = [false, true, false, true];
 pin_s = 10; // side-to-side width of a pin
 pin_chamfer_h = 2;
 
@@ -149,7 +149,12 @@ module clamp_poly(side, thickness = 3) {
       ]
     );
     // Hook
-    octagon_triangle(s=side, edge_n=1, spin=-90);
+    difference() {
+      octagon_triangle(s=side, edge_n=1, spin=-90);
+      translate([edge / 2, edge / 2, 0]) {
+        square([0.4, 0.4], anchor=BOTTOM + LEFT);
+      }
+    }
 
     // Close the open triangle below the arm
     octagon_triangle(s=side, edge_n=8);
@@ -242,10 +247,6 @@ module Plug() {
         for_pins(pin_n) {
           pin_clamp(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2, stoppers=true);
         }
-
-        //for_pins(pin_n + 1, start=pin_n + 1) {
-        //  pin_full_clamp(bottom=-(plug_d / 2) + key_hole_h + key_hole_bottom, top=plug_d / 2);
-        //}
       }
 
       // round to match plug
@@ -288,6 +289,10 @@ module CapPin() {
 }
 
 module cap_pin_hole() {
+  s = SOLID_WALL + CLEARANCE * 2;
+  d = diag(s, s);
+
+  // Hole for the cap pin
   translate(
     [
       cap_tab_x,
@@ -299,9 +304,23 @@ module cap_pin_hole() {
       rotate([0, -90, 0]) {
         linear_extrude((plug_d / 2 + cap_tab_x) + (cap_tab_w + CLEARANCE * 2) + SOLID_WALL) {
           rotate([0, 0, 45])
-            square([SOLID_WALL + CLEARANCE * 2, SOLID_WALL + CLEARANCE * 2], anchor=CENTER);
+            square([s, s], anchor=CENTER);
         }
       }
+    }
+  }
+
+  // Access slot
+  translate(
+    [
+      -plug_d / 2,
+      cap_tab_y,
+      cap_pin_z - d / 4,
+    ]
+  ) {
+    rotate([0, 90, 0]) {
+      linear_extrude(SOLID_WALL * 2)
+        square([d * 1.5, d], anchor=CENTER);
     }
   }
 }
@@ -488,7 +507,7 @@ module Shell() {
 
     // Pin clamps
     for_pins(n=pin_n + 1) {
-      pin_clamp(bottom=shell_inner_d / 2, top=plug_d / 2 + driver_pin_hole_l, reverse=true);
+      pin_clamp(bottom=shell_inner_d / 2, top=shell_inner_d / 2 + driver_pin_hole_l, reverse=true);
     }
   }
 }
@@ -644,8 +663,8 @@ module RetainingPin() {
 module RetainingSpring() {
   thickness = retaining_spring_thickness;
   stick_depth = driver_pin_l;
-  n = 4;
-  r = retaining_spring_thickness * 3;
+  n = 3;
+  r = retaining_spring_thickness * 4;
   inner_width = pin_s - CLEARANCE * 2 - r;
 
   translate([0, retaining_pin_y + driver_pin_l + SOLID_WALL, retaining_pin_z]) {
@@ -708,7 +727,7 @@ module KeyPins() {
 }
 
 // Points for the key's biting (notches and teeth)
-function biting_poly(code = [false, true, true, false], i = 0) =
+function biting_poly(code, i = 0) =
   i == len(code) ? []
   : let (
     travel = code[i] ? lg_pin_travel_l : sm_pin_travel_l,
@@ -724,9 +743,7 @@ function biting_poly(code = [false, true, true, false], i = 0) =
   );
 
 // The key
-module Key() {
-  // make me
-  code = key_code;
+module Key(code = key_code) {
   // The section of the key over the bar + clearance above and below.
   key_bar_h = key_hole_pin_bar_thickness + CLEARANCE * 2;
   key_ridges_h = pin_travel_l + CLEARANCE;
@@ -792,6 +809,10 @@ module Key() {
   }
 }
 
+module BadKey() {
+  Key(code=bad_key_code);
+}
+
 module key_handle_poly() {
   long_side = key_h * 0.75;
   short_side = key_h * 0.6;
@@ -835,14 +856,5 @@ module key_handle_poly() {
 
 /*
 TODO:
-x connect shell clamps with the shell top
-x make cap pin easier to knock out
-x increase length of key front, to make it easier to move pins
-x prettier handle on key
-x groove in top of shell to slide a cover on
-- increase clearance on pin clamp holes?
-x stronger shorter retaining pin spring. spring can got to half length.
-x shorter driver pins.
 - lock picking tools
-- a "bad" key with a different code
 */

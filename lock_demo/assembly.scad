@@ -12,3 +12,4 @@ color("green") Shell();
 color("blue") DriverPins();
 color("red") KeyPins();
 up(show_on_key ? 0 : -key_l - 5) color("gray") Key();
+//up(show_on_key ? 0 : -key_l - 5) color("gray") BadKey();
