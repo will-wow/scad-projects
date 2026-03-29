@@ -587,34 +587,46 @@ module pin(height, width, chamfer_h = pin_chamfer_h, stopper = false, reverse_st
     difference() {
       union() {
         // bottom bevel
-        translate([0, 0, h - chamfer_h])
-          linear_extrude(height=chamfer_h, scale=scale_bottom)
+        translate([0, 0, h - chamfer_h]) {
+          linear_extrude(height=chamfer_h, scale=scale_bottom) {
             difference() {
               regular_ngon(n=8, id=w, realign=true);
             }
+          }
+        }
 
         // middle
-        translate([0, 0, chamfer_h])
-          linear_extrude(height=middle_h)
+        translate([0, 0, chamfer_h]) {
+          linear_extrude(height=middle_h) {
             regular_ngon(n=8, id=w, realign=true);
+          }
+        }
 
         // top bevel
-        linear_extrude(height=chamfer_h, scale=scale_top)
+        linear_extrude(height=chamfer_h, scale=scale_top) {
           regular_ngon(n=8, id=tw, realign=true);
+        }
 
         // stopper
         if (stopper) {
-          translate([0, 0, reverse_stopper ? chamfer_h : chamfer_h + middle_h - 3])
-            linear_extrude(height=3)
+          translate([0, 0, reverse_stopper ? chamfer_h : chamfer_h + middle_h - 3]) {
+            linear_extrude(height=3) {
               octagon_triangle(s=w, edge_n=7);
+            }
+          }
         }
       }
 
       // Cut out for hook
-      linear_extrude(height=h)
-        mirror_if([1, 1, 0], copy=true)
-          offset(delta=CLEARANCE)
-            octagon_triangle(s=width, edge_n=4, spin=45 * 2);
+      translate([0, 0, -0.1]) {
+        linear_extrude(height=h + 0.2) {
+          mirror_if([1, 1, 0], copy=true) {
+            offset(delta=CLEARANCE * 2) {
+              octagon_triangle(s=width, edge_n=4, spin=45 * 2);
+            }
+          }
+        }
+      }
     }
 }
 
@@ -638,8 +650,10 @@ module DriverPins() {
 
 retaining_pin_y = (plug_d / 2) - pin_s + CLEARANCE;
 retaining_pin_z = pin_space * (pin_n + 1);
-retaining_pin_l = driver_pin_l;
 retaining_spring_thickness = 1.4;
+retaining_spring_r = retaining_spring_thickness * 4;
+retaining_pin_l = driver_pin_l - retaining_spring_thickness * 2;
+retaining_spring_thickness_additional = 1;
 retaining_spring_rotation = 90;
 
 module RetainingPin() {
@@ -662,41 +676,44 @@ module RetainingPin() {
 
 module RetainingSpring() {
   thickness = retaining_spring_thickness;
-  stick_depth = driver_pin_l;
+  stick_depth = retaining_pin_l - SOLID_WALL;
   n = 3;
-  r = retaining_spring_thickness * 4;
+  r = retaining_spring_r;
   inner_width = pin_s - CLEARANCE * 2 - r;
 
-  translate([0, retaining_pin_y + driver_pin_l + SOLID_WALL, retaining_pin_z]) {
+  translate([0, retaining_pin_y + retaining_pin_l, retaining_pin_z]) {
     translate([-thickness / 2, thickness * 2, 0]) {
       rotate([0, retaining_spring_rotation, 0]) {
-        linear_extrude(thickness) {
-          union() {
-            for (i = [0:n]) {
-              translate([0, (r - thickness) * i, 0]) {
-                translate([(inner_width / 2) * (i % 2 ? 1 : -1), 0, 0]) {
-                  difference() {
-                    circle(d=r);
-                    circle(d=r - thickness * 2);
-                    left(i % 2 == 0 ? 0 : r / 2) {
-                      square([r / 2, r], anchor=LEFT + CENTER);
+        union() {
+          linear_extrude(thickness + retaining_spring_thickness_additional) {
+            union() {
+              for (i = [0:n]) {
+                translate([0, (r - thickness) * i, 0]) {
+                  translate([(inner_width / 2) * (i % 2 ? 1 : -1), 0, 0]) {
+                    difference() {
+                      circle(d=r);
+                      circle(d=r - thickness * 2);
+                      left(i % 2 == 0 ? 0 : r / 2) {
+                        square([r / 2, r], anchor=LEFT + CENTER);
+                      }
                     }
                   }
-                }
-                back(r / 2) {
-                  square([inner_width, thickness], anchor=CENTER + TOP);
-                }
-
-                if (i == 0) {
-                  ymove(-r / 2) {
-                    square([inner_width / 2, thickness], anchor=RIGHT + BOTTOM);
-                  }
-
-                  ymove(-(r / 2 - thickness)) {
-                    square([thickness, stick_depth], anchor=CENTER + TOP);
+                  back(r / 2) {
+                    square([inner_width, thickness], anchor=CENTER + TOP);
                   }
                 }
               }
+
+              translate([thickness / 2, -r / 2, 0]) {
+                square([inner_width / 2 + thickness / 2, thickness], anchor=RIGHT + BOTTOM);
+              }
+            }
+          }
+
+          linear_extrude(thickness) {
+
+            translate([0, -(r / 2 - thickness), 0]) {
+              square([thickness, stick_depth], anchor=CENTER + TOP);
             }
           }
         }
