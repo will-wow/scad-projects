@@ -95,6 +95,32 @@ module Bottom() {
   }
 }
 
+module Ring() {
+  ring_inner_d = 15;
+  ring_w = 3;
+  ring_h = 4;
+
+  difference() {
+    cyl(
+      d=ring_inner_d + ring_w,
+      h=ring_h,
+      chamfer=0.8,
+    );
+
+    cyl(
+      d=ring_inner_d,
+      h=ring_h + tweak,
+      chamfer=-0.4
+    );
+
+    translate([0, -ring_inner_d / 2 - ring_w, -ring_h / 2 - tweak]) {
+      linear_extrude(ring_h + tweak * 2) {
+        square(ring_w * 2, anchor=BOTTOM + CENTER);
+      }
+    }
+  }
+}
+
 module top_image() {
   union() {
     scale(0.8) {
@@ -120,7 +146,7 @@ module top_image() {
 
 module bottom_image() {
   union() {
-    translate([0, 8, 0]) {
+    translate([3, 7, 0]) {
       rotate([0, 180, 0]) {
         text(
           "10",
@@ -132,8 +158,8 @@ module bottom_image() {
       }
     }
 
-    translate([-0.5, -3, 0]) {
-      scale(0.4) {
+    translate([-1, -2, 0]) {
+      scale(0.75) {
         import("./treasure.svg", center=true);
       }
     }
@@ -141,16 +167,6 @@ module bottom_image() {
     difference() {
       circle(d=outer_diameter + 2);
       circle(d=inner_diameter);
-    }
-
-    difference() {
-      circle(d=inner_diameter - 7);
-      circle(d=inner_diameter - 7 - line_width);
-    }
-
-    difference() {
-      circle(d=inner_diameter - 9);
-      circle(d=inner_diameter - 9 - line_width);
     }
   }
 }
