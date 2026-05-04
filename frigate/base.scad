@@ -1,7 +1,5 @@
 include <BOSL2/std.scad>;
 include <frames.scad>
-use <../vendor/plot-function/plot_function.scad>
-use <../vendor/ogive_and_ogee.scad>
 
 // Smooth a half-frame's control points into a curve, mirrored into a full cross-section.
 // half_pts: [[x,y],...] keel→deck, x may be negative (aft frames); abs is taken.
@@ -13,16 +11,14 @@ function full_frame(half_pts, relsize = 0.2) =
     port = [for (p = reverse(s)) [-p[0], p[1]]]
   ) concat(s, port);
 
-//$fs = .1;
-//union() {
-//  translate([0, 30, 2.5]) sphere(1); //bow
-//  translate([0, 10, -1]) cube([20, 1, 8], true); //1st bulkhead
-//  translate([0, 10, -5]) cube([1, 1, 8], true); //1st keel
-//  translate([0, -8, -1]) cube([20, 1, 8], true); //2nd bulkhead
-//  translate([0, -8, -5]) cube([1, 1, 8], true); //2nd keel
-//  translate([0, -30, 1]) cube([16, 1, 4], true); //stern
-//}
-//cylinder(40, 1, 1); //Mast
+// Place a 2D frame as flat 3D points at height z.
+function frame_3d(pts, z) = [for (p = pts) [p[0], p[1], z]];
+
+// Place a 2D frame raked at rake_deg around the X axis.
+// The keel (y≈0) stays at z; the deck top shifts by -y*sin(rake_deg).
+function raked_frame_3d(pts, z, rake_deg) =
+  [for (p = pts) [p[0], p[1]*cos(rake_deg), z - p[1]*sin(rake_deg)]];
+
 
 keel_l = 80;
 keel_h = 16;
@@ -30,17 +26,39 @@ breadth = 27;
 
 e = 2.71828;
 
-module ship_hull() {
-  // Aft frames run midship→stern in the body plan; reverse so skin goes stern→bow.
-  all_halves = concat(aft_frames, fore_frames);
-  frames = [for (h = all_halves) full_frame(h)];
+RAKE      = 5;   // transom rake in degrees
+BOW_STEPS = 5;   // synthetic frames tapering to stem post
+BOW_LEN   = 60;  // mm from bow frame to stem post
 
-  skin(
-    frames,
-    slices=10,
-    z=[for (i = [0:len(frames) - 1]) i * 20],
-    method="reindex"
-  );
+module ship_hull() {
+  all_halves = concat(aft_frames, fore_frames);
+  n = len(all_halves);
+  smooth = [for (h = all_halves) full_frame(h)];
+
+  hull_frames = [
+    for (i = [0:n-1])
+    let (z = i * 20)
+    i == 0
+      ? raked_frame_3d(smooth[i], z, RAKE)
+      : frame_3d(smooth[i], z)
+  ];
+
+  bow_half   = smooth_path(_abs_x(all_halves[n-1]), relsize=0.2, closed=false);
+  bow_z0     = (n-1) * 20;
+  bow_keel_x = bow_half[0][0];  // half-keel-width; stem post converges here
+
+  bow_frames = [
+    for (i = [1:BOW_STEPS])
+    let (
+      t    = i / BOW_STEPS,
+      z    = bow_z0 + i * BOW_LEN / BOW_STEPS,
+      half = [for (p = bow_half) [p[0] * (1-t) + bow_keel_x * t, p[1]]],
+      port = [for (p = reverse(half)) [-p[0], p[1]]]
+    )
+    frame_3d(concat(half, port), z)
+  ];
+
+  skin(concat(hull_frames, bow_frames), slices=10, method="direct");
 }
 
 ship_hull();
