@@ -1,0 +1,19 @@
+# List available recipes
+default:
+    just --list
+
+# Type-check with pyright
+typecheck:
+    uv run pyright
+
+# Format code with ruff
+format:
+    uv run ruff format .
+
+# Start the standalone CAD viewer (browser, localhost:3939)
+viewer:
+    uv run python -m ocp_vscode --port 3939
+
+# Re-render the model on every save; needs `just viewer` running
+watch model="main.py":
+    uv run python scripts/watch.py {{model}}
