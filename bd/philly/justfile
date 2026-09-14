@@ -1,0 +1,25 @@
+# Recipes for the USS Philadelphia build123d model.
+
+# Show available recipes.
+default:
+    @just --list
+
+# Install/refresh the virtualenv from uv.lock.
+sync:
+    uv sync
+
+# Leave this running in its own terminal; `just watch` pushes models to it.
+# Not needed if you use the OCP CAD Viewer panel inside VS Code instead.
+[doc("Start the OCP CAD Viewer in the browser (http://127.0.0.1:3939)")]
+viewer port="3939":
+    uv run python -m ocp_vscode --port {{ port }}
+
+# Keeps build123d imported between reloads, so a save repaints in ~0.2s
+# instead of paying the ~16s cold import every time. Start `just viewer` first.
+[doc("Watch model files and live-reload them into the running viewer")]
+watch +files="main.py":
+    uv run watch.py {{ files }}
+
+# Render a model once, without the watcher.
+run file="main.py":
+    uv run {{ file }}

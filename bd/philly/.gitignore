@@ -5,3 +5,4 @@ __pycache__/
 *.stl
 *.step
 dist/
+.claude/worktrees
