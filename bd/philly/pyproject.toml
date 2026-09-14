@@ -8,3 +8,8 @@ dependencies = [
     "build123d",
     "ocp-vscode",
 ]
+
+[dependency-groups]
+dev = [
+    "watchfiles>=1.2.0",
+]
