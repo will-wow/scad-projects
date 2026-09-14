@@ -1,0 +1,10 @@
+[project]
+name = "philly"
+version = "0.1.0"
+description = "3D-printable model of the 1776 gunboat USS Philadelphia"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "build123d",
+    "ocp-vscode",
+]
