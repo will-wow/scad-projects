@@ -5,20 +5,56 @@ A 3D-printable model of the Continental gunboat USS Philadelphia, built with
 
 ## Setup
 
-Requires [uv](https://docs.astral.sh/uv/) and Python 3.14 (uv will fetch it).
+Requires [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/).
+uv will fetch Python 3.14 itself.
 
 ```sh
-uv sync
+just sync
 ```
 
-## Viewing
+## The edit loop
 
-Models are previewed with [OCP CAD Viewer](https://github.com/bernhard-42/vscode-ocp-cad-viewer).
-Install the `bernhard-42.vscode-ocp-cad-viewer` extension in VS Code, open the
-**OCP CAD Viewer** panel, then run:
+In one terminal, start the viewer:
 
 ```sh
-uv run main.py
+just viewer
 ```
 
-`main.py` renders a cube as a hello world.
+That runs the standalone [OCP CAD Viewer](https://github.com/bernhard-42/vscode-ocp-cad-viewer)
+at <http://127.0.0.1:3939> — open it in a browser. If you'd rather work inside
+VS Code, install the `bernhard-42.vscode-ocp-cad-viewer` extension and open its
+**OCP CAD Viewer** panel instead; skip `just viewer` in that case.
+
+In a second terminal, start the watcher:
+
+```sh
+just watch              # watches main.py
+just watch hull.py      # or any other model file(s)
+```
+
+Now every save repaints the viewer in about 0.2s.
+
+The speed comes from not restarting Python: importing build123d takes ~16s cold
+and a few seconds warm, so `watch.py` pays that once at startup and then only
+re-executes the model file on each change. The camera is left where you put it
+(`Camera.KEEP`), and a syntax error or a broken model prints a traceback without
+killing the watcher — fix the file, save again, and it picks up where it left off.
+
+The watched file is executed exactly as `python <file>` would run it, so it needs
+no special API: its own `if __name__ == "__main__":` block runs and calls
+`show`/`show_object`. `just run` executes it the slow way, in a fresh process.
+
+Once the model grows past one file, editing any `.py` beside it re-renders too
+— the project's own modules are dropped from the import cache each time, so a
+change to `hull.py` shows up immediately rather than serving the stale copy
+Python cached on first import.
+
+## Recipes
+
+```
+just            # list recipes
+just sync       # install/refresh the venv from uv.lock
+just viewer     # start the browser viewer on port 3939
+just watch      # live-reload model files into the viewer
+just run        # render once, in a fresh process
+```
