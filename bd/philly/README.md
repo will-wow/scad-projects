@@ -44,10 +44,14 @@ The watched file is executed exactly as `python <file>` would run it, so it need
 no special API: its own `if __name__ == "__main__":` block runs and calls
 `show`/`show_object`. `just run` executes it the slow way, in a fresh process.
 
-Once the model grows past one file, editing any `.py` beside it re-renders too
-— the project's own modules are dropped from the import cache each time, so a
-change to `hull.py` shows up immediately rather than serving the stale copy
-Python cached on first import.
+Once the model grows past one file, editing any `.py` under the model's
+directory — subpackages included — re-renders too. The project's own modules are
+dropped from the import cache each reload, so a change to `parts/hull.py` shows
+up immediately rather than serving the copy Python cached on first import. The
+watcher also disables bytecode caching for itself: a `.pyc` counts as current
+when the source's size and whole-second mtime match, so two quick edits of the
+same length (`Box(13, 13, 13)` to `Box(15, 15, 15)`) would otherwise re-import
+stale bytecode and repaint the *old* geometry.
 
 ## Recipes
 
@@ -57,4 +61,6 @@ just sync       # install/refresh the venv from uv.lock
 just viewer     # start the browser viewer on port 3939
 just watch      # live-reload model files into the viewer
 just run        # render once, in a fresh process
+just format     # ruff format + fix
+just check      # ruff format --check, ruff check, pyright
 ```
