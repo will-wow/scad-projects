@@ -132,6 +132,23 @@ def run_once(path: Path, prefixes: tuple[str, ...]) -> bool:
     return True
 
 
+def run_all(files: list[Path], prefixes: tuple[str, ...]) -> None:
+    """Re-render the whole watched set as one scene.
+
+    `show_object` accumulates into a module-level stack inside ocp_vscode and
+    only ever appends, so without this reset the viewer would keep every shape
+    from every previous reload: shrinking a sphere would draw the small one
+    inside the stale big one, and deleting it would change nothing at all. The
+    reset is per batch rather than per file so that watching several model files
+    still composes them into a single scene.
+    """
+    from ocp_vscode import reset_show
+
+    reset_show()
+    for file in files:
+        run_once(file, prefixes)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -191,8 +208,7 @@ def main() -> int:
         flush=True,
     )
 
-    for file in files:
-        run_once(file, prefixes)
+    run_all(files, prefixes)
 
     this_file = Path(__file__).resolve()
     # step/debounce keep the save -> repaint latency low (~16ms of notification
@@ -208,8 +224,7 @@ def main() -> int:
             for p in touched
         ):
             continue
-        for file in targets.values():
-            run_once(file, prefixes)
+        run_all(list(targets.values()), prefixes)
 
     return 0
 

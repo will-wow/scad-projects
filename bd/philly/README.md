@@ -53,6 +53,10 @@ when the source's size and whole-second mtime match, so two quick edits of the
 same length (`Box(13, 13, 13)` to `Box(15, 15, 15)`) would otherwise re-import
 stale bytecode and repaint the *old* geometry.
 
+Each batch resets the viewer's object stack before re-running, since
+`show_object` only ever appends to it — otherwise shrinking a shape would draw
+the small one inside the stale large one, and deleting one would do nothing.
+
 ## Recipes
 
 ```
