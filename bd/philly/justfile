@@ -25,9 +25,11 @@ run file="main.py":
     uv run {{ file }}
 
 # Useful in a headless session, where `just viewer` has no browser to draw into.
-[doc("Render the hull to SVG (and PNG if Chromium is available) in preview/")]
-preview:
-    uv run preview.py
+# Runs the model with PREVIEW set, so it can pick cheaper settings; pass --full
+# to render at the same detail as the real thing.
+[doc("Render the model to SVG (and PNG if Chromium is available) in preview/")]
+preview *args:
+    uv run preview.py {{ args }}
 
 # Format code with ruff.
 format:

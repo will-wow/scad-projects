@@ -18,6 +18,8 @@ is printed too.
 from __future__ import annotations
 
 import argparse
+import importlib
+import os
 import shutil
 import subprocess
 from dataclasses import dataclass
@@ -27,10 +29,27 @@ from pathlib import Path
 import numpy as np
 from build123d import Part
 
-from hull import HullSpec, build
+# Set before the model is imported, so module-level choices can read it. The
+# model is imported inside main() for that reason, and so that a model module
+# is free to `from preview import preview_mode` without an import cycle.
+PREVIEW_ENV = "PREVIEW"
+
+# What to render, as module:callable. The callable takes no arguments and
+# returns a Part. Override with --model to reuse this script elsewhere.
+DEFAULT_MODEL = "main:model"
 
 # Tessellation tolerance in final millimetres: finer than the eye at this size.
 MESH_TOLERANCE = 0.08
+
+
+def preview_mode() -> bool:
+    """True when rendering a preview, so a model can trade detail for speed.
+
+    Set by this script before it imports the model. A model is free to ignore
+    it; where it costs nothing to honour -- fewer loft sections, say -- the
+    edit loop gets quicker without changing what the preview shows.
+    """
+    return os.environ.get(PREVIEW_ENV, "") not in ("", "0", "false", "False")
 
 
 @dataclass(frozen=True)
@@ -65,11 +84,17 @@ def _camera(azimuth: float, elevation: float) -> tuple[np.ndarray, np.ndarray, n
     return right, np.cross(forward, right), forward
 
 
-def render(part: Part, view: View, path: Path, *, caption: str = "") -> int:
-    """Write `part` to `path` as a flat-shaded SVG. Returns the triangle count."""
+def mesh(part: Part) -> tuple[np.ndarray, np.ndarray]:
+    """Tessellate once; every view reuses the same triangles."""
     vertices, triangles = part.tessellate(MESH_TOLERANCE)
-    points = np.array([[v.X, v.Y, v.Z] for v in vertices])
-    faces = np.array(triangles)
+    return np.array([[v.X, v.Y, v.Z] for v in vertices]), np.array(triangles)
+
+
+def render(
+    geometry: tuple[np.ndarray, np.ndarray], view: View, path: Path, *, caption: str = ""
+) -> int:
+    """Write the mesh to `path` as a flat-shaded SVG. Returns the triangle count."""
+    points, faces = geometry
 
     right, up, forward = _camera(view.azimuth, view.elevation)
     screen = points @ np.stack([right, up]).T
@@ -160,33 +185,53 @@ def rasterise(chromium: str, view: View, path: Path) -> bool:
     return path.with_suffix(".png").exists()
 
 
+def load_model(target: str):
+    """Import `module:callable` and call it, returning the Part to render."""
+    module_name, _, attribute = target.partition(":")
+    if not module_name or not attribute:
+        raise SystemExit(f"--model must look like module:callable, got {target!r}")
+    module = importlib.import_module(module_name)
+    try:
+        factory = getattr(module, attribute)
+    except AttributeError:
+        raise SystemExit(f"{module_name} has no {attribute!r}") from None
+    return factory()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--model",
+        default=DEFAULT_MODEL,
+        help=f"module:callable to render (default: {DEFAULT_MODEL})",
+    )
     parser.add_argument(
         "--out", type=Path, default=Path("preview"), help="output directory (default: preview/)"
     )
     parser.add_argument(
-        "--length", type=float, default=HullSpec().length, help="printed length, mm"
-    )
-    parser.add_argument("--wall", type=float, default=HullSpec().wall, help="wall thickness, mm")
-    parser.add_argument(
-        "--stations", type=int, default=HullSpec().stations, help="sections in the loft"
+        "--full",
+        action="store_true",
+        help="render at full detail: don't set PREVIEW for the model",
     )
     args = parser.parse_args()
 
-    part = build(HullSpec(length=args.length, wall=args.wall, stations=args.stations))
+    if not args.full:
+        os.environ[PREVIEW_ENV] = "1"
+    part = load_model(args.model)
+
     size = part.bounding_box().size
     caption = (
-        f"{size.X:.0f} x {size.Y:.1f} x {size.Z:.1f}mm, "
-        f"{args.wall:g}mm wall, {part.volume / 1000:.1f}cm3"
+        f"{size.X:.0f} x {size.Y:.1f} x {size.Z:.1f}mm, {part.volume / 1000:.1f}cm3"
+        f"{'' if args.full else '  (preview detail)'}"
     )
 
     print(caption)
     args.out.mkdir(parents=True, exist_ok=True)
+    geometry = mesh(part)
     chromium = find_chromium()
     for view in VIEWS:
         path = args.out / f"{view.name}.svg"
-        count = render(part, view, path, caption=caption)
+        count = render(geometry, view, path, caption=caption)
         drawn = rasterise(chromium, view, path) if chromium else False
         print(f"{path}  {count} triangles{'  + png' if drawn else ''}")
     if not chromium:

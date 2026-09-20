@@ -2,23 +2,34 @@
 
     just viewer     # once, in another terminal
     just watch      # then edit and save; the viewer repaints
+    just preview    # or, with no browser around, render to preview/
 
 Adjust HULL below and save to see it change.
 """
 
+from build123d import Part
 from ocp_vscode import show_object
 
 from hull import HullSpec, build
+from preview import preview_mode
 
 HULL = HullSpec(
     length=300.0,  # printed length, mm (source data is the real 16.4m boat)
     wall=2.0,  # wall thickness, mm
-    stations=48,  # sections in the loft; drop to ~24 for a faster edit loop
+    # Sections in the loft. Only smoothness depends on this -- the hull's
+    # dimensions and its solid bow and stern plugs are solved from the geometry
+    # -- so a preview can afford far fewer and still show the real shape.
+    stations=12 if preview_mode() else 48,
 )
 
 
+def model() -> Part:
+    """The thing to render. `just preview` looks for this."""
+    return build(HULL)
+
+
 def main() -> None:
-    hull = build(HULL)
+    hull = model()
     box = hull.bounding_box().size
     print(
         f"hull {box.X:.0f} x {box.Y:.1f} x {box.Z:.1f} mm, "

@@ -162,9 +162,46 @@ def _inner_section(lines: HullLines, x: float, wall: float):
     return make_face(Polyline(*points, close=True))
 
 
+def _cavity_span(lines: HullLines, wall: float, x0: float, x1: float) -> tuple[float, float]:
+    """The first and last station that can hold a cavity, found by bisection.
+
+    Near the stem and the transom the hull is narrower than two walls, so the
+    cavity has to stop and leave those ends solid. Letting that happen wherever
+    the stations happen to land makes the solid plugs an artefact of sampling:
+    the bow plug measured anywhere from 812mm to 1566mm depending only on the
+    station count, which silently changed print weight along with it. Solving
+    for the boundary instead pins the plugs to the geometry, so `stations`
+    controls smoothness and nothing else.
+    """
+
+    def holds_cavity(x: float) -> bool:
+        return _inner_section(lines, x, wall) is not None
+
+    middle = 0.5 * (x0 + x1)
+    if not holds_cavity(middle):
+        raise RuntimeError("wall is too thick to hollow this hull amidships")
+
+    def boundary(solid_end: float) -> float:
+        """Bisect between an end that can't hold a cavity and the middle that can."""
+        low, high = solid_end, middle
+        if holds_cavity(low):
+            return low
+        for _ in range(40):  # ~1e-12 of the length; far below any tolerance here
+            mid = 0.5 * (low + high)
+            low, high = (low, mid) if holds_cavity(mid) else (mid, high)
+        return high
+
+    return boundary(x0), boundary(x1)
+
+
 def _hollow(hull: Part, lines: HullLines, stations: np.ndarray, wall: float) -> Part:
     """Subtract an inset loft, leaving the deck open."""
-    inner = [f for f in (_inner_section(lines, float(x), wall) for x in stations) if f is not None]
+    first, last = _cavity_span(lines, wall, float(stations[0]), float(stations[-1]))
+    # The solved ends, plus whichever requested stations fall between them.
+    inside = [float(x) for x in stations if first < x < last]
+    inner = [
+        f for f in (_inner_section(lines, x, wall) for x in (first, *inside, last)) if f is not None
+    ]
     if len(inner) < 2:
         raise RuntimeError("wall is too thick to hollow this hull at any station")
     hollowed = _as_part(hull - loft(inner), "cavity subtraction")
