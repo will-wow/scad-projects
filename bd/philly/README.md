@@ -57,6 +57,27 @@ Each batch resets the viewer's object stack before re-running, since
 `show_object` only ever appends to it — otherwise shrinking a shape would draw
 the small one inside the stale large one, and deleting one would do nothing.
 
+## The hull
+
+`lines.py` reads `designs/philadelphia_hull_lines.dxf` — a lines plan derived
+from the Smithsonian's scan of the surviving boat, at true 1:1 real-world
+millimetres — and `hull.py` lofts it into a hollow solid.
+
+The hull is a hard-chine scow, so every transverse section is a trapezoid:
+centreline to chine along the flat bottom, then straight out and up to the rail.
+The solid is a loft through those sections, hollowed with OCCT's thick-solid
+operation with the deck face removed.
+
+Scale and wall thickness live in `HullSpec` (`main.py` sets them). The source
+data is the real 16.4m boat; the default prints it at 300mm, or about 1:55.
+
+**The profile curves in the DXF are not hand-faired.** `FAIR_T` and
+`FAIR_BOTTOM` — the plan-view sheer and chine — are. The two profile curves are
+still raw scan output carrying the artefacts the handoff documents: an 871mm
+spike at the bow of `BASE_PROFILE`, a transom that confuses the last stations of
+both. `lines.fair()` trims those documented regions by count and smooths the
+rest, which is enough for a toy but is not the same as fairing them by eye.
+
 ## Recipes
 
 ```
