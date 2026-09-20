@@ -67,7 +67,9 @@ class View:
 # Azimuth 270 puts +X (bow to stern) along the screen's X axis in every view,
 # so the three line up with each other.
 VIEWS = (
-    View("hull", 322.0, 26.0, 1100, 420, "three-quarter"),
+    # High enough to look into the hull: at a low angle the decks hide the
+    # open waist, and an interior you cannot see is one you cannot check.
+    View("hull", 322.0, 48.0, 1100, 460, "three-quarter"),
     View("hull_plan", 270.0, 88.0, 1100, 340, "plan - bow at left"),
     View("hull_side", 270.0, 0.0, 1100, 280, "profile - sheer and flat bottom"),
 )
@@ -109,7 +111,14 @@ def render(
     normals /= np.where(lengths == 0, 1.0, lengths)
     # Absolute value so inside faces -- the hull is open, you see into it -- are
     # lit rather than black.
-    shade = np.abs(normals @ (LIGHT / np.linalg.norm(LIGHT))) * 0.75 + 0.25
+    lit = np.abs(normals @ (LIGHT / np.linalg.norm(LIGHT))) * 0.75 + 0.25
+
+    # Depth cue. Without it a recessed floor and the deck above it shade
+    # identically -- both face up -- and an open span is invisible against the
+    # decks either side, which is the one thing this render exists to show.
+    depth = points[faces].mean(axis=1) @ forward
+    near = (depth - depth.min()) / max(float(depth.max() - depth.min()), 1e-9)
+    shade = lit * (0.55 + 0.45 * near)
 
     low, high = corners.reshape(-1, 2).min(axis=0), corners.reshape(-1, 2).max(axis=0)
     pad = 30
@@ -124,7 +133,10 @@ def render(
         f'height="{view.height}" viewBox="0 0 {view.width} {view.height}">',
         f'<rect width="{view.width}" height="{view.height}" fill="#14181d"/>',
     ]
-    for i in np.argsort(points[faces].mean(axis=1) @ forward)[::-1]:
+    # Farthest first: `forward` points from the model toward the camera, so a
+    # larger dot product is nearer. Reversing this paints far over near, which
+    # renders the hull inside-out -- convincingly enough that it went unnoticed.
+    for i in np.argsort(depth):
         pixels = corners[i] * scale * flip + offset
         coords = " ".join(f"{x:.1f},{y:.1f}" for x, y in pixels)
         level = shade[i]

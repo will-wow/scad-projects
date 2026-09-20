@@ -34,6 +34,25 @@ from lines import HullLines
 
 
 @dataclass(frozen=True)
+class OpenSpan:
+    """A stretch of the hull that is hollowed out, as fractions of the length.
+
+    The real boat is decked over forward and aft with an open waist between, so
+    the hull is not one continuous cavity. Everything outside these spans is
+    left solid from the bottom up -- which is not how the boat was built, where
+    the decked ends covered storage and sleeping space, but is what prints.
+
+    `floor` raises the cavity's bottom, in millimetres of the finished model,
+    for a span that should be hollowed but not all the way down. Zero hollows
+    to the inside of the hull bottom.
+    """
+
+    start: float
+    end: float
+    floor: float = 0.0
+
+
+@dataclass(frozen=True)
 class HullSpec:
     """What to build. Lengths in millimetres of the finished, printed model."""
 
@@ -45,6 +64,9 @@ class HullSpec:
     # Transverse sections in the loft. Cosine-spaced, so they bunch up toward the
     # bow and stern where the curves bend hardest.
     stations: int = 48
+    # Which stretches are hollow. The default is one span end to end: a hull
+    # open for its whole length.
+    open_spans: tuple[OpenSpan, ...] = (OpenSpan(0.0, 1.0),)
 
     @property
     def deck_open(self) -> bool:
@@ -92,27 +114,39 @@ def _as_part(shape: object, what: str) -> Part:
     return shape
 
 
-def _assert_open(hull: Part, lines: HullLines, wall: float) -> None:
-    """Confirm the deck is really open, by probing for air just below the rail.
+def _assert_open(
+    hull: Part,
+    lines: HullLines,
+    wall: float,
+    spans: tuple[OpenSpan, ...],
+    x0: float,
+    x1: float,
+    first: float,
+    last: float,
+) -> None:
+    """Confirm the open spans really are open, by probing for air below the rail.
 
     Every silent failure this code has had looked fine from outside: a solid
     hull OCCT declined to hollow, a deck left skinned because the wrong face was
     opened. Volume alone does not separate those from a good build, so this
-    looks inside -- at a handful of stations, since a deck can be open amidships
-    and closed at one end.
+    looks inside -- and only inside the spans that are meant to be open, since
+    a decked stretch is supposed to have material there.
     """
-    x0, x1 = lines.sheer_half_width.span
-    for fraction in (0.35, 0.5, 0.65):
-        x = x0 + (x1 - x0) * fraction
+    for span in spans:
+        start = max(first, x0 + (x1 - x0) * span.start)
+        end = min(last, x0 + (x1 - x0) * span.end)
+        if end - start <= 1e-6:
+            continue
+        x = 0.5 * (start + end)
         # Sample inside the band the deck skin would occupy: from the rail down
         # by one wall thickness. Below that band there is air either way, which
         # is a check that always passes -- as an earlier version of this did.
         z = lines.sheer_height.value(x) - 0.5 * wall
         if hull.is_inside(Vector(x, 0.0, z)):
-            raise RuntimeError("the deck is still closed -- hollowing left a lid")
+            raise RuntimeError(f"the span {span.start:.2f}..{span.end:.2f} is still decked over")
 
 
-def _inner_section(lines: HullLines, x: float, wall: float):
+def _inner_section(lines: HullLines, x: float, wall: float, floor: float = 0.0):
     """The cavity's section at station `x`: the outer one, offset inward by `wall`.
 
     Offsetting a trapezoid is not the same as shrinking it. The floor moves up by
@@ -122,6 +156,9 @@ def _inner_section(lines: HullLines, x: float, wall: float):
     measure 2.8mm of side wall for a 2mm request.
 
     The rail is carried one wall above the deck so the subtraction opens the top.
+    `floor` raises the cavity's bottom above the inside of the hull's, for a span
+    that should not be hollowed all the way down.
+
     Returns None where the section is too small to hold a cavity, which leaves
     the stem and transom solid.
     """
@@ -140,10 +177,10 @@ def _inner_section(lines: HullLines, x: float, wall: float):
     base_y = y_chine - wall * rise / length
     base_z = z_chine + wall * run / length
 
-    # Where the offset side meets the offset floor (z = z_chine + wall).
-    s_floor = wall * (length - run) / rise
+    # Where the offset side meets the offset floor.
+    floor_z = z_chine + wall + floor
+    s_floor = (floor_z - base_z) * length / rise
     floor_y = base_y + s_floor * run / length
-    floor_z = z_chine + wall
 
     # Carry the same line up past the rail.
     s_top = (z_sheer + wall - base_z) * length / rise
@@ -194,20 +231,46 @@ def _cavity_span(lines: HullLines, wall: float, x0: float, x1: float) -> tuple[f
     return boundary(x0), boundary(x1)
 
 
-def _hollow(hull: Part, lines: HullLines, stations: np.ndarray, wall: float) -> Part:
-    """Subtract an inset loft, leaving the deck open."""
-    first, last = _cavity_span(lines, wall, float(stations[0]), float(stations[-1]))
-    # The solved ends, plus whichever requested stations fall between them.
-    inside = [float(x) for x in stations if first < x < last]
-    inner = [
-        f for f in (_inner_section(lines, x, wall) for x in (first, *inside, last)) if f is not None
-    ]
-    if len(inner) < 2:
-        raise RuntimeError("wall is too thick to hollow this hull at any station")
-    hollowed = _as_part(hull - loft(inner), "cavity subtraction")
+def _hollow(
+    hull: Part,
+    lines: HullLines,
+    stations: np.ndarray,
+    wall: float,
+    spans: tuple[OpenSpan, ...],
+    factor: float,
+) -> Part:
+    """Subtract a cavity for each open span, leaving the rest solid."""
+    x0, x1 = float(stations[0]), float(stations[-1])
+    # Where the hull is wide enough to hold a cavity at all; a span reaching
+    # past that is clipped rather than refused, so "open to the bow" means as
+    # far forward as the stem allows.
+    first, last = _cavity_span(lines, wall, x0, x1)
+
+    hollowed = hull
+    for span in spans:
+        if not 0.0 <= span.start < span.end <= 1.0:
+            raise ValueError(f"open span {span.start}..{span.end} is not an increasing 0..1 range")
+        start = max(first, x0 + (x1 - x0) * span.start)
+        end = min(last, x0 + (x1 - x0) * span.end)
+        if end - start <= 1e-6:
+            # Entirely inside the solid stem or transom: nothing to hollow.
+            continue
+        floor = span.floor / factor
+        inside = [float(x) for x in stations if start < x < end]
+        faces = [
+            f
+            for f in (_inner_section(lines, x, wall, floor) for x in (start, *inside, end))
+            if f is not None
+        ]
+        if len(faces) < 2:
+            continue
+        # The loft caps its own ends, so each span's boundary becomes a
+        # bulkhead and the decked stretches either side stay solid.
+        hollowed = _as_part(hollowed - loft(faces), "cavity subtraction")
+
     if hollowed.volume >= 0.95 * hull.volume:
-        raise RuntimeError("hollowing removed nothing -- check the wall thickness")
-    _assert_open(hollowed, lines, wall)
+        raise RuntimeError("hollowing removed nothing -- check the wall thickness and open spans")
+    _assert_open(hollowed, lines, wall, spans, x0, x1, first, last)
     return hollowed
 
 
@@ -226,7 +289,8 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
 
     if spec.deck_open:
         # Work in source units so the model is scaled exactly once, at the end.
-        hull = _hollow(hull, lines, stations, spec.wall / (spec.length / lines.length))
+        factor = spec.length / lines.length
+        hull = _hollow(hull, lines, stations, spec.wall / factor, spec.open_spans, factor)
 
     return _as_part(scale(hull, spec.length / lines.length), "scaling")
 

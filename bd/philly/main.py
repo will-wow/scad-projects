@@ -10,7 +10,7 @@ Adjust HULL below and save to see it change.
 from build123d import Part
 from ocp_vscode import show_object
 
-from hull import HullSpec, build
+from hull import HullSpec, OpenSpan, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -20,6 +20,10 @@ HULL = HullSpec(
     # dimensions and its solid bow and stern plugs are solved from the geometry
     # -- so a preview can afford far fewer and still show the real shape.
     stations=12 if preview_mode() else 48,
+    # Decked forward and aft, open waist between -- everything outside these
+    # spans is solid from the bottom up. The fractions are eyeballed off the
+    # scan; measure them properly against the deck beams and adjust.
+    open_spans=(OpenSpan(0.30, 0.74),),
 )
 
 
