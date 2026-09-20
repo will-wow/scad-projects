@@ -16,9 +16,12 @@ viewer port="3939":
 
 # Keeps build123d imported between reloads, so a save repaints in ~0.2s
 # instead of paying the ~16s cold import every time. Start `just viewer` first.
+# PREVIEW lets the model pick cheaper settings for the loop; since it only
+# affects smoothness, the shape you are judging is the real one. Run
+# `uv run watch.py` directly for full detail.
 [doc("Watch model files and live-reload them into the running viewer")]
 watch +files="main.py":
-    uv run watch.py {{ files }}
+    PREVIEW=1 uv run watch.py {{ files }}
 
 # Render a model once, without the watcher.
 run file="main.py":
