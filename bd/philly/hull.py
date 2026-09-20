@@ -6,12 +6,17 @@ trapezoid -- centreline to chine along the flat bottom, then straight out and up
 to the rail -- so the whole hull is a loft through those trapezoids rather than
 anything needing compound-curved surfaces.
 
-Hollowing uses OCCT's thick-solid operation with the deck face removed, which
-gives a wall of exactly the requested thickness measured perpendicular to each
-surface. Insetting the section outlines by hand instead looks simpler but is
-wrong on a flared hull: shifting a section's rail upward to open the deck also
-pushes the inclined side outward, which measured ~2.8mm of wall for a 2mm
-request. Let OCCT do the offset.
+Hollowing lofts a second, inset set of sections and subtracts them. OCCT's
+thick-solid operation is the obvious alternative and was used here first, but
+it costs about 9 seconds against 0.6 for this -- 94% of the build -- for the
+same 2.01mm wall. It also has to be told which face to leave open, and picking
+that face is its own bug: the deck is not reliably the highest one. Insetting
+the sections opens the top by construction, so there is no face to choose.
+
+Getting the inset right is the whole trick. Shifting a section's rail straight
+up to clear the deck also pushes the flared side outward, which measures 2.8mm
+of wall for a 2mm request; the side has to move perpendicular to itself, and
+the new chine corner is where the offset side and offset floor intersect.
 """
 
 from __future__ import annotations
@@ -19,7 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Box, Part, Polyline, Pos, loft, make_face, offset, scale
+from build123d import Part, Polyline, Vector, loft, make_face, scale
 
 import lines as hull_lines
 from lines import HullLines
@@ -91,37 +96,23 @@ def _assert_open(hull: Part, lines: HullLines, wall: float) -> None:
     """Confirm the deck is really open, by probing for air just below the rail.
 
     Every silent failure this code has had looked fine from outside: a solid
-    hull that OCCT declined to hollow, a deck left skinned because the wrong
-    face was opened. Volume alone does not separate them, so this looks inside.
+    hull OCCT declined to hollow, a deck left skinned because the wrong face was
+    opened. Volume alone does not separate those from a good build, so this
+    looks inside -- at a handful of stations, since a deck can be open amidships
+    and closed at one end.
     """
-    # Probe inside the band the deck skin would occupy -- from the rail down by
-    # one wall thickness. Sampling below that band finds air whether or not the
-    # deck is there, which is a check that always passes.
-    x = 0.5 * sum(lines.sheer_half_width.span)
-    z = lines.sheer_height.value(x) - 0.5 * wall
-    probe = Pos(x, 0.0, z) * Box(0.4 * wall, 0.4 * wall, 0.4 * wall)
-    if (hull & probe).volume > 0.01 * (0.4 * wall) ** 3:
-        raise RuntimeError("the deck is still closed -- hollowing opened the wrong face")
+    x0, x1 = lines.sheer_half_width.span
+    for fraction in (0.35, 0.5, 0.65):
+        x = x0 + (x1 - x0) * fraction
+        # Sample inside the band the deck skin would occupy: from the rail down
+        # by one wall thickness. Below that band there is air either way, which
+        # is a check that always passes -- as an earlier version of this did.
+        z = lines.sheer_height.value(x) - 0.5 * wall
+        if hull.is_inside(Vector(x, 0.0, z)):
+            raise RuntimeError("the deck is still closed -- hollowing left a lid")
 
 
-def _deck_face(hull: Part):
-    """The big upward-facing ruled surface spanning rail to rail.
-
-    Picking it by greatest centre height looks equivalent and is not: the stem
-    is a tall, narrow, vertical face reaching from the forefoot to the bow's
-    raised sheer, and once the faired bottom sweeps up forward its centre sits
-    *above* the deck's. Opening that instead leaves the deck skinned over and
-    a hole in the bow -- which still hollows, still validates, and still looks
-    like a boat from outside. Area among upward-facing faces is unambiguous:
-    the deck is two orders of magnitude larger than anything else facing up.
-    """
-    up = [f for f in hull.faces() if f.normal_at(f.center()).Z > 0.5]
-    if not up:
-        raise RuntimeError("no upward-facing face to open: the hull has no deck")
-    return max(up, key=lambda f: f.area)
-
-
-def _inner_section(lines: HullLines, x: float, wall: float, margin: float):
+def _inner_section(lines: HullLines, x: float, wall: float):
     """The cavity's section at station `x`: the outer one, offset inward by `wall`.
 
     Offsetting a trapezoid is not the same as shrinking it. The floor moves up by
@@ -130,7 +121,7 @@ def _inner_section(lines: HullLines, x: float, wall: float, margin: float):
     moved by a fixed amount. Getting this wrong is what made an earlier version
     measure 2.8mm of side wall for a 2mm request.
 
-    The rail is carried `margin` above the deck so the subtraction opens the top.
+    The rail is carried one wall above the deck so the subtraction opens the top.
     Returns None where the section is too small to hold a cavity, which leaves
     the stem and transom solid.
     """
@@ -155,9 +146,9 @@ def _inner_section(lines: HullLines, x: float, wall: float, margin: float):
     floor_z = z_chine + wall
 
     # Carry the same line up past the rail.
-    s_top = (z_sheer + margin - base_z) * length / rise
+    s_top = (z_sheer + wall - base_z) * length / rise
     top_y = base_y + s_top * run / length
-    top_z = z_sheer + margin
+    top_z = z_sheer + wall
 
     if floor_y <= 1e-6 or top_y < floor_y or top_z <= floor_z:
         return None
@@ -172,29 +163,8 @@ def _inner_section(lines: HullLines, x: float, wall: float, margin: float):
 
 
 def _hollow(hull: Part, lines: HullLines, stations: np.ndarray, wall: float) -> Part:
-    """Hollow the hull, leaving the deck open.
-
-    OCCT's thick-solid is the first choice: it offsets every face perpendicular
-    to itself, so the wall is exactly `wall` everywhere by construction. But it
-    fails on this shape for some wall thicknesses -- and it fails *silently*,
-    handing back the solid unchanged, valid, with no exception. A solid hull
-    looks fine in the viewer and only announces itself as hours of print time,
-    so the result is checked rather than trusted, and a hand-built inner loft
-    takes over when the check fails.
-    """
-    deck = _deck_face(hull)
-    try:
-        thick = offset(hull, -wall, openings=deck)
-    except Exception:  # noqa: BLE001  (any OCCT failure just means: use the fallback)
-        thick = None
-    if thick is not None and thick.volume < 0.95 * hull.volume:
-        opened = _as_part(thick, "thick-solid hollowing")
-        _assert_open(opened, lines, wall)
-        return opened
-
-    inner = [
-        f for f in (_inner_section(lines, float(x), wall, wall) for x in stations) if f is not None
-    ]
+    """Subtract an inset loft, leaving the deck open."""
+    inner = [f for f in (_inner_section(lines, float(x), wall) for x in stations) if f is not None]
     if len(inner) < 2:
         raise RuntimeError("wall is too thick to hollow this hull at any station")
     hollowed = _as_part(hull - loft(inner), "cavity subtraction")

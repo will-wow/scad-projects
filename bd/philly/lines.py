@@ -24,6 +24,7 @@ form and what makes the toy sit flat on a printer bed.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import cache
 from pathlib import Path
 
 import numpy as np
@@ -85,9 +86,15 @@ def _sorted_unique(points: list[tuple[float, float]]) -> Curve:
     return Curve(np.array(x_out), np.array(y_out))
 
 
+@cache
+def _document():
+    """The parsed DXF. Cached: `load()` reads four layers out of one file."""
+    return readfile(str(DXF_PATH))
+
+
 def read_layer(layer: str, *, y_offset: float = 0.0) -> Curve:
     """Collect every LINE / LWPOLYLINE / SPLINE on `layer` into one curve."""
-    doc = readfile(str(DXF_PATH))
+    doc = _document()
     points: list[tuple[float, float]] = []
     for entity in doc.modelspace().query(f"*[layer=='{layer}']"):
         kind = entity.dxftype()
