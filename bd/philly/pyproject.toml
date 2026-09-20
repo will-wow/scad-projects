@@ -11,5 +11,32 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "pyright>=1.1.414",
+    "ruff>=0.16.8",
     "watchfiles>=1.2.0",
 ]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "SIM117", # build123d's BuildPart/BuildSketch/BuildLine nesting is idiomatic, not incidental
+]
+
+[tool.pyright]
+include = ["."]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+typeCheckingMode = "standard"

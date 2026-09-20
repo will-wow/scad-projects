@@ -23,3 +23,14 @@ watch +files="main.py":
 # Render a model once, without the watcher.
 run file="main.py":
     uv run {{ file }}
+
+# Format code with ruff.
+format:
+    uv run ruff format .
+    uv run ruff check --fix .
+
+# Lint and type-check.
+check:
+    uv run ruff format --check .
+    uv run ruff check .
+    uv run pyright

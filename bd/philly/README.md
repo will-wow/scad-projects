@@ -44,10 +44,39 @@ The watched file is executed exactly as `python <file>` would run it, so it need
 no special API: its own `if __name__ == "__main__":` block runs and calls
 `show`/`show_object`. `just run` executes it the slow way, in a fresh process.
 
-Once the model grows past one file, editing any `.py` beside it re-renders too
-— the project's own modules are dropped from the import cache each time, so a
-change to `hull.py` shows up immediately rather than serving the stale copy
-Python cached on first import.
+Once the model grows past one file, editing any `.py` under the model's
+directory — subpackages included — re-renders too. The project's own modules are
+dropped from the import cache each reload, so a change to `parts/hull.py` shows
+up immediately rather than serving the copy Python cached on first import. The
+watcher also disables bytecode caching for itself: a `.pyc` counts as current
+when the source's size and whole-second mtime match, so two quick edits of the
+same length (`Box(13, 13, 13)` to `Box(15, 15, 15)`) would otherwise re-import
+stale bytecode and repaint the *old* geometry.
+
+Each batch resets the viewer's object stack before re-running, since
+`show_object` only ever appends to it — otherwise shrinking a shape would draw
+the small one inside the stale large one, and deleting one would do nothing.
+
+## The hull
+
+`lines.py` reads `designs/philadelphia_hull_lines.dxf` — a lines plan derived
+from the Smithsonian's scan of the surviving boat, at true 1:1 real-world
+millimetres — and `hull.py` lofts it into a hollow solid.
+
+The hull is a hard-chine scow, so every transverse section is a trapezoid:
+centreline to chine along the flat bottom, then straight out and up to the rail.
+The solid is a loft through those sections, hollowed with OCCT's thick-solid
+operation with the deck face removed.
+
+Scale and wall thickness live in `HullSpec` (`main.py` sets them). The source
+data is the real 16.4m boat; the default prints it at 300mm, or about 1:55.
+
+**The profile curves in the DXF are not hand-faired.** `FAIR_T` and
+`FAIR_BOTTOM` — the plan-view sheer and chine — are. The two profile curves are
+still raw scan output carrying the artefacts the handoff documents: an 871mm
+spike at the bow of `BASE_PROFILE`, a transom that confuses the last stations of
+both. `lines.fair()` trims those documented regions by count and smooths the
+rest, which is enough for a toy but is not the same as fairing them by eye.
 
 ## Recipes
 
@@ -57,4 +86,6 @@ just sync       # install/refresh the venv from uv.lock
 just viewer     # start the browser viewer on port 3939
 just watch      # live-reload model files into the viewer
 just run        # render once, in a fresh process
+just format     # ruff format + fix
+just check      # ruff format --check, ruff check, pyright
 ```
