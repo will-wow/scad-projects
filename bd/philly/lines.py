@@ -3,20 +3,22 @@
 The DXF (`designs/philadelphia_hull_lines.dxf`) holds two 2D views of the same
 hull, both with X = distance aft of the bow, in real millimetres:
 
-- Plan view, near Y = 0 and up: half-width from the centreline. `FAIR_T` is the
-  sheer (rail) and `FAIR_BOTTOM` the chine (where the flat bottom meets the
-  side). These are the hand-faired curves -- a chain of LINEs plus one SPLINE
-  each -- and supersede the raw `SHEER_TOP` / `CHINE_BOTTOM` polylines.
+- Plan view, near Y = 0 and up: half-width from the centreline. `FAIR_TOP` is
+  the sheer (rail) and `FAIR_BOTTOM` the chine, where the flat bottom meets the
+  side.
 - Profile view, shifted down by PROFILE_OFFSET so it doesn't overlap the plan:
-  height above the keel baseline. `SHEER_PROFILE` is the rail height and
-  `BASE_PROFILE` the bottom's rocker, which for a flat-bottomed hull is also
-  the chine's height.
+  height above the keel baseline. `FAIR_SHEER_PROFILE` is the rail height and
+  `FAIR_BASE_PROFILE` the bottom, which on this flat-bottomed hull is also the
+  chine's height.
 
-The profile curves have not been faired by hand, so they are still raw scan
-output and carry obvious artefacts: an 871mm spike at the first station of
-`BASE_PROFILE`, a 250-year-old transom confusing the last few stations of both.
-`fair()` rejects those the same way a person would -- points that disagree with
-their neighbours -- then smooths what's left.
+All four are the hand-faired curves and supersede the raw `SHEER_TOP`,
+`CHINE_BOTTOM`, `SHEER_PROFILE` and `BASE_PROFILE` entities, which are the
+original scan output and still carry its artefacts.
+
+The faired bottom is deliberately flat -- one constant height from just abaft
+the forefoot all the way to the transom, with the stem sweeping up over the
+first 240mm. There is no rocker to interpolate, which is both true to the scow
+form and what makes the toy sit flat on a printer bed.
 """
 
 from __future__ import annotations
@@ -28,7 +30,6 @@ import numpy as np
 from ezdxf.entities.lwpolyline import LWPolyline
 from ezdxf.entities.spline import Spline
 from ezdxf.filemanagement import readfile
-from scipy.interpolate import UnivariateSpline
 
 DXF_PATH = Path(__file__).parent / "designs" / "philadelphia_hull_lines.dxf"
 
@@ -115,56 +116,6 @@ def read_layer(layer: str, *, y_offset: float = 0.0) -> Curve:
     return _sorted_unique(points)
 
 
-def fair(
-    curve: Curve,
-    *,
-    trim_head: int = 0,
-    trim_tail: int = 0,
-    window: int = 7,
-    tolerance: float = 4.0,
-    smooth: float = 150.0,
-) -> Curve:
-    """Stand in for the hand-fairing the profile curves never got.
-
-    Two different problems, so two different tools. The artefacts at the ends are
-    documented in the handoff -- an 871mm spike where the scan lost the damaged
-    bow, a transom that confused the "local top" search for the last stations --
-    and a statistical filter is the wrong way to remove them, because the ends of
-    a sheer are also where it genuinely rises fastest. Rejecting "points that
-    disagree with their neighbours" there throws away the bow's sheer rise, which
-    is a real feature of this hull. So the ends are trimmed by count, per the
-    handoff, and whatever survives anchors the curve.
-
-    Spikes in the interior are fair game for a Hampel filter: a point is rejected
-    when it sits more than `tolerance` robust standard deviations from the median
-    of the window around it. `smooth` is the residual budget, in mm^2 per point,
-    for the spline that then smooths the remainder.
-    """
-    x = curve.x[trim_head : len(curve.x) - trim_tail if trim_tail else None]
-    y = curve.y[trim_head : len(curve.y) - trim_tail if trim_tail else None]
-
-    half = window // 2
-    keep = np.ones(len(y), dtype=bool)
-    # Endpoints are excluded: they have no symmetric window, and after trimming
-    # they are the anchors for the bow and stern.
-    for i in range(1, len(y) - 1):
-        lo, hi = max(0, i - half), min(len(y), i + half + 1)
-        neighbours = np.delete(np.arange(lo, hi), np.where(np.arange(lo, hi) == i))
-        if len(neighbours) < 3:
-            continue
-        median = np.median(y[neighbours])
-        # 1.4826 * MAD estimates sigma for normally distributed noise.
-        sigma = 1.4826 * np.median(np.abs(y[neighbours] - median))
-        if sigma > 0 and abs(y[i] - median) > tolerance * sigma:
-            keep[i] = False
-
-    x_kept, y_kept = x[keep], y[keep]
-    if len(x_kept) < 4:
-        return Curve(x_kept, y_kept)
-    spline = UnivariateSpline(x_kept, y_kept, s=smooth * len(x_kept), k=3)
-    return Curve(x_kept, np.asarray(spline(x_kept), dtype=float))
-
-
 @dataclass(frozen=True)
 class HullLines:
     """The four curves, faired, in real millimetres at 1:1."""
@@ -189,22 +140,12 @@ class HullLines:
 
 
 def load() -> HullLines:
-    """Read the DXF and return the faired lines plan.
-
-    The plan-view curves are taken as drawn -- they are the hand-faired ones.
-    The profile curves are still raw, so they get `fair()` applied.
-    """
+    """Read the DXF and return the faired lines plan, as drawn."""
     return HullLines(
-        sheer_half_width=read_layer("FAIR_T"),
+        sheer_half_width=read_layer("FAIR_TOP"),
         chine_half_width=read_layer("FAIR_BOTTOM"),
-        # trim_tail=3: the last three stations read 1800, 1803, 1504 -- the
-        # transom, not the sheer.
-        sheer_height=fair(read_layer("SHEER_PROFILE", y_offset=PROFILE_OFFSET), trim_tail=3),
-        # trim_head=4: an 871mm spike, then three near-zero readings where the
-        # scan lost the bottom at the bow. trim_tail=1: a 339mm jump at the transom.
-        chine_height=fair(
-            read_layer("BASE_PROFILE", y_offset=PROFILE_OFFSET), trim_head=4, trim_tail=1
-        ),
+        sheer_height=read_layer("FAIR_SHEER_PROFILE", y_offset=PROFILE_OFFSET),
+        chine_height=read_layer("FAIR_BASE_PROFILE", y_offset=PROFILE_OFFSET),
     )
 
 

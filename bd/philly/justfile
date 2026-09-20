@@ -24,6 +24,11 @@ watch +files="main.py":
 run file="main.py":
     uv run {{ file }}
 
+# Useful in a headless session, where `just viewer` has no browser to draw into.
+[doc("Render the hull to SVG (and PNG if Chromium is available) in preview/")]
+preview:
+    uv run preview.py
+
 # Format code with ruff.
 format:
     uv run ruff format .

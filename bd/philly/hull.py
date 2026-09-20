@@ -19,7 +19,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Axis, Part, Polyline, loft, make_face, offset, scale
+from build123d import Box, Part, Polyline, Pos, loft, make_face, offset, scale
 
 import lines as hull_lines
 from lines import HullLines
@@ -87,6 +87,40 @@ def _as_part(shape: object, what: str) -> Part:
     return shape
 
 
+def _assert_open(hull: Part, lines: HullLines, wall: float) -> None:
+    """Confirm the deck is really open, by probing for air just below the rail.
+
+    Every silent failure this code has had looked fine from outside: a solid
+    hull that OCCT declined to hollow, a deck left skinned because the wrong
+    face was opened. Volume alone does not separate them, so this looks inside.
+    """
+    # Probe inside the band the deck skin would occupy -- from the rail down by
+    # one wall thickness. Sampling below that band finds air whether or not the
+    # deck is there, which is a check that always passes.
+    x = 0.5 * sum(lines.sheer_half_width.span)
+    z = lines.sheer_height.value(x) - 0.5 * wall
+    probe = Pos(x, 0.0, z) * Box(0.4 * wall, 0.4 * wall, 0.4 * wall)
+    if (hull & probe).volume > 0.01 * (0.4 * wall) ** 3:
+        raise RuntimeError("the deck is still closed -- hollowing opened the wrong face")
+
+
+def _deck_face(hull: Part):
+    """The big upward-facing ruled surface spanning rail to rail.
+
+    Picking it by greatest centre height looks equivalent and is not: the stem
+    is a tall, narrow, vertical face reaching from the forefoot to the bow's
+    raised sheer, and once the faired bottom sweeps up forward its centre sits
+    *above* the deck's. Opening that instead leaves the deck skinned over and
+    a hole in the bow -- which still hollows, still validates, and still looks
+    like a boat from outside. Area among upward-facing faces is unambiguous:
+    the deck is two orders of magnitude larger than anything else facing up.
+    """
+    up = [f for f in hull.faces() if f.normal_at(f.center()).Z > 0.5]
+    if not up:
+        raise RuntimeError("no upward-facing face to open: the hull has no deck")
+    return max(up, key=lambda f: f.area)
+
+
 def _inner_section(lines: HullLines, x: float, wall: float, margin: float):
     """The cavity's section at station `x`: the outer one, offset inward by `wall`.
 
@@ -148,13 +182,15 @@ def _hollow(hull: Part, lines: HullLines, stations: np.ndarray, wall: float) -> 
     so the result is checked rather than trusted, and a hand-built inner loft
     takes over when the check fails.
     """
-    deck = hull.faces().sort_by(Axis.Z)[-1]
+    deck = _deck_face(hull)
     try:
         thick = offset(hull, -wall, openings=deck)
     except Exception:  # noqa: BLE001  (any OCCT failure just means: use the fallback)
         thick = None
     if thick is not None and thick.volume < 0.95 * hull.volume:
-        return _as_part(thick, "thick-solid hollowing")
+        opened = _as_part(thick, "thick-solid hollowing")
+        _assert_open(opened, lines, wall)
+        return opened
 
     inner = [
         f for f in (_inner_section(lines, float(x), wall, wall) for x in stations) if f is not None
@@ -164,6 +200,7 @@ def _hollow(hull: Part, lines: HullLines, stations: np.ndarray, wall: float) -> 
     hollowed = _as_part(hull - loft(inner), "cavity subtraction")
     if hollowed.volume >= 0.95 * hull.volume:
         raise RuntimeError("hollowing removed nothing -- check the wall thickness")
+    _assert_open(hollowed, lines, wall)
     return hollowed
 
 

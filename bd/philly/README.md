@@ -71,12 +71,21 @@ operation with the deck face removed.
 Scale and wall thickness live in `HullSpec` (`main.py` sets them). The source
 data is the real 16.4m boat; the default prints it at 300mm, or about 1:55.
 
-**The profile curves in the DXF are not hand-faired.** `FAIR_T` and
-`FAIR_BOTTOM` — the plan-view sheer and chine — are. The two profile curves are
-still raw scan output carrying the artefacts the handoff documents: an 871mm
-spike at the bow of `BASE_PROFILE`, a transom that confuses the last stations of
-both. `lines.fair()` trims those documented regions by count and smooths the
-rest, which is enough for a toy but is not the same as fairing them by eye.
+All four curves are the hand-faired layers: `FAIR_TOP` and `FAIR_BOTTOM` in the
+plan view, `FAIR_SHEER_PROFILE` and `FAIR_BASE_PROFILE` in the profile view.
+The raw `SHEER_TOP` / `CHINE_BOTTOM` / `SHEER_PROFILE` / `BASE_PROFILE` entities
+are the original scan output, still carrying its artefacts, and are not read.
+
+The faired bottom is flat -- one height from just abaft the forefoot to the
+transom, with the stem sweeping up over the first 240mm. No rocker to
+interpolate, and the toy sits flat on a printer bed.
+
+## Looking at it headlessly
+
+`just viewer` needs a browser. In a remote or headless session there isn't one,
+so `just preview` renders three views to `preview/` as SVG (plus PNG where a
+Chromium is available) with a small painter's-algorithm renderer. A hull can be
+watertight, correctly scaled and still the wrong shape.
 
 ## Recipes
 
