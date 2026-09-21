@@ -20,10 +20,19 @@ HULL = HullSpec(
     # dimensions and its solid bow and stern plugs are solved from the geometry
     # -- so a preview can afford far fewer and still show the real shape.
     stations=12 if preview_mode() else 48,
-    # Decked forward and aft, open waist between -- everything outside these
-    # spans is solid from the bottom up. The fractions are eyeballed off the
-    # scan; measure them properly against the deck beams and adjust.
-    open_spans=(OpenSpan(0.30, 0.74),),
+    # The real boat is decked in three stretches -- forecastle, a decked middle,
+    # and the quarterdeck aft -- with an open slice between each. These are the
+    # two open slices; everything else carries a deck.
+    #
+    # Fractions of the overall length, eyeballed off the scan. Measure them
+    # against the deck beams and adjust.
+    open_spans=(
+        OpenSpan(0.18, 0.34),
+        OpenSpan(0.58, 0.74),
+    ),
+    # Deck height, as a fraction of the depth from the inside of the bottom to
+    # the rail. The hull's sides carry on above it as bulwarks.
+    deck=0.5,
 )
 
 
