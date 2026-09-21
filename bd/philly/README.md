@@ -3,6 +3,10 @@
 A 3D-printable model of the Continental gunboat USS Philadelphia, built with
 [build123d](https://build123d.readthedocs.io/).
 
+For a tour of how the model is put together -- and how to point it at a
+different boat -- see [HOW-IT-WORKS.md](HOW-IT-WORKS.md). For slicer settings,
+flotation and ballast, see [PRINTING.md](PRINTING.md).
+
 ## Setup
 
 Requires [uv](https://docs.astral.sh/uv/) and [just](https://just.systems/).

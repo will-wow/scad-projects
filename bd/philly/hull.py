@@ -1,10 +1,14 @@
 """Build the Philadelphia's hull as a hollow, printable solid.
 
+See HOW-IT-WORKS.md for a tour of the whole thing; this is the reasoning that
+belongs next to the code.
+
 The hull is a hard-chine scow: a flat bottom, a hard corner at the chine, and
-flared sides up to the sheer. That means every transverse section is a simple
-trapezoid -- centreline to chine along the flat bottom, then straight out and up
-to the rail -- so the whole hull is a loft through those trapezoids rather than
-anything needing compound-curved surfaces.
+sides rising to the sheer. Every transverse section is therefore a closed
+outline that a few numbers describe -- centreline to chine along the flat
+bottom, then out and up to the rail, bowed by `Bulge` or dead straight without
+it -- so the whole hull is a loft through those outlines rather than anything
+needing compound-curved surfaces.
 
 Hollowing lofts a second, inset set of sections and subtracts them. OCCT's
 thick-solid operation is the obvious alternative and was used here first, but
