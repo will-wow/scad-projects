@@ -12,7 +12,15 @@ import numpy as np
 import pytest
 from build123d import Plane, Vector
 
-from hull import HullSpec, OpenSpan, _cavity_span, _decked, _station_positions, build
+from hull import (
+    HullSpec,
+    OpenSpan,
+    Planking,
+    _cavity_span,
+    _decked,
+    _station_positions,
+    build,
+)
 
 STATIONS = 12
 
@@ -153,3 +161,58 @@ def test_decked_stretches_are_the_complement_of_the_open_ones(spans, expected):
 def test_a_backwards_span_is_refused(lines):
     with pytest.raises(ValueError, match="increasing"):
         build(HullSpec(stations=8, open_spans=(OpenSpan(0.6, 0.2),)), lines)
+
+
+class TestPlanking:
+    """Seams are cut into the section outlines, so they are geometry, not texture."""
+
+    @pytest.fixture(scope="class")
+    def planked(self, lines):
+        return build(
+            HullSpec(stations=STATIONS, planking=Planking(count=8, depth=0.35, width=0.8)),
+            lines,
+        )
+
+    def test_a_groove_sits_at_every_seam(self, planked, lines):
+        """Probe just inside the nominal side: material between seams, air at one."""
+        spec = HullSpec()
+        factor = spec.length / lines.length
+        x = spec.length * 0.5
+        source = x / factor
+        y_chine = lines.chine_half_width.value(source) * factor
+        z_chine = lines.chine_height.value(source) * factor
+        run = lines.sheer_half_width.value(source) * factor - y_chine
+        rise = lines.sheer_height.value(source) * factor - z_chine
+        length = float(np.hypot(run, rise))
+        normal_y, normal_z = -rise / length, run / length
+
+        def solid_at(along: float, inset: float) -> bool:
+            return planked.is_inside(
+                Vector(
+                    x,
+                    y_chine + run * along + normal_y * inset,
+                    z_chine + rise * along + normal_z * inset,
+                )
+            )
+
+        probe = 0.15  # inside the surface, less than the 0.35mm groove
+        for seam in range(1, 8):
+            assert not solid_at(seam / 8, probe), f"no groove at seam {seam}"
+            assert solid_at((seam - 0.5) / 8, probe), f"groove spread over plank {seam}"
+
+    def test_planking_removes_only_the_grooves(self, planked, lines):
+        """Grooves are detail, not a change of shape -- but they do cut material.
+
+        Seven seams a side, each a notch of about width * depth / 2, over the
+        length of the hull: a little under 1% of the volume. Anything larger
+        means the side is being inset as a whole rather than grooved at the
+        seams, which is what happens if the seam points are placed wrong.
+        """
+        plain = build(HullSpec(stations=STATIONS), lines)
+        removed = plain.volume - planked.volume
+        assert removed > 0, "grooves should cut material, not add it"
+        assert removed < 0.02 * plain.volume, "the side looks inset, not grooved"
+
+    def test_planking_leaves_one_watertight_solid(self, planked):
+        assert planked.is_valid
+        assert len(planked.solids()) == 1

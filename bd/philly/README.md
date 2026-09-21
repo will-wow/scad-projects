@@ -111,3 +111,11 @@ in millimetres. The export welds the tessellation before writing: OCCT meshes
 each face on its own, so a shared edge arrives as two sets of vertices and the
 result reads as non-manifold -- which is what makes a slicer offer to repair a
 model. It refuses to write a mesh that is still non-manifold after welding.
+
+## Planking
+
+`Planking` cuts a groove at each plank seam. The seams go into the section
+outlines rather than being subtracted afterwards -- the hull is already a loft
+through those outlines, so a seam costs three vertices and no boolean. The
+inside stays smooth, so the wall is thinner by the groove depth at a seam and
+nowhere else. It costs about 5s of build time at 8 planks a side.

@@ -10,7 +10,7 @@ Adjust HULL below and save to see it change.
 from build123d import Part
 from ocp_vscode import show_object
 
-from hull import HullSpec, OpenSpan, build
+from hull import HullSpec, OpenSpan, Planking, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -33,6 +33,9 @@ HULL = HullSpec(
     # How far the deck sits below the rail, in mm: the bulwark's height. The
     # deck parallels the sheer, so it rises toward bow and stern with it.
     bulwark=10.0,
+    # Plank seams down the outside. Depth and width are in mm of the finished
+    # model; keep the width at a couple of nozzle widths so it survives slicing.
+    planking=Planking(count=8, depth=0.35, width=0.8),
 )
 
 

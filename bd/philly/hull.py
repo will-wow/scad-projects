@@ -53,6 +53,25 @@ class OpenSpan:
 
 
 @dataclass(frozen=True)
+class Planking:
+    """Grooves down the outside of the hull, one at each plank seam.
+
+    Cut into the section outlines rather than subtracted afterwards: the hull is
+    already a loft through those outlines, so a seam costs three vertices and no
+    boolean. The inside is left smooth, so the wall is thinner by `depth` at a
+    seam and nowhere else.
+
+    `count` is planks per side, chine to rail. `depth` and `width` are in
+    millimetres of the finished model -- keep the width at a couple of nozzle
+    widths or the groove will not survive slicing.
+    """
+
+    count: int = 8
+    depth: float = 0.35
+    width: float = 0.8
+
+
+@dataclass(frozen=True)
 class HullSpec:
     """What to build. Lengths in millimetres of the finished, printed model."""
 
@@ -73,6 +92,8 @@ class HullSpec:
     # deck parallels the sheer, rising toward bow and stern with it. None fills
     # the decked stretches to the rail instead.
     bulwark: float | None = None
+    # Plank seams down the outside. None leaves the sides smooth.
+    planking: Planking | None = None
 
     @property
     def deck_open(self) -> bool:
@@ -85,12 +106,54 @@ def _station_positions(x0: float, x1: float, count: int) -> np.ndarray:
     return x0 + (x1 - x0) * (1.0 - np.cos(t * np.pi)) / 2.0
 
 
-def _section(lines: HullLines, x: float):
-    """One transverse trapezoid at station `x`, as a planar face.
+def _seam_points(
+    y_chine: float,
+    z_chine: float,
+    y_sheer: float,
+    z_sheer: float,
+    planking: Planking,
+    factor: float,
+) -> list[tuple[float, float]]:
+    """Points along the side that cut a groove at each plank seam.
 
-    Centreline to chine is flat -- that is the bottom panel -- then straight out
-    and up to the rail. The top edge closes the section across what will become
-    the deck; the hollowing step removes it.
+    Each seam is three points -- on the surface, in by `depth`, back out -- so
+    the side reads as planks with a shadow line between them rather than being
+    inset as a whole. Seams that would fall outside the side are skipped, which
+    is what keeps the grooves off the chine and the rail.
+    """
+    run = y_sheer - y_chine
+    rise = z_sheer - z_chine
+    length = float(np.hypot(run, rise))
+    if length <= 0.0 or planking.count < 2:
+        return []
+
+    # Inward normal of the side: toward the centreline and up.
+    normal_y, normal_z = -rise / length, run / length
+    depth = planking.depth / factor
+    half = (planking.width / factor) / 2.0 / length
+
+    points: list[tuple[float, float]] = []
+    for seam in range(1, planking.count):
+        middle = seam / planking.count
+        for offset, inset in ((-half, 0.0), (0.0, depth), (half, 0.0)):
+            along = middle + offset
+            if not 0.0 < along < 1.0:
+                continue
+            points.append(
+                (
+                    y_chine + run * along + normal_y * inset,
+                    z_chine + rise * along + normal_z * inset,
+                )
+            )
+    return points
+
+
+def _section(lines: HullLines, x: float, planking: Planking | None = None, factor: float = 1.0):
+    """One transverse section at station `x`, as a planar face.
+
+    Centreline to chine is flat -- that is the bottom panel -- then out and up to
+    the rail, by way of any plank seams. The top edge closes the section across
+    what will become the deck; the hollowing step removes it.
     """
     y_sheer = lines.sheer_half_width.value(x)
     z_sheer = lines.sheer_height.value(x)
@@ -100,12 +163,13 @@ def _section(lines: HullLines, x: float):
     if y_chine <= 1e-6 or y_sheer < y_chine or z_sheer <= z_chine:
         return None
 
-    points = [
-        (x, -y_sheer, z_sheer),
-        (x, -y_chine, z_chine),
-        (x, y_chine, z_chine),
-        (x, y_sheer, z_sheer),
-    ]
+    side = (
+        _seam_points(y_chine, z_chine, y_sheer, z_sheer, planking, factor)
+        if planking is not None
+        else []
+    )
+    starboard = [(y_chine, z_chine), *side, (y_sheer, z_sheer)]
+    points = [(x, -y, z) for y, z in reversed(starboard)] + [(x, y, z) for y, z in starboard]
     return make_face(Polyline(*points, close=True))
 
 
@@ -359,7 +423,12 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
     x0, x1 = lines.sheer_half_width.span
     stations = _station_positions(x0, x1, spec.stations)
 
-    faces = [f for f in (_section(lines, float(x)) for x in stations) if f is not None]
+    factor = spec.length / lines.length
+    faces = [
+        f
+        for f in (_section(lines, float(x), spec.planking, factor) for x in stations)
+        if f is not None
+    ]
     if len(faces) < 2:
         raise RuntimeError("not enough valid stations to loft the hull")
     hull = loft(faces)
