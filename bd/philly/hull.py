@@ -24,7 +24,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Part, Polyline, Vector, loft, make_face, scale
+from build123d import Compound, Part, Polyline, Vector, loft, make_face, scale
 
 import lines as hull_lines
 from lines import HullLines
@@ -50,6 +50,54 @@ class OpenSpan:
     start: float
     end: float
     floor: float = 0.0
+
+
+@dataclass(frozen=True)
+class Bulge:
+    """Bow the sides outward between the chine and the rail.
+
+    The sections here are straight lines from chine to rail, so the hull reads
+    as a flat-panelled box. The scan's topsides bow out and then straighten --
+    not tumblehome, which would curve back inward, but a convex swell through
+    the middle of the side. That is one shape parameter, not a lines plan, so
+    it is worth trying before drawing sections by hand.
+
+    `amount` is the height of the swell as a fraction of the side's own slant
+    height, so it tapers with the hull instead of staying a fixed millimetre
+    count that would swamp the narrow ends. `peak` is where along the side the
+    swell is widest, 0 at the chine and 1 at the rail.
+
+    The swell is applied to the cavity's sections too, at the same height and by
+    the same distance, which is the whole reason this stays cheap: both surfaces
+    move together, so the wall is preserved without a real 2D polyline offset
+    and without the self-intersection that offsetting into a curve invites. At
+    the default the side's radius of curvature is about 49mm against a 2mm wall,
+    so there is no risk of that even in principle.
+
+    It displaces horizontally rather than along the surface normal, which looks
+    the same -- the two differ only by a 1/cos(flare) stretch -- but keeps every
+    point at the height it started from. A normal displacement moves points
+    down the side as well as out, so the outer and inner swells end up offset
+    from each other in z, the cavity leans through the hull, and the
+    subtraction cuts the boat into pieces rather than hollowing it.
+    """
+
+    amount: float = 0.06
+    peak: float = 0.45
+
+    def __post_init__(self) -> None:
+        if not 0.0 < self.peak < 1.0:
+            raise ValueError(f"bulge peak must lie strictly inside 0..1, got {self.peak}")
+
+    def at(self, t: float) -> float:
+        """The swell's shape: zero at both ends, 1 at `peak`, smooth between.
+
+        Warping the argument rather than the value keeps the ends pinned however
+        far the peak is moved, so the chine and the rail stay exactly where the
+        lines plan puts them.
+        """
+        t = min(max(t, 0.0), 1.0)
+        return float(np.sin(np.pi * t ** (np.log(0.5) / np.log(self.peak))))
 
 
 @dataclass(frozen=True)
@@ -109,6 +157,9 @@ class HullSpec:
     bulwark: float | None = None
     # Plank seams down the outside. None leaves the sides smooth.
     planking: Planking | None = None
+    # How far the sides bow outward between chine and rail. None keeps them the
+    # dead-straight panels the lines plan alone gives.
+    bulge: Bulge | None = None
 
     @property
     def deck_open(self) -> bool:
@@ -121,71 +172,167 @@ def _station_positions(x0: float, x1: float, count: int) -> np.ndarray:
     return x0 + (x1 - x0) * (1.0 - np.cos(t * np.pi)) / 2.0
 
 
+# Points across a plank's face when the side is bowed, between its grooves.
+# The grooves already supply three points each, so the swell needs few of its
+# own to read as a curve.
+PLANK_SAMPLES = 1
+# Points across the whole side when it is bowed and there is no planking.
+SIDE_SAMPLES = 11
+# The most of a plank's width a single groove may occupy, leaving a face.
+MAX_GROOVE = 0.8
+
+
 def _seam_points(
-    y_chine: float,
-    z_chine: float,
-    y_sheer: float,
-    z_sheer: float,
     planking: Planking,
+    flare_at,
+    chord: float,
     factor: float,
 ) -> list[tuple[float, float]]:
-    """Points along the side that cut a groove at each plank seam.
+    """Plank-seam grooves, as (position along the side, depth into it) pairs.
 
     Three points a seam: on the surface, in by `depth` over a short lip, then
     back out along a ramp. Going out rather than in is the facet that ends up
     facing downward, so it is the one given the gentle angle; the lip faces up
     and can be as abrupt as it likes.
 
-    Seams whose groove would not fit between the chine and the rail are skipped,
-    which is what keeps the grooves off both.
+    The ramp is sized from the flare where the seam actually is, not from the
+    chine-to-rail chord. On a bowed side those differ by some ten degrees, and
+    in the direction that matters: the lower half leans out further than the
+    chord does, so a chord-derived ramp would be too short exactly where the
+    overhang is worst.
+
+    Every seam yields exactly three points, whatever the local flare. A seam
+    with no room for its ramp gets a shallower groove at the same facet angle,
+    and one with no budget left gets a flat groove of no depth at all, rather
+    than being dropped. That looks like a detail and is not: a station that
+    drops a seam has fewer vertices than its neighbours, and lofting between
+    sections of unequal vertex counts costs sixty times what lofting between
+    matched ones does -- 7.5 seconds against 0.12 for the outer hull alone.
+    """
+    if planking.count < 2 or chord <= 0.0:
+        return []
+    depth = planking.depth / factor
+    lip = min((planking.lip / factor) / chord, 0.15 / planking.count)
+    widest = MAX_GROOVE / planking.count
+
+    seams: list[tuple[float, float]] = []
+    for seam in range(1, planking.count):
+        middle = seam / planking.count
+        spare = planking.max_overhang - flare_at(middle)
+        if spare <= 1.0:
+            # No budget left: any groove here would overhang, so leave the
+            # surface flat and spend the three points on nothing.
+            ramp, cut = 0.1 / planking.count, 0.0
+        else:
+            ramp = (depth / float(np.tan(np.radians(spare)))) / chord
+            cut = depth
+            if ramp > widest:
+                # The ramp this facet angle demands is wider than the plank.
+                # Shallower groove, same angle -- never a truncated ramp, which
+                # would steepen the one facet the whole scheme exists to keep
+                # gentle.
+                ramp = widest
+                cut = float(np.tan(np.radians(spare))) * widest * chord
+        seams += [(middle - lip, 0.0), (middle, cut), (middle + ramp, 0.0)]
+    return seams
+
+
+def _side_profile(
+    y_chine: float,
+    z_chine: float,
+    y_sheer: float,
+    z_sheer: float,
+    planking: Planking | None,
+    bulge: Bulge | None,
+    factor: float,
+) -> list[tuple[float, float]]:
+    """The starboard side from chine to rail, as (y, z) points.
+
+    Everything is worked out in the side's own frame -- a position `t` from 0 at
+    the chine to 1 at the rail, and a displacement along the inward normal --
+    then mapped out once at the end. That lets the swell and the plank grooves
+    be written independently and simply added: the swell displaces outward, a
+    groove inward, and a groove that lands on the swell gets both.
     """
     run = y_sheer - y_chine
     rise = z_sheer - z_chine
-    length = float(np.hypot(run, rise))
-    if length <= 0.0 or planking.count < 2:
-        return []
+    chord = float(np.hypot(run, rise))
+    if chord <= 0.0:
+        return [(y_chine, z_chine), (y_sheer, z_sheer)]
+    normal_y, normal_z = -rise / chord, run / chord
 
-    # Inward normal of the side: toward the centreline and up.
-    normal_y, normal_z = -rise / length, run / length
-    depth = planking.depth / factor
+    def swell(t: float) -> float:
+        """How far out of the chord the surface stands at `t`, in source units.
 
-    # The downward-facing facet starts from however far the side already leans,
-    # so only the rest of the budget is left for the ramp itself. This is the
-    # flare in the section plane; near the bow and stern the surface also tilts
-    # along its length, but that tilt turns the normal toward the horizontal
-    # rather than further down, so ignoring it is the conservative way round.
-    flare = np.degrees(np.arctan2(abs(run), abs(rise)))
-    spare = planking.max_overhang - flare
-    if spare <= 1.0:
-        # Already at the limit: a groove here would overhang however it is cut,
-        # so leave this stretch smooth rather than pretend otherwise.
-        return []
-    ramp_along = (depth / float(np.tan(np.radians(spare)))) / length
-    lip = (planking.lip / factor) / length
+        Horizontal, so the point keeps its height -- see `Bulge`.
+        """
+        return bulge.at(t) * bulge.amount * chord if bulge is not None else 0.0
+
+    def flare_at(t: float) -> float:
+        """Local lean of the surface, in degrees from vertical.
+
+        Signed, so a stretch that leans back inward reads as negative and is
+        given more of the overhang budget rather than less -- an earlier version
+        took the absolute value and would have treated the two alike.
+
+        This is the flare in the section plane. Near the bow and stern the
+        surface also tilts along its length, but that tilt turns the normal
+        toward the horizontal rather than further down, so ignoring it is the
+        conservative way round.
+        """
+        step = 1e-4
+        low, high = max(t - step, 0.0), min(t + step, 1.0)
+        slope = (swell(high) - swell(low)) / (high - low)
+        return float(np.degrees(np.arctan2(run + slope, rise)))
+
+    seams = _seam_points(planking, flare_at, chord, factor) if planking is not None else []
+    entries = list(seams)
+    if bulge is None:
+        entries += [(0.0, 0.0), (1.0, 0.0)]
+    elif not seams:
+        entries += [(float(t), 0.0) for t in np.linspace(0.0, 1.0, SIDE_SAMPLES)]
+    else:
+        # Sample the swell on the plank faces, between one groove's ramp and the
+        # next one's lip. Sampling at fixed fractions of the side instead would
+        # drop stray points inside the grooves, and drop a different number of
+        # them at each station -- which is the vertex-count mismatch that makes
+        # the loft crawl.
+        edges = [0.0, *(t for t, _ in seams), 1.0]
+        entries += [(0.0, 0.0), (1.0, 0.0)]
+        for plank in range(len(edges) // 3):
+            low, high = edges[plank * 3], edges[plank * 3 + 1]
+            entries += [
+                (low + (high - low) * (i + 1) / (PLANK_SAMPLES + 1), 0.0)
+                for i in range(PLANK_SAMPLES)
+            ]
+    entries.sort()
 
     points: list[tuple[float, float]] = []
-    for seam in range(1, planking.count):
-        middle = seam / planking.count
-        corners = ((-lip, 0.0), (0.0, depth), (ramp_along, 0.0))
-        if not all(0.0 < middle + offset < 1.0 for offset, _ in corners):
+    for t, inset in entries:
+        # A groove cuts in along the surface normal; the swell pushes the whole
+        # side out horizontally.
+        point = (
+            y_chine + run * t + normal_y * inset + swell(t),
+            z_chine + rise * t + normal_z * inset,
+        )
+        if points and abs(point[0] - points[-1][0]) < 1e-9 and abs(point[1] - points[-1][1]) < 1e-9:
             continue
-        for offset, inset in corners:
-            along = middle + offset
-            points.append(
-                (
-                    y_chine + run * along + normal_y * inset,
-                    z_chine + rise * along + normal_z * inset,
-                )
-            )
+        points.append(point)
     return points
 
 
-def _section(lines: HullLines, x: float, planking: Planking | None = None, factor: float = 1.0):
+def _section(
+    lines: HullLines,
+    x: float,
+    planking: Planking | None = None,
+    bulge: Bulge | None = None,
+    factor: float = 1.0,
+):
     """One transverse section at station `x`, as a planar face.
 
     Centreline to chine is flat -- that is the bottom panel -- then out and up to
-    the rail, by way of any plank seams. The top edge closes the section across
-    what will become the deck; the hollowing step removes it.
+    the rail, by way of any swell and any plank seams. The top edge closes the
+    section across what will become the deck; the hollowing step removes it.
     """
     y_sheer = lines.sheer_half_width.value(x)
     z_sheer = lines.sheer_height.value(x)
@@ -195,14 +342,14 @@ def _section(lines: HullLines, x: float, planking: Planking | None = None, facto
     if y_chine <= 1e-6 or y_sheer < y_chine or z_sheer <= z_chine:
         return None
 
-    side = (
-        _seam_points(y_chine, z_chine, y_sheer, z_sheer, planking, factor)
-        if planking is not None
-        else []
-    )
-    starboard = [(y_chine, z_chine), *side, (y_sheer, z_sheer)]
+    starboard = _side_profile(y_chine, z_chine, y_sheer, z_sheer, planking, bulge, factor)
     points = [(x, -y, z) for y, z in reversed(starboard)] + [(x, y, z) for y, z in starboard]
     return make_face(Polyline(*points, close=True))
+
+
+# How much of the result a boolean may leave behind as loose fragments before
+# it counts as having cut the hull apart rather than merely shaved it.
+DEBRIS_FRACTION = 1e-4
 
 
 def _as_part(shape: object, what: str) -> Part:
@@ -210,10 +357,29 @@ def _as_part(shape: object, what: str) -> Part:
 
     Anything else means the operation degenerated -- an empty result, or a shell
     where a solid was expected -- so say which step produced it.
+
+    A boolean against a curved cavity can also leave slivers where the two
+    surfaces graze: the aft cut sheds two fragments of six ten-thousandths of a
+    cubic millimetre beside a hull of thirty cubic centimetres. Those are
+    discarded, but only after checking they really are dust. Taking the largest
+    piece unconditionally would turn a hull genuinely cut in two -- which is
+    what a cavity escaping through the side looks like -- into a quiet success.
     """
-    if not isinstance(shape, Part):
+    if not isinstance(shape, Compound):
         raise RuntimeError(f"{what} produced a {type(shape).__name__}, not a solid")
-    return shape
+    solids = shape.solids()
+    if not solids:
+        raise RuntimeError(f"{what} produced nothing solid")
+    if len(solids) == 1 and isinstance(shape, Part):
+        return shape
+    largest = max(solids, key=lambda s: s.volume)
+    debris = sum(s.volume for s in solids if s is not largest)
+    if debris > DEBRIS_FRACTION * largest.volume:
+        raise RuntimeError(
+            f"{what} split the hull into {len(solids)} pieces; "
+            f"{debris / largest.volume:.1%} of it broke away"
+        )
+    return Part(largest.wrapped)
 
 
 def _assert_open(
@@ -248,7 +414,13 @@ def _assert_open(
             raise RuntimeError(f"the span {span.start:.2f}..{span.end:.2f} is still decked over")
 
 
-def _inner_section(lines: HullLines, x: float, wall: float, floor_z: float | None = None):
+def _inner_section(
+    lines: HullLines,
+    x: float,
+    wall: float,
+    floor_z: float | None = None,
+    bulge: Bulge | None = None,
+):
     """The cavity's section at station `x`: the outer one, offset inward by `wall`.
 
     Offsetting a trapezoid is not the same as shrinking it. The floor moves up by
@@ -261,6 +433,13 @@ def _inner_section(lines: HullLines, x: float, wall: float, floor_z: float | Non
     `floor_z` places the cavity's bottom outright, which is how a deck is made:
     put the floor part-way up and the hull's own sides carry on past it as
     bulwarks. It is never allowed below the inside of the hull's bottom.
+
+    A bowed side is followed by displacing the cavity's side by the same amount
+    at the same height, so the two surfaces move together and the wall survives
+    without a genuine polyline offset. The two curves are then a constant
+    distance apart measured along the chord's normal; perpendicular to the
+    surface itself that is short by cos(local lean), which at the default swell
+    is under 2% of the wall.
 
     Returns None where the section is too small to hold a cavity, which leaves
     the stem and transom solid.
@@ -294,12 +473,22 @@ def _inner_section(lines: HullLines, x: float, wall: float, floor_z: float | Non
     if floor_y <= 1e-6 or top_y < floor_y or top_z <= floor_z:
         return None
 
-    points = [
-        (x, -top_y, top_z),
-        (x, -floor_y, floor_z),
-        (x, floor_y, floor_z),
-        (x, top_y, top_z),
-    ]
+    starboard = [(floor_y, floor_z), (top_y, top_z)]
+    if bulge is not None:
+        chord = float(np.hypot(run, rise))
+        curved: list[tuple[float, float]] = []
+        for s_along in np.linspace(0.0, 1.0, SIDE_SAMPLES):
+            y = floor_y + s_along * (top_y - floor_y)
+            z = floor_z + s_along * (top_z - floor_z)
+            # Match the outer surface at this height, not at this fraction of
+            # the cavity: the cavity is cut short at the bottom by the floor and
+            # runs past the rail at the top, so its own parameter is not the
+            # outer side's.
+            swell = bulge.at((z - z_chine) / rise) * bulge.amount * chord
+            curved.append((y + swell, z))
+        starboard = curved
+
+    points = [(x, -y, z) for y, z in reversed(starboard)] + [(x, y, z) for y, z in starboard]
     return make_face(Polyline(*points, close=True))
 
 
@@ -367,6 +556,7 @@ def _cut(
     wall: float,
     bounds: tuple[float, float],
     floor_z,
+    bulge: Bulge | None = None,
 ) -> Part:
     """Subtract one cavity between `bounds`, with its floor placed by `floor_z`.
 
@@ -380,7 +570,7 @@ def _cut(
     inside = [float(x) for x in stations if start < x < end]
     faces = [
         f
-        for f in (_inner_section(lines, x, wall, floor_z(x)) for x in (start, *inside, end))
+        for f in (_inner_section(lines, x, wall, floor_z(x), bulge) for x in (start, *inside, end))
         if f is not None
     ]
     if len(faces) < 2:
@@ -396,6 +586,7 @@ def _hollow(
     spec_spans: tuple[OpenSpan, ...],
     bulwark: float | None,
     factor: float,
+    bulge: Bulge | None = None,
 ) -> Part:
     """Hollow the open spans to the bottom, and the decked stretches to the deck."""
     x0, x1 = float(stations[0]), float(stations[-1])
@@ -424,6 +615,7 @@ def _hollow(
             wall,
             clip(span.start, span.end),
             lambda x, lift=lift: lines.chine_height.value(x) + wall + lift,
+            bulge,
         )
 
     if bulwark is not None:
@@ -439,7 +631,7 @@ def _hollow(
             return lines.sheer_height.value(x) - drop
 
         for stretch in _decked(spec_spans):
-            hollowed = _cut(hollowed, lines, stations, wall, clip(*stretch), deck_height)
+            hollowed = _cut(hollowed, lines, stations, wall, clip(*stretch), deck_height, bulge)
 
     if hollowed.volume >= 0.95 * hull.volume:
         raise RuntimeError("hollowing removed nothing -- check the wall thickness and open spans")
@@ -458,7 +650,7 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
     factor = spec.length / lines.length
     faces = [
         f
-        for f in (_section(lines, float(x), spec.planking, factor) for x in stations)
+        for f in (_section(lines, float(x), spec.planking, spec.bulge, factor) for x in stations)
         if f is not None
     ]
     if len(faces) < 2:
@@ -469,7 +661,14 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
         # Work in source units so the model is scaled exactly once, at the end.
         factor = spec.length / lines.length
         hull = _hollow(
-            hull, lines, stations, spec.wall / factor, spec.open_spans, spec.bulwark, factor
+            hull,
+            lines,
+            stations,
+            spec.wall / factor,
+            spec.open_spans,
+            spec.bulwark,
+            factor,
+            spec.bulge,
         )
 
     return _as_part(scale(hull, spec.length / lines.length), "scaling")

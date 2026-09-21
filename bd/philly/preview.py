@@ -72,6 +72,9 @@ VIEWS = (
     View("hull", 322.0, 48.0, 1100, 460, "three-quarter"),
     View("hull_plan", 270.0, 88.0, 1100, 340, "plan - bow at left"),
     View("hull_side", 270.0, 0.0, 1100, 280, "profile - sheer and flat bottom"),
+    # Looking down the length, which is the only view that shows the shape of
+    # the sections themselves -- how far the sides flare and how they bow.
+    View("hull_bow", 0.0, 6.0, 700, 420, "bow on - section shape"),
 )
 
 LIGHT = np.array([0.4, -0.5, 0.75])

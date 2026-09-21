@@ -13,11 +13,14 @@ import pytest
 from build123d import Plane, Vector
 
 from hull import (
+    Bulge,
     HullSpec,
     OpenSpan,
     Planking,
     _cavity_span,
     _decked,
+    _inner_section,
+    _section,
     _station_positions,
     build,
 )
@@ -239,3 +242,130 @@ class TestPlanking:
     def test_planking_leaves_one_watertight_solid(self, planked):
         assert planked.is_valid
         assert len(planked.solids()) == 1
+
+
+class TestBulge:
+    """The sides bow outward between chine and rail, rather than running straight."""
+
+    SPEC = Bulge(amount=0.06, peak=0.45)
+
+    @pytest.fixture(scope="class")
+    def bulged(self, lines):
+        return build(HullSpec(stations=STATIONS, bulge=self.SPEC), lines)
+
+    def test_the_side_stands_outside_the_chord(self, bulged, lines):
+        """The point of the whole thing: probe where a straight side would be air.
+
+        Halfway up the side, the swell should have carried material out past the
+        line from chine to rail -- so a point just outside that line is inside
+        the bulged hull and outside the straight one.
+        """
+        spec = HullSpec(stations=STATIONS)
+        factor = spec.length / lines.length
+        source = (spec.length * 0.5) / factor
+        y_chine = lines.chine_half_width.value(source) * factor
+        z_chine = lines.chine_height.value(source) * factor
+        run = lines.sheer_half_width.value(source) * factor - y_chine
+        rise = lines.sheer_height.value(source) * factor - z_chine
+
+        at = self.SPEC.peak
+        # Just outside the straight chord, by a fraction of the expected swell.
+        swell = self.SPEC.amount * float(np.hypot(run, rise))
+        probe = Vector(
+            spec.length * 0.5,
+            y_chine + run * at + 0.5 * swell,
+            z_chine + rise * at,
+        )
+        assert bulged.is_inside(probe), "the side did not bow outward"
+        assert not build(spec, lines).is_inside(probe), "a straight side already reached here"
+
+    def test_the_chine_and_rail_stay_where_the_lines_plan_puts_them(self, bulged, lines):
+        """The swell is pinned to zero at both ends, so it must not move either.
+
+        The rail is the widest point, so the beam is the check: if the swell
+        leaked past t=1 the hull would measure wider than its own sheer line.
+        """
+        plain = build(HullSpec(stations=STATIONS), lines).bounding_box()
+        bowed = bulged.bounding_box()
+        assert pytest.approx(plain.size.Y, abs=0.01) == bowed.size.Y
+        assert pytest.approx(plain.size.Z, abs=0.01) == bowed.size.Z
+
+    def test_every_station_has_the_same_vertex_count(self, lines):
+        """Not cosmetic: unequal counts make the loft sixty times slower.
+
+        Lofting between sections whose vertices do not correspond forces OCCT to
+        build a common parameterisation, which took the outer hull from 0.12
+        seconds to 7.5 and the whole build past eight minutes. It went unnoticed
+        because the result was still correct -- just unusable -- so this asserts
+        the invariant that keeps it fast rather than timing anything.
+        """
+        spec = HullSpec(stations=STATIONS, planking=Planking(), bulge=self.SPEC)
+        factor = spec.length / lines.length
+        x0, x1 = lines.sheer_half_width.span
+        counts = {
+            len(face.edges())
+            for x in _station_positions(x0, x1, spec.stations)
+            if (face := _section(lines, float(x), spec.planking, spec.bulge, factor)) is not None
+        }
+        assert len(counts) == 1, f"sections disagree on vertex count: {sorted(counts)}"
+
+    def test_the_wall_survives_the_swell(self, lines):
+        """The cavity is bowed by the same amount at the same height as the hull.
+
+        That is what lets this skip a real polyline offset. It only holds if the
+        swell is applied horizontally: displacing along the surface normal moves
+        points down the side as well as out, the two surfaces end up offset in
+        z, and the cavity leans out through the hull.
+        """
+        spec = HullSpec(stations=STATIONS, bulge=self.SPEC)
+        factor = spec.length / lines.length
+        wall = spec.wall / factor
+        x0, x1 = lines.sheer_half_width.span
+
+        for fraction in (0.3, 0.5, 0.7):
+            x = x0 + (x1 - x0) * fraction
+            y_chine = lines.chine_half_width.value(x)
+            z_chine = lines.chine_height.value(x)
+            run = lines.sheer_half_width.value(x) - y_chine
+            rise = lines.sheer_height.value(x) - z_chine
+            chord = float(np.hypot(run, rise))
+            cavity = _inner_section(lines, x, wall, None, self.SPEC)
+            assert cavity is not None
+
+            for vertex in cavity.vertices():
+                if vertex.Y <= 0.0:
+                    continue
+                at = (vertex.Z - z_chine) / rise
+                if not 0.0 <= at <= 1.0:
+                    continue  # the cavity runs past the rail to open the deck
+                outer = y_chine + run * at + self.SPEC.at(at) * self.SPEC.amount * chord
+                # Both surfaces are displaced horizontally by the same amount,
+                # so the horizontal gap between them is untouched by the swell.
+                # It is not the wall, though: across a side leaning `flare` off
+                # vertical it measures wall / cos(flare), some 7% over. Lay it
+                # back down on the chord's normal to recover the wall itself.
+                gap = (outer - vertex.Y) * factor * rise / chord
+                assert gap == pytest.approx(spec.wall, abs=0.02), (
+                    f"wall is {gap:.3f}mm at t={at:.2f}"
+                )
+
+    def test_a_bowed_hull_with_planking_is_still_one_solid(self, lines):
+        """Both at once is what cut the hull into three pieces.
+
+        The cavity grazing the bowed side sheds slivers -- six ten-thousandths
+        of a cubic millimetre against thirty cubic centimetres -- which are
+        discarded, but only after checking they are dust rather than the hull
+        genuinely coming apart.
+        """
+        hull = build(
+            HullSpec(
+                stations=STATIONS,
+                open_spans=(OpenSpan(0.18, 0.34), OpenSpan(0.58, 0.74)),
+                bulwark=10.0,
+                planking=Planking(),
+                bulge=self.SPEC,
+            ),
+            lines,
+        )
+        assert hull.is_valid
+        assert len(hull.solids()) == 1

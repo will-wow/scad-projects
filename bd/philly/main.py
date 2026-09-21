@@ -10,7 +10,7 @@ Adjust HULL below and save to see it change.
 from build123d import Part
 from ocp_vscode import show_object
 
-from hull import HullSpec, OpenSpan, Planking, build
+from hull import Bulge, HullSpec, OpenSpan, Planking, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -37,6 +37,10 @@ HULL = HullSpec(
     # bottom-down without support: max_overhang caps how far the downward-facing
     # facet may lean, and the ramp back out is sized from the local flare.
     planking=Planking(count=6, depth=0.25, lip=0.20),
+    # How far the sides bow out between chine and rail, as a fraction of the
+    # side's slant height. The lines plan gives straight panels; the scan's
+    # topsides swell. Dial this by eye against the scan -- 0 is the old shape.
+    bulge=Bulge(amount=0.06, peak=0.45),
 )
 
 
