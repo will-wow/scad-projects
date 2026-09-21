@@ -33,9 +33,10 @@ HULL = HullSpec(
     # How far the deck sits below the rail, in mm: the bulwark's height. The
     # deck parallels the sheer, so it rises toward bow and stern with it.
     bulwark=10.0,
-    # Plank seams down the outside. Depth and width are in mm of the finished
-    # model; keep the width at a couple of nozzle widths so it survives slicing.
-    planking=Planking(count=8, depth=0.35, width=0.8),
+    # Plank seams down the outside. The groove is a sawtooth so it prints
+    # bottom-down without support: max_overhang caps how far the downward-facing
+    # facet may lean, and the ramp back out is sized from the local flare.
+    planking=Planking(count=6, depth=0.25, lip=0.20),
 )
 
 

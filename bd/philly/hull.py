@@ -61,14 +61,29 @@ class Planking:
     boolean. The inside is left smooth, so the wall is thinner by `depth` at a
     seam and nowhere else.
 
-    `count` is planks per side, chine to rail. `depth` and `width` are in
-    millimetres of the finished model -- keep the width at a couple of nozzle
-    widths or the groove will not survive slicing.
+    The groove is a sawtooth, not a symmetric V, because the hull prints
+    bottom-down and a symmetric V does not survive that. Its upper facet faces
+    downward at roughly atan(depth / half-width) away from the side -- and the
+    side is already flared some 20 degrees off vertical, so the two add up and
+    a 0.35 x 0.8 V put 4.8% of the hull past 45 degrees of overhang. Going in
+    sharply over `lip` and back out along a ramp keeps the downward-facing facet
+    inside `max_overhang`, with the steep facet pointing up where nothing has to
+    bridge it. The ramp is worked out per station from the local flare.
+
+    `count` is planks per side, chine to rail. `depth` and `lip` are in
+    millimetres of the finished model; `max_overhang` is degrees from vertical.
+
+    The default of 30 is deliberately under the 45 a printer will take, because
+    the ramp is sized from the section flare alone and that under-predicts the
+    real tilt near the ends. Measured on the finished solid, 45 leaves 2.4% of
+    the hull past 45 degrees and 30 leaves none -- the same as no planking at
+    all.
     """
 
-    count: int = 8
-    depth: float = 0.35
-    width: float = 0.8
+    count: int = 6
+    depth: float = 0.25
+    lip: float = 0.20
+    max_overhang: float = 30.0
 
 
 @dataclass(frozen=True)
@@ -116,10 +131,13 @@ def _seam_points(
 ) -> list[tuple[float, float]]:
     """Points along the side that cut a groove at each plank seam.
 
-    Each seam is three points -- on the surface, in by `depth`, back out -- so
-    the side reads as planks with a shadow line between them rather than being
-    inset as a whole. Seams that would fall outside the side are skipped, which
-    is what keeps the grooves off the chine and the rail.
+    Three points a seam: on the surface, in by `depth` over a short lip, then
+    back out along a ramp. Going out rather than in is the facet that ends up
+    facing downward, so it is the one given the gentle angle; the lip faces up
+    and can be as abrupt as it likes.
+
+    Seams whose groove would not fit between the chine and the rail are skipped,
+    which is what keeps the grooves off both.
     """
     run = y_sheer - y_chine
     rise = z_sheer - z_chine
@@ -130,15 +148,29 @@ def _seam_points(
     # Inward normal of the side: toward the centreline and up.
     normal_y, normal_z = -rise / length, run / length
     depth = planking.depth / factor
-    half = (planking.width / factor) / 2.0 / length
+
+    # The downward-facing facet starts from however far the side already leans,
+    # so only the rest of the budget is left for the ramp itself. This is the
+    # flare in the section plane; near the bow and stern the surface also tilts
+    # along its length, but that tilt turns the normal toward the horizontal
+    # rather than further down, so ignoring it is the conservative way round.
+    flare = np.degrees(np.arctan2(abs(run), abs(rise)))
+    spare = planking.max_overhang - flare
+    if spare <= 1.0:
+        # Already at the limit: a groove here would overhang however it is cut,
+        # so leave this stretch smooth rather than pretend otherwise.
+        return []
+    ramp_along = (depth / float(np.tan(np.radians(spare)))) / length
+    lip = (planking.lip / factor) / length
 
     points: list[tuple[float, float]] = []
     for seam in range(1, planking.count):
         middle = seam / planking.count
-        for offset, inset in ((-half, 0.0), (0.0, depth), (half, 0.0)):
+        corners = ((-lip, 0.0), (0.0, depth), (ramp_along, 0.0))
+        if not all(0.0 < middle + offset < 1.0 for offset, _ in corners):
+            continue
+        for offset, inset in corners:
             along = middle + offset
-            if not 0.0 < along < 1.0:
-                continue
             points.append(
                 (
                     y_chine + run * along + normal_y * inset,

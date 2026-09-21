@@ -118,4 +118,11 @@ model. It refuses to write a mesh that is still non-manifold after welding.
 outlines rather than being subtracted afterwards -- the hull is already a loft
 through those outlines, so a seam costs three vertices and no boolean. The
 inside stays smooth, so the wall is thinner by the groove depth at a seam and
-nowhere else. It costs about 5s of build time at 8 planks a side.
+nowhere else.
+
+The groove is a sawtooth, not a symmetric V, because the hull prints
+bottom-down. A V's upper facet faces downward at roughly atan(depth/half-width)
+away from the side, and the side is already flared about 20 degrees, so the two
+add up: a symmetric groove put 4.8% of the hull past 45 degrees of overhang.
+Going in over a short lip and back out along a ramp puts the steep facet
+upward, where nothing has to bridge it, and leaves none.

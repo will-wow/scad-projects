@@ -166,47 +166,70 @@ def test_a_backwards_span_is_refused(lines):
 class TestPlanking:
     """Seams are cut into the section outlines, so they are geometry, not texture."""
 
+    SPEC = Planking(count=6, depth=0.25, lip=0.20)
+
     @pytest.fixture(scope="class")
     def planked(self, lines):
-        return build(
-            HullSpec(stations=STATIONS, planking=Planking(count=8, depth=0.35, width=0.8)),
-            lines,
-        )
+        return build(HullSpec(stations=STATIONS, planking=self.SPEC), lines)
 
-    def test_a_groove_sits_at_every_seam(self, planked, lines):
-        """Probe just inside the nominal side: material between seams, air at one."""
+    def _side(self, lines, x_mm):
+        """The side at a station, in finished millimetres: origin, run, normal."""
         spec = HullSpec()
         factor = spec.length / lines.length
-        x = spec.length * 0.5
-        source = x / factor
+        source = x_mm / factor
         y_chine = lines.chine_half_width.value(source) * factor
         z_chine = lines.chine_height.value(source) * factor
         run = lines.sheer_half_width.value(source) * factor - y_chine
         rise = lines.sheer_height.value(source) * factor - z_chine
         length = float(np.hypot(run, rise))
-        normal_y, normal_z = -rise / length, run / length
+        return (y_chine, z_chine), (run, rise), (-rise / length, run / length), length
+
+    def test_a_groove_sits_at_every_seam(self, planked, lines):
+        """Probe just inside the nominal side: air at a seam, material between.
+
+        The groove is a sawtooth -- in sharply over the lip, out along a ramp --
+        so the solid stretch sits below each seam, before the lip starts.
+        """
+        x = HullSpec().length * 0.5
+        (y0, z0), (run, rise), (normal_y, normal_z), length = self._side(lines, x)
+        lip = self.SPEC.lip / length
 
         def solid_at(along: float, inset: float) -> bool:
             return planked.is_inside(
-                Vector(
-                    x,
-                    y_chine + run * along + normal_y * inset,
-                    z_chine + rise * along + normal_z * inset,
-                )
+                Vector(x, y0 + run * along + normal_y * inset, z0 + rise * along + normal_z * inset)
             )
 
-        probe = 0.15  # inside the surface, less than the 0.35mm groove
-        for seam in range(1, 8):
-            assert not solid_at(seam / 8, probe), f"no groove at seam {seam}"
-            assert solid_at((seam - 0.5) / 8, probe), f"groove spread over plank {seam}"
+        probe = self.SPEC.depth * 0.5  # inside the surface, less than the groove
+        for seam in range(1, self.SPEC.count):
+            middle = seam / self.SPEC.count
+            assert not solid_at(middle, probe), f"no groove at seam {seam}"
+            assert solid_at(middle - lip - 0.01, probe), f"no plank below seam {seam}"
+
+    def test_the_downward_facing_facet_stays_printable(self, planked):
+        """The hull prints bottom-down, so a groove must not cut an overhang.
+
+        A symmetric V did: its upper facet leans away from a side that is
+        already flared, and the two add up. Measured on the solid, that put
+        4.8% of the hull past 45 degrees; the sawtooth leaves none.
+        """
+        points, faces = planked.tessellate(0.05)
+        corners = np.array([[v.X, v.Y, v.Z] for v in points])[np.array(faces)]
+        normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
+        areas = np.linalg.norm(normals, axis=1) / 2.0
+        real = areas > 1e-12
+        normals, areas, corners = normals[real], areas[real], corners[real]
+        normals /= np.linalg.norm(normals, axis=1, keepdims=True)
+        # The flat bottom faces straight down but sits on the bed, not in mid-air.
+        on_the_bed = (normals[:, 2] < -0.99) & (corners[:, :, 2].min(axis=1) < 2.0)
+        normals, areas = normals[~on_the_bed], areas[~on_the_bed]
+        overhang = np.degrees(np.arcsin(np.clip(-normals[:, 2], 0.0, 1.0)))
+        assert areas[overhang > 45.0].sum() < 0.001 * areas.sum()
 
     def test_planking_removes_only_the_grooves(self, planked, lines):
         """Grooves are detail, not a change of shape -- but they do cut material.
 
-        Seven seams a side, each a notch of about width * depth / 2, over the
-        length of the hull: a little under 1% of the volume. Anything larger
-        means the side is being inset as a whole rather than grooved at the
-        seams, which is what happens if the seam points are placed wrong.
+        Anything much larger means the side is being inset as a whole rather
+        than grooved at the seams, which is what happens if the points go wrong.
         """
         plain = build(HullSpec(stations=STATIONS), lines)
         removed = plain.volume - planked.volume
