@@ -150,3 +150,23 @@ worked, and printed without overhangs, but it was the most intricate code here
 by some margin and read busier than the boat wants at 1:55. Removed in favour
 of a hull you can hold the whole of in your head; it is in the history if it is
 ever wanted back.
+
+## The guns
+
+`cannon/cannon.py` turns the barrel as one solid of revolution: a half-profile
+sketched on `Plane.XZ` and revolved round Z, with the bore subtracted after.
+The parts carry their period names -- swell of the muzzle, neck, muzzle
+astragal, reinforce rings, base ring, base of the breech, cascabel and button
+-- and the proportions are in calibres, the way the gunfounders wrote them, so
+the 12-pounder in the bow and the 9-pounders on the sides are one `CannonSpec`
+at two calibres.
+
+```sh
+just watch cannon/cannon.py     # preview the gun on its own
+just test tests/test_cannon.py
+```
+
+It is built in print orientation: muzzle face down on the bed, bore up. Every
+ring and the cascabel's button is a half-round with its underside cut off as a
+chamfer at `max_overhang`, and the bore ends in a point at the same angle, so
+the gun prints standing on its muzzle with a brim and no support.
