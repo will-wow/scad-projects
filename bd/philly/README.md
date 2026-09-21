@@ -112,17 +112,37 @@ each face on its own, so a shared edge arrives as two sets of vertices and the
 result reads as non-manifold -- which is what makes a slicer offer to repair a
 model. It refuses to write a mesh that is still non-manifold after welding.
 
-## Planking
+## The shape of a section
 
-`Planking` cuts a groove at each plank seam. The seams go into the section
-outlines rather than being subtracted afterwards -- the hull is already a loft
-through those outlines, so a seam costs three vertices and no boolean. The
-inside stays smooth, so the wall is thinner by the groove depth at a seam and
-nowhere else.
+Every transverse section is centreline to chine along the flat bottom, then out
+and up to the rail. Straight out and up gives a flat-panelled box; the scan's
+topsides visibly swell, so `Bulge` carries the side out of that chord and back.
 
-The groove is a sawtooth, not a symmetric V, because the hull prints
-bottom-down. A V's upper facet faces downward at roughly atan(depth/half-width)
-away from the side, and the side is already flared about 20 degrees, so the two
-add up: a symmetric groove put 4.8% of the hull past 45 degrees of overhang.
-Going in over a short lip and back out along a ramp puts the steep facet
-upward, where nothing has to bridge it, and leaves none.
+It is not tumblehome -- nothing on this boat curves back inward -- which is why
+one parameter does the job and there is no need to draw station sections and
+fair them. `amount` is the height of the swell as a fraction of the side's own
+slant height, so it tapers with the hull instead of staying a fixed millimetre
+count that would swamp the narrow ends; `peak` is where along the side it is
+widest. Both ends are pinned to zero, so the lines plan still decides where the
+chine and the rail go.
+
+The swell is applied to the cavity's sections too, at the same height and by the
+same distance, so the wall survives without a real polyline offset and without
+the self-intersection that offsetting into a curve invites. That only works
+because it displaces horizontally: moving points along the surface normal
+carries them down the side as well as out, the two swells end up offset in z,
+and the cavity leans out through the hull -- which showed up as the subtraction
+cutting the boat into three pieces rather than hollowing it.
+
+Every station yields the same number of points, and a test says so. Lofting
+between sections whose vertices do not correspond makes OCCT build a common
+parameterisation: with counts that varied station to station, the outer loft
+alone went from 0.12 seconds to 7.5, and the whole build past eight minutes. It
+was still correct, just unusable, which is exactly the kind of failure that
+goes unnoticed.
+
+There was a `Planking` alongside this that cut a groove at each plank seam. It
+worked, and printed without overhangs, but it was the most intricate code here
+by some margin and read busier than the boat wants at 1:55. Removed in favour
+of a hull you can hold the whole of in your head; it is in the history if it is
+ever wanted back.

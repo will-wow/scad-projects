@@ -16,7 +16,6 @@ from hull import (
     Bulge,
     HullSpec,
     OpenSpan,
-    Planking,
     _cavity_span,
     _decked,
     _inner_section,
@@ -166,84 +165,6 @@ def test_a_backwards_span_is_refused(lines):
         build(HullSpec(stations=8, open_spans=(OpenSpan(0.6, 0.2),)), lines)
 
 
-class TestPlanking:
-    """Seams are cut into the section outlines, so they are geometry, not texture."""
-
-    SPEC = Planking(count=6, depth=0.25, lip=0.20)
-
-    @pytest.fixture(scope="class")
-    def planked(self, lines):
-        return build(HullSpec(stations=STATIONS, planking=self.SPEC), lines)
-
-    def _side(self, lines, x_mm):
-        """The side at a station, in finished millimetres: origin, run, normal."""
-        spec = HullSpec()
-        factor = spec.length / lines.length
-        source = x_mm / factor
-        y_chine = lines.chine_half_width.value(source) * factor
-        z_chine = lines.chine_height.value(source) * factor
-        run = lines.sheer_half_width.value(source) * factor - y_chine
-        rise = lines.sheer_height.value(source) * factor - z_chine
-        length = float(np.hypot(run, rise))
-        return (y_chine, z_chine), (run, rise), (-rise / length, run / length), length
-
-    def test_a_groove_sits_at_every_seam(self, planked, lines):
-        """Probe just inside the nominal side: air at a seam, material between.
-
-        The groove is a sawtooth -- in sharply over the lip, out along a ramp --
-        so the solid stretch sits below each seam, before the lip starts.
-        """
-        x = HullSpec().length * 0.5
-        (y0, z0), (run, rise), (normal_y, normal_z), length = self._side(lines, x)
-        lip = self.SPEC.lip / length
-
-        def solid_at(along: float, inset: float) -> bool:
-            return planked.is_inside(
-                Vector(x, y0 + run * along + normal_y * inset, z0 + rise * along + normal_z * inset)
-            )
-
-        probe = self.SPEC.depth * 0.5  # inside the surface, less than the groove
-        for seam in range(1, self.SPEC.count):
-            middle = seam / self.SPEC.count
-            assert not solid_at(middle, probe), f"no groove at seam {seam}"
-            assert solid_at(middle - lip - 0.01, probe), f"no plank below seam {seam}"
-
-    def test_the_downward_facing_facet_stays_printable(self, planked):
-        """The hull prints bottom-down, so a groove must not cut an overhang.
-
-        A symmetric V did: its upper facet leans away from a side that is
-        already flared, and the two add up. Measured on the solid, that put
-        4.8% of the hull past 45 degrees; the sawtooth leaves none.
-        """
-        points, faces = planked.tessellate(0.05)
-        corners = np.array([[v.X, v.Y, v.Z] for v in points])[np.array(faces)]
-        normals = np.cross(corners[:, 1] - corners[:, 0], corners[:, 2] - corners[:, 0])
-        areas = np.linalg.norm(normals, axis=1) / 2.0
-        real = areas > 1e-12
-        normals, areas, corners = normals[real], areas[real], corners[real]
-        normals /= np.linalg.norm(normals, axis=1, keepdims=True)
-        # The flat bottom faces straight down but sits on the bed, not in mid-air.
-        on_the_bed = (normals[:, 2] < -0.99) & (corners[:, :, 2].min(axis=1) < 2.0)
-        normals, areas = normals[~on_the_bed], areas[~on_the_bed]
-        overhang = np.degrees(np.arcsin(np.clip(-normals[:, 2], 0.0, 1.0)))
-        assert areas[overhang > 45.0].sum() < 0.001 * areas.sum()
-
-    def test_planking_removes_only_the_grooves(self, planked, lines):
-        """Grooves are detail, not a change of shape -- but they do cut material.
-
-        Anything much larger means the side is being inset as a whole rather
-        than grooved at the seams, which is what happens if the points go wrong.
-        """
-        plain = build(HullSpec(stations=STATIONS), lines)
-        removed = plain.volume - planked.volume
-        assert removed > 0, "grooves should cut material, not add it"
-        assert removed < 0.02 * plain.volume, "the side looks inset, not grooved"
-
-    def test_planking_leaves_one_watertight_solid(self, planked):
-        assert planked.is_valid
-        assert len(planked.solids()) == 1
-
-
 class TestBulge:
     """The sides bow outward between chine and rail, rather than running straight."""
 
@@ -299,13 +220,12 @@ class TestBulge:
         because the result was still correct -- just unusable -- so this asserts
         the invariant that keeps it fast rather than timing anything.
         """
-        spec = HullSpec(stations=STATIONS, planking=Planking(), bulge=self.SPEC)
-        factor = spec.length / lines.length
+        spec = HullSpec(stations=STATIONS, bulge=self.SPEC)
         x0, x1 = lines.sheer_half_width.span
         counts = {
             len(face.edges())
             for x in _station_positions(x0, x1, spec.stations)
-            if (face := _section(lines, float(x), spec.planking, spec.bulge, factor)) is not None
+            if (face := _section(lines, float(x), spec.bulge)) is not None
         }
         assert len(counts) == 1, f"sections disagree on vertex count: {sorted(counts)}"
 
@@ -349,8 +269,8 @@ class TestBulge:
                     f"wall is {gap:.3f}mm at t={at:.2f}"
                 )
 
-    def test_a_bowed_hull_with_planking_is_still_one_solid(self, lines):
-        """Both at once is what cut the hull into three pieces.
+    def test_a_bowed_and_decked_hull_is_still_one_solid(self, lines):
+        """The decked cut against a bowed side is what cut the hull into pieces.
 
         The cavity grazing the bowed side sheds slivers -- six ten-thousandths
         of a cubic millimetre against thirty cubic centimetres -- which are
@@ -362,7 +282,6 @@ class TestBulge:
                 stations=STATIONS,
                 open_spans=(OpenSpan(0.18, 0.34), OpenSpan(0.58, 0.74)),
                 bulwark=10.0,
-                planking=Planking(),
                 bulge=self.SPEC,
             ),
             lines,
