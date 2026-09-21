@@ -67,10 +67,12 @@ class HullSpec:
     # Which stretches are open to the bottom. The default is one span end to
     # end: a hull open for its whole length.
     open_spans: tuple[OpenSpan, ...] = (OpenSpan(0.0, 1.0),)
-    # Where the deck sits over every other stretch, as a fraction of the local
-    # depth from the inside of the bottom to the rail. The hull's sides carry on
-    # above it as bulwarks. None fills the decked stretches to the rail instead.
-    deck: float | None = None
+    # How far the deck sits below the rail, in millimetres of the finished
+    # model, over every stretch the open spans leave over. The hull's sides
+    # carry on above it as bulwarks, so this is the bulwark's height -- and the
+    # deck parallels the sheer, rising toward bow and stern with it. None fills
+    # the decked stretches to the rail instead.
+    bulwark: float | None = None
 
     @property
     def deck_open(self) -> bool:
@@ -296,7 +298,7 @@ def _hollow(
     stations: np.ndarray,
     wall: float,
     spec_spans: tuple[OpenSpan, ...],
-    deck: float | None,
+    bulwark: float | None,
     factor: float,
 ) -> Part:
     """Hollow the open spans to the bottom, and the decked stretches to the deck."""
@@ -328,13 +330,17 @@ def _hollow(
             lambda x, lift=lift: lines.chine_height.value(x) + wall + lift,
         )
 
-    if deck is not None:
-        if not 0.0 < deck < 1.0:
-            raise ValueError(f"deck must sit between the bottom and the rail, got {deck}")
+    if bulwark is not None:
+        if bulwark <= 0.0:
+            raise ValueError(f"bulwark height must be positive, got {bulwark}")
+        drop = bulwark / factor
 
         def deck_height(x: float) -> float:
-            bottom = lines.chine_height.value(x) + wall
-            return bottom + deck * (lines.sheer_height.value(x) - bottom)
+            # A fixed drop below the rail, so the deck parallels the sheer
+            # rather than the bottom. Measuring it as a fraction of the local
+            # depth instead made the forecastle climb faster than the sheer,
+            # because the forefoot sweeps up under it.
+            return lines.sheer_height.value(x) - drop
 
         for stretch in _decked(spec_spans):
             hollowed = _cut(hollowed, lines, stations, wall, clip(*stretch), deck_height)
@@ -362,7 +368,7 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
         # Work in source units so the model is scaled exactly once, at the end.
         factor = spec.length / lines.length
         hull = _hollow(
-            hull, lines, stations, spec.wall / factor, spec.open_spans, spec.deck, factor
+            hull, lines, stations, spec.wall / factor, spec.open_spans, spec.bulwark, factor
         )
 
     return _as_part(scale(hull, spec.length / lines.length), "scaling")

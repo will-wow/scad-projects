@@ -30,9 +30,9 @@ HULL = HullSpec(
         OpenSpan(0.18, 0.34),
         OpenSpan(0.58, 0.74),
     ),
-    # Deck height, as a fraction of the depth from the inside of the bottom to
-    # the rail. The hull's sides carry on above it as bulwarks.
-    deck=0.5,
+    # How far the deck sits below the rail, in mm: the bulwark's height. The
+    # deck parallels the sheer, so it rises toward bow and stern with it.
+    bulwark=10.0,
 )
 
 
