@@ -98,3 +98,16 @@ just run        # render once, in a fresh process
 just format     # ruff format + fix
 just check      # ruff format --check, ruff check, pyright
 ```
+
+## Exporting and testing
+
+```
+just build      # dist/philadelphia.3mf, ready to slice (--stl, --step too)
+just test       # the geometry checks
+```
+
+3MF rather than STL because it records the unit, so a slicer knows the model is
+in millimetres. The export welds the tessellation before writing: OCCT meshes
+each face on its own, so a shared edge arrives as two sets of vertices and the
+result reads as non-manifold -- which is what makes a slicer offer to repair a
+model. It refuses to write a mesh that is still non-manifold after welding.

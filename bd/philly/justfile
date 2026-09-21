@@ -23,6 +23,12 @@ viewer port="3939":
 watch +files="main.py":
     PREVIEW=1 uv run watch.py {{ files }}
 
+# Export for slicing. 3MF carries the unit, so the slicer does not have to
+# guess millimetres; --stl and --step are there if something else wants them.
+[doc("Export the model to dist/ as 3MF")]
+build *args:
+    uv run export.py {{ args }}
+
 # Render a model once, without the watcher.
 run file="main.py":
     uv run {{ file }}
@@ -33,6 +39,10 @@ run file="main.py":
 [doc("Render the model to SVG (and PNG if Chromium is available) in preview/")]
 preview *args:
     uv run preview.py {{ args }}
+
+[doc("Run the tests")]
+test *args:
+    uv run pytest {{ args }}
 
 # Format code with ruff.
 format:
