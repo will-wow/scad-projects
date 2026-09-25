@@ -58,48 +58,22 @@ class OpenSpan:
 
 @dataclass(frozen=True)
 class Bulge:
-    """Bow the sides outward between the chine and the rail.
-
-    The sections here are straight lines from chine to rail, so the hull reads
-    as a flat-panelled box. The scan's topsides bow out and then straighten --
-    not tumblehome, which would curve back inward, but a convex swell through
-    the middle of the side. That is one shape parameter, not a lines plan, so
-    it is worth trying before drawing sections by hand.
-
-    `amount` is the height of the swell as a fraction of the side's own slant
-    height, so it tapers with the hull instead of staying a fixed millimetre
-    count that would swamp the narrow ends. `peak` is where along the side the
-    swell is widest, 0 at the chine and 1 at the rail.
-
-    The swell is applied to the cavity's sections too, at the same height and by
-    the same distance, which is the whole reason this stays cheap: both surfaces
-    move together, so the wall is preserved without a real 2D polyline offset
-    and without the self-intersection that offsetting into a curve invites. At
-    the default the side's radius of curvature is about 49mm against a 2mm wall,
-    so there is no risk of that even in principle.
-
-    It displaces horizontally rather than along the surface normal, which looks
-    the same -- the two differ only by a 1/cos(flare) stretch -- but keeps every
-    point at the height it started from. A normal displacement moves points
-    down the side as well as out, so the outer and inner swells end up offset
-    from each other in z, the cavity leans through the hull, and the
-    subtraction cuts the boat into pieces rather than hollowing it.
+    """
+    Bow the sides outward between the chine and the rail.
+    Simple convex swell, good enough for this boat without tumblehome.
     """
 
     amount: float = 0.06
+    """the height of the swell as a fraction of the side's own slant height"""
     peak: float = 0.45
+    """where along the side the swell is widest"""
 
     def __post_init__(self) -> None:
         if not 0.0 < self.peak < 1.0:
             raise ValueError(f"bulge peak must lie strictly inside 0..1, got {self.peak}")
 
     def at(self, t: float) -> float:
-        """The swell's shape: zero at both ends, 1 at `peak`, smooth between.
-
-        Warping the argument rather than the value keeps the ends pinned however
-        far the peak is moved, so the chine and the rail stay exactly where the
-        lines plan puts them.
-        """
+        """The swell's shape: zero at both ends, 1 at `peak`, curve between."""
         t = min(max(t, 0.0), 1.0)
         return float(np.sin(np.pi * t ** (np.log(0.5) / np.log(self.peak))))
 
@@ -164,17 +138,22 @@ def _side_profile(
     common parameterisation, which cost sixty times as much as lofting between
     matched ones.
     """
+
+    # if no bulge, the side profile is a straight line
     if bulge is None:
         return [(y_chine, z_chine), (y_sheer, z_sheer)]
     run = y_sheer - y_chine
     rise = z_sheer - z_chine
+    # overall distance to sheer
     chord = float(np.hypot(run, rise))
     if chord <= 0.0:
         return [(y_chine, z_chine), (y_sheer, z_sheer)]
-    return [
-        (y_chine + run * t + bulge.at(t) * bulge.amount * chord, z_chine + rise * t)
-        for t in (float(v) for v in np.linspace(0.0, 1.0, SIDE_SAMPLES))
-    ]
+
+    points: list[tuple[float, float]] = []
+    for v in np.linspace(0.0, 1.0, SIDE_SAMPLES):
+        t = float(v)
+        points.append((y_chine + run * t + bulge.at(t) * bulge.amount * chord, z_chine + rise * t))
+    return points
 
 
 def _section(lines: HullLines, x: float, bulge: Bulge | None = None):
@@ -203,32 +182,31 @@ DEBRIS_FRACTION = 1e-4
 
 
 def _as_part(shape: object, what: str) -> Part:
-    """build123d's operators are generic over shape kinds; the hull is a solid.
+    """Remove any extra slivers left from a boolean operation."""
 
-    Anything else means the operation degenerated -- an empty result, or a shell
-    where a solid was expected -- so say which step produced it.
-
-    A boolean against a curved cavity can also leave slivers where the two
-    surfaces graze: the aft cut sheds two fragments of six ten-thousandths of a
-    cubic millimetre beside a hull of thirty cubic centimetres. Those are
-    discarded, but only after checking they really are dust. Taking the largest
-    piece unconditionally would turn a hull genuinely cut in two -- which is
-    what a cavity escaping through the side looks like -- into a quiet success.
-    """
+    # build123d's operators are generic over shape kinds; ensure this is a solid.
     if not isinstance(shape, Compound):
         raise RuntimeError(f"{what} produced a {type(shape).__name__}, not a solid")
+
     solids = shape.solids()
     if not solids:
         raise RuntimeError(f"{what} produced nothing solid")
+
+    # if there is one solid, we're good.
     if len(solids) == 1 and isinstance(shape, Part):
         return shape
+
+    # checking for a solid broken into pieces
     largest = max(solids, key=lambda s: s.volume)
+    # Smaller pieces
     debris = sum(s.volume for s in solids if s is not largest)
+    # Make sure the smaller pieces are a small fraction of the solid
     if debris > DEBRIS_FRACTION * largest.volume:
         raise RuntimeError(
             f"{what} split the hull into {len(solids)} pieces; "
             f"{debris / largest.volume:.1%} of it broke away"
         )
+    # discard the small pieces.
     return Part(largest.wrapped)
 
 
