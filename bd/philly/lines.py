@@ -52,15 +52,19 @@ class Curve:
     def at(self, x: np.ndarray) -> np.ndarray:
         """Sample at each of `x`, holding the end values rather than extrapolating.
 
-        Clamping matters at the bow and stern: the plan and profile curves cover
-        slightly different spans, and a linear extrapolation off the end of a
-        sheer that is rising steeply would run away.
+        np.interp does that itself: `left` and `right` default to the first and
+        last values of `y`, so it clamps unless told otherwise. That is the
+        behaviour this wants, and it is worth not "fixing". The plan and profile
+        curves cover slightly different spans, so stations near the bow and
+        stern do fall off the end of one curve or another, and a linear
+        extrapolation off a sheer that is rising steeply would run away. Pass
+        left=right=np.nan if you ever want to find those stations instead.
         """
-        return np.interp(np.clip(x, self.x[0], self.x[-1]), self.x, self.y)
+        return np.interp(x, self.x, self.y)
 
     def value(self, x: float) -> float:
         """Sample at a single station, clamped as `at` is."""
-        return float(np.interp(min(max(x, self.x[0]), self.x[-1]), self.x, self.y))
+        return float(np.interp(x, self.x, self.y))
 
     @property
     def span(self) -> tuple[float, float]:

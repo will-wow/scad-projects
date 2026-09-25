@@ -85,13 +85,24 @@ page, so reading it subtracts a fixed offset to recover true heights
 ```python
 def value(self, x: float) -> float:
     """Sample at a single station, clamped as `at` is."""
-    return float(np.interp(min(max(x, self.x[0]), self.x[-1]), self.x, self.y))
+    return float(np.interp(x, self.x, self.y))
 ```
 
-The clamping is the part worth copying. The four curves don't span exactly the
-same range — hand-drawn curves never do — and a linear extrapolation off the
-end of a sheer that is rising steeply runs away fast. Holding the end value
-costs a fraction of a millimetre at the very tip and cannot explode.
+The clamping is the part worth understanding, and it is free: **`np.interp`
+never extrapolates.** Its `left` and `right` parameters default to the first
+and last values of `y`, so anything off either end comes back as the end value.
+Those parameters exist to *override* that, not to switch it on.
+
+That happens to be exactly what a lines plan wants. The four curves don't span
+quite the same range — hand-drawn curves never do — so stations near the bow
+and stern genuinely do fall off the end of one curve or another, and a linear
+extrapolation off a sheer that is rising steeply runs away fast. Holding the
+end value costs a fraction of a millimetre at the very tip and cannot explode.
+
+It is worth knowing this is deliberate, because the alternative is to not
+notice: if you ever want to *find* the stations that fall off the end rather
+than quietly clamp them, pass `left=np.nan, right=np.nan` and they become
+visible.
 
 **If you're drawing your own DXF**, the one rule that bit hardest: a line with
 no run in X (a vertical closing line across the stem or transom) is not part of
