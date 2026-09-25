@@ -7,6 +7,8 @@ assertion means something and that the file says what it should.
 
 from __future__ import annotations
 
+from importlib import import_module
+
 import numpy as np
 import pytest
 from build123d import Box
@@ -46,6 +48,17 @@ def test_a_box_exports_as_a_manifold_3mf(tmp_path):
     mesh = meshes.GetCurrentMeshObject()
     assert mesh.IsManifoldAndOriented()
     assert mesh.GetTriangleCount() == 12
+
+
+@pytest.mark.parametrize("part", ["cannon", "carriage", "trunnion"])
+def test_every_printed_part_of_a_gun_exports_as_a_manifold_3mf(part, tmp_path):
+    """The trunnion sockets, cut before the gun was scaled down, used to tessellate
+    into a mesh no slicer would take: the sliver where a socket's apex pierces the
+    barrel came out below the size OCCT meshes cleanly."""
+    pytest.importorskip("lib3mf")
+    gun = import_module(f"cannon.{part}")
+    points, faces = write_3mf(gun.model(), tmp_path / f"{part}.3mf")
+    assert points > 100 and faces > 100
 
 
 def test_the_hull_exports_as_a_manifold_3mf(decked_hull, tmp_path):

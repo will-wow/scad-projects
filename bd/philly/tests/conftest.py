@@ -9,12 +9,35 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+import numpy as np
 import pytest
+from build123d import Compound, Part
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import lines as hull_lines  # noqa: E402
 from hull import Deck, HullSpec, build  # noqa: E402
+
+
+def steepest_overhang(part: Part | Compound) -> float:
+    """How far the worst downward-facing surface leans, as a sine.
+
+    Compare against sin(max_overhang). Measured on the exact surfaces rather
+    than a mesh, because a tessellated cone's flat facets lean a little steeper
+    than the cone does and would fail a chamfer drawn at exactly the limit. The
+    samples stay off the edges of each face's parameter range, where a sphere's
+    pole has no well-defined normal, and faces on the bed are skipped: the bed
+    cannot overhang.
+    """
+    samples = np.linspace(0.02, 0.98, 25)
+    return max(
+        -face.normal_at(u, v).Z
+        for face in part.faces()
+        for u in samples
+        for v in samples
+        if face.position_at(u, v).Z > 1e-6
+    )
+
 
 # Few sections: these tests are about whether the geometry is right, and the
 # cavity ends are solved rather than sampled, so a coarse hull is the same hull.
