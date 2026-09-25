@@ -66,15 +66,15 @@ def test_each_sail_hangs_between_the_yards_it_belongs_to(assembled, lines):
         assert pytest.approx(middle, abs=0.01) == assembled[name].bounding_box().center().Z
 
 
-def test_the_sails_hang_abaft_the_mast(assembled, lines):
-    """Not through it: a square sail sets behind the mast.
+def test_the_sails_hang_forward_of_the_mast(assembled, lines):
+    """On the bow side: a square sail's yard is slung forward of the mast.
 
-    The eyes straddle the yard, so they reach forward of the station; it is the
-    plate, and so the sail's bulk, that has to be aft of it.
+    The eyes straddle the yard, so they reach aft of the station; it is the
+    plate, and so the sail's bulk, that has to be forward of it.
     """
     seat = rigging.step(HULL, lines, RIG)
     for name in ("course", "topsail"):
-        assert seat.station < assembled[name].bounding_box().center().X
+        assert seat.station > assembled[name].bounding_box().center().X
 
 
 def test_the_masthead_stands_clear_of_the_hull(assembled):

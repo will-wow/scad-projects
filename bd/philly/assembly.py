@@ -36,13 +36,20 @@ def _hung_sails(lines, seat) -> list[Part]:
     """Each sail turned upright and slid onto the pair of yards it belongs to.
 
     A sail is built lying down: its height runs along x, its width along y, and
-    its thickness along z. Rotating -90 degrees about y carries x up to z and z
-    round to -x, so the height stands up, the width stays athwartships, and the
-    plate ends up facing fore and aft -- which is how a square sail hangs.
+    its thickness along z. Rotating 90 degrees about y carries x down to -z and
+    z round to x, so the height stands up, the width stays athwartships, and the
+    plate ends up facing fore and aft -- which is how a square sail hangs. It
+    also turns the sail top for bottom, which nothing can see: the corner eyes
+    are the same at both ends.
 
-    The corner eyes sit a neck's length forward of the plate, so the whole sail
-    shifts aft by that much to put the eyes on the yards. That gap is real, and
-    load-bearing: it is what keeps the plate from fouling the mast.
+    The canvas goes on the bow side. A square sail's yard is slung forward of
+    the mast so the sail does not chafe against it, so the whole sail shifts
+    forward by a neck's length to bring the eyes back onto the yards. That gap
+    is real, and load-bearing: it is what keeps the plate from fouling the mast.
+
+    The eyes' mouths need no thought here. The neck joins the plate to the eye,
+    so a mouth is always on the far side of the bore from the plate -- canvas
+    forward means the sails press on from astern.
     """
     radius = rigging.yard_radius(HULL, lines, RIG)
     offset = rigging.stand_off(HULL, lines, RIG)
@@ -53,7 +60,7 @@ def _hung_sails(lines, seat) -> list[Part]:
     ):
         middle = seat.floor + 0.5 * (pair[0] + pair[1]) * RIG.mast_length
         flat = rigging.sail(RIG, width, height, radius, offset)
-        hung.append(Pos(seat.station + offset, 0.0, middle) * (Rot(0.0, -90.0, 0.0) * flat))
+        hung.append(Pos(seat.station - offset, 0.0, middle) * (Rot(0.0, 90.0, 0.0) * flat))
     return hung
 
 

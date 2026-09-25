@@ -531,12 +531,14 @@ the way it wants to *print*, which means nothing in `dist/` shows what the boat
 looks like. It stands the mast in its socket and hangs the sails on the yards:
 
 ```python
-hung.append(Pos(seat.station + offset, 0.0, middle) * (Rot(0.0, -90.0, 0.0) * flat))
+hung.append(Pos(seat.station - offset, 0.0, middle) * (Rot(0.0, 90.0, 0.0) * flat))
 ```
 
 A sail is built lying down -- height along x, width along y, thickness along z
--- so rotating -90 degrees about y carries the height up to vertical, leaves the
-width athwartships, and turns the plate to face fore and aft.
+-- so rotating 90 degrees about y carries the height up to vertical, leaves the
+width athwartships, and turns the plate to face fore and aft. The shift is
+forward, not aft: a square sail's yard is slung ahead of the mast so the canvas
+does not chafe on it.
 
 This is a picture, not a part. Nothing here is manifold or printable, and
 `just build` remains the thing that writes files.
