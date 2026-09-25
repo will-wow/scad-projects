@@ -22,7 +22,7 @@ import importlib
 import os
 import shutil
 import subprocess
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from glob import glob
 from pathlib import Path
 
@@ -79,6 +79,10 @@ VIEWS = (
 
 LIGHT = np.array([0.4, -0.5, 0.75])
 
+# Margin around the drawing, and the strip the caption sits in.
+PAD = 30
+CAPTION = 20
+
 
 def _camera(azimuth: float, elevation: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Right, up and forward vectors for a camera aimed at the origin."""
@@ -93,6 +97,26 @@ def mesh(part: Part) -> tuple[np.ndarray, np.ndarray]:
     """Tessellate once; every view reuses the same triangles."""
     vertices, triangles = part.tessellate(MESH_TOLERANCE)
     return np.array([[v.X, v.Y, v.Z] for v in vertices]), np.array(triangles)
+
+
+def fit(view: View, geometry: tuple[np.ndarray, np.ndarray]) -> View:
+    """Grow a view's canvas if the model is taller than it was drawn for.
+
+    The canvas sizes suit a hull: long, low, and wider than it is tall. Stand a
+    200mm mast in it and fitting the whole thing into a 280px-high strip shrinks
+    the boat to a smudge. Growing the canvas instead keeps the scale sensible.
+
+    Views the model already fits are returned untouched, so the hull's own
+    renders are unchanged.
+    """
+    points, _ = geometry
+    right, up, _ = _camera(view.azimuth, view.elevation)
+    screen = points @ np.stack([right, up]).T
+    span = np.maximum(screen.max(axis=0) - screen.min(axis=0), 1e-9)
+    needed = round((view.width - 2 * PAD) * span[1] / span[0]) + 2 * PAD + CAPTION
+    if needed <= view.height:
+        return view
+    return replace(view, height=min(int(needed), 4 * view.width))
 
 
 def render(
@@ -124,9 +148,8 @@ def render(
     shade = lit * (0.55 + 0.45 * near)
 
     low, high = corners.reshape(-1, 2).min(axis=0), corners.reshape(-1, 2).max(axis=0)
-    pad = 30
     span = np.maximum(high - low, 1e-9)
-    scale = min((view.width - 2 * pad) / span[0], (view.height - 2 * pad - 20) / span[1])
+    scale = min((view.width - 2 * PAD) / span[0], (view.height - 2 * PAD - CAPTION) / span[1])
     # SVG's Y axis points down, so flip it.
     flip = np.array([1.0, -1.0])
     offset = np.array([view.width / 2, view.height / 2]) - (low + high) / 2 * scale * flip
@@ -147,7 +170,7 @@ def render(
         body.append(f'<polygon points="{coords}" fill="rgb{rgb}"/>')
     text = " - ".join(p for p in (view.label, caption) if p)
     body.append(
-        f'<text x="{pad}" y="{view.height - 14}" fill="#9aa4b2" '
+        f'<text x="{PAD}" y="{view.height - 14}" fill="#9aa4b2" '
         f'font-family="monospace" font-size="18">{text}</text>'
     )
     body.append("</svg>")
@@ -245,6 +268,7 @@ def main() -> int:
     geometry = mesh(part)
     chromium = find_chromium()
     for view in VIEWS:
+        view = fit(view, geometry)
         path = args.out / f"{view.name}.svg"
         count = render(geometry, view, path, caption=caption)
         drawn = rasterise(chromium, view, path) if chromium else False

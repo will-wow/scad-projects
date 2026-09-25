@@ -16,7 +16,7 @@ from conftest import DECKS, STATIONS
 import rig as rigging
 from export import write_3mf
 from hull import Deck, HullSpec, build
-from rig import TOLERANCE, Rig, fit_mast, mast_width, sail_sizes, step
+from rig import TOLERANCE, Rig, fit_mast, mast_width, sail_sizes, stand_off, step
 
 SPEC = HullSpec(stations=STATIONS, decks=DECKS)
 RIG = Rig()
@@ -181,17 +181,37 @@ class TestSails:
         assert yard + TOLERANCE > yard, "the bore does not clear the yard"
         assert RIG.mouth * 2.0 * yard < 2.0 * (yard + TOLERANCE), "the mouth cannot retain a yard"
 
-    def test_a_corner_loop_is_open_at_the_top(self, part, lines):
+    def test_a_corner_eye_is_open_at_the_top(self, lines):
         """Open upward: away from the bed when printing, and square to the sail
-        once it is rigged, so it presses onto both yards at once."""
+        once it is rigged, so it presses onto both yards at once.
+
+        Probes one sail on its own rather than the printed pair, because the
+        pair is shifted sideways to lay it out and an earlier version of this
+        aimed at the middle of an edge instead of a corner -- where there is
+        nothing either way, so it passed without checking anything.
+        """
         width, height = sail_sizes(RIG)[0]
-        yard = RIG.yard_width * mast_width(SPEC, lines) / 2.0
-        outer = yard + TOLERANCE + RIG.loop_wall
-        # The first sail is laid out from y = 0, so its corner is at width / 2.
-        assert not part.is_inside(Vector(-height / 2.0, width / 2.0, outer)), "the bore is filled"
-        assert not part.is_inside(Vector(-height / 2.0, width / 2.0, 2.0 * outer - 0.1)), (
-            "the mouth is closed"
-        )
+        radius = RIG.yard_width * mast_width(SPEC, lines) / 2.0
+        outer = radius + TOLERANCE + RIG.loop_wall
+        offset = stand_off(SPEC, lines, RIG)
+        one = rigging.sail(RIG, width, height, radius, offset)
+
+        corner = (-height / 2.0, width / 2.0)
+        assert one.is_inside(Vector(*corner, offset / 2.0)), "the eye has no neck holding it"
+        assert not one.is_inside(Vector(*corner, offset)), "the bore is filled"
+        assert not one.is_inside(Vector(*corner, offset + outer - 0.1)), "the mouth is closed"
+
+    def test_the_neck_holds_the_plate_clear_of_the_mast(self, lines):
+        """A sail spans the whole yard and the mast stands in the middle of it.
+
+        Without the neck the plate sits a loop-radius from the yard's axis,
+        which is inside the mast -- the first assembled render had 130 cubic
+        millimetres of sail in the same place as the mast. Measured across the
+        mast's corners, because it turns.
+        """
+        corners = mast_width(SPEC, lines) / np.sqrt(3.0)
+        clear = stand_off(SPEC, lines, RIG) - RIG.sail_thickness
+        assert clear > corners, f"the plate reaches to {clear:.2f}mm, the mast to {corners:.2f}mm"
 
     def test_the_sails_write_a_manifold_mesh(self, part, tmp_path):
         """Two separate solids in one file still has to be a sound mesh."""

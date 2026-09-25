@@ -400,6 +400,8 @@ produces a completely solid hull that looks fine until you weigh it.
 Not part of the model, but most of what makes it pleasant to work on. All
 driven by [`justfile`](justfile).
 
+- **[`assembly.py`](assembly.py)** — what `just watch` opens by default: the
+  boat with its rig standing in it. See Part 10.
 - **[`watch.py`](watch.py)** — `just watch`. Keeps build123d imported between
   reloads, so a save repaints in ~0.2s instead of paying a ~16s cold import
   each time. It watches *directories*, not files (atomic saves replace inodes,
@@ -455,7 +457,7 @@ that knows where the inside of a flared, bowed hull actually is. The bar is cut
 to reach it:
 
 ```python
-bar_half_length=inner_half_width(lines, source_x, wall, bar_top / factor, spec.bulge) * factor
+bar_half_length = inner_half_width(lines, source_x, wall, bar_top / factor, spec.bulge) * factor
 ```
 
 Measured at the bar's **top**, because the side flares: the inside is widest
@@ -497,20 +499,61 @@ stops it dropping through.
 
 A sail is a 0.6mm plate. The yard is 2.5mm thick, and the hole has to be wider
 still -- so a hole through the plate's edge would be wider than the plate. Each
-corner therefore carries a small loop standing proud of the plate, which is what
-a real sail's cringle is anyway.
+corner therefore carries an eye on a short neck, which is what a real sail's
+cringle is anyway.
 
-The loop sits so it rests on the same plane as the plate, so the whole sail lies
-on the bed with nothing to support, and its mouth opens **upward** -- away from
-the bed while printing, and square to the sail once rigged, so it presses onto
-both yards at once. Mouths facing up on one yard and down on the other would
-need the sail to stretch to reach both.
+The neck is not decoration. A sail spans the whole width of its yard and **the
+mast stands in the middle of it**, so a plate hung straight off the yard's axis
+tries to occupy the same space as the mast. The first assembled render showed
+exactly that -- 130 cubic millimetres of sail inside the mast, a sail that could
+never have been fitted. `stand_off` sizes the neck against the mast's
+across-corners width, since the mast can turn in its socket:
+
+```python
+corners = mast_width(spec, lines) / np.sqrt(3.0)
+return corners + rig.sail_thickness + rig.mast_clearance
+```
+
+The eye is as wide as its neck, so the corner rises off the bed as a wall with
+a ring on top and nothing overhangs. Its mouth opens **upward** -- away from the
+bed while printing, and square to the sail once rigged, so it presses onto both
+yards at once. Mouths facing up on one yard and down on the other would need the
+sail to stretch to reach both.
 
 `sails()` is the one builder here that deliberately does *not* go through
 `as_part`: two sails really are two solids, so "more than one piece" is the
 answer rather than the failure it would be anywhere else.
 
-## Making your own hull
+## Part 10: the assembled view
+
+[`assembly.py`](assembly.py) exists because every part is modelled and exported
+the way it wants to *print*, which means nothing in `dist/` shows what the boat
+looks like. It stands the mast in its socket and hangs the sails on the yards:
+
+```python
+hung.append(Pos(seat.station + offset, 0.0, middle) * (Rot(0.0, -90.0, 0.0) * flat))
+```
+
+A sail is built lying down -- height along x, width along y, thickness along z
+-- so rotating -90 degrees about y carries the height up to vertical, leaves the
+width athwartships, and turns the plate to face fore and aft.
+
+This is a picture, not a part. Nothing here is manifold or printable, and
+`just build` remains the thing that writes files.
+
+It pays for itself anyway, because **putting the parts in one coordinate system
+is the only way to ask whether they fit**. The test that matters is one line of
+intent:
+
+```python
+shared = (assembled[first] & assembled[second]).volume
+assert shared == pytest.approx(0.0, abs=1e-6)
+```
+
+Every pair of parts, no overlap. That is what caught the sails passing through
+the mast, and it would catch it again.
+
+## Making your own hull## Making your own hull
 
 If you want to do this for a different boat:
 
@@ -544,6 +587,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`preview.py`](preview.py) | headless SVG/PNG renderer |
 | [`watch.py`](watch.py) | warm-process live reload |
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
+| [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |
 

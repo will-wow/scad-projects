@@ -16,11 +16,13 @@ viewer port="3939":
 
 # Keeps build123d imported between reloads, so a save repaints in ~0.2s
 # instead of paying the ~16s cold import every time. Start `just viewer` first.
+# Defaults to the assembled boat, since that is the thing worth looking at;
+# `just watch main.py` for the hull and the parts as they print.
 # PREVIEW lets the model pick cheaper settings for the loop; since it only
 # affects smoothness, the shape you are judging is the real one. Run
 # `uv run watch.py` directly for full detail.
 [doc("Watch model files and live-reload them into the running viewer")]
-watch +files="main.py":
+watch +files="assembly.py":
     PREVIEW=1 uv run watch.py {{ files }}
 
 # Export for slicing. 3MF carries the unit, so the slicer does not have to

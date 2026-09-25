@@ -70,6 +70,8 @@ class Rig:
     """three layers at 0.2mm: thin enough to look like canvas, thick enough to survive"""
     loop_wall: float = 0.8
     """material around a sail's corner bore"""
+    mast_clearance: float = 1.0
+    """how far a sail must stay clear of the mast it hangs in front of"""
     mouth: float = 0.9
     """a corner loop's opening, as a fraction of the yard's diameter
 
@@ -206,8 +208,13 @@ def fit_mast(hull: Part, spec: HullSpec, lines: HullLines, rig: Rig | None = Non
     return as_part(as_part(hull + bar + tube, "fitting the mast bar") - bore, "boring the mast")
 
 
-def _yards(rig: Rig) -> list[tuple[float, float]]:
-    """Each yard as (height up the mast, half its length), in millimetres."""
+def yards(rig: Rig) -> list[tuple[float, float]]:
+    """Each yard as (height up the mast, half its length), in millimetres.
+
+    Height is measured from the mast's foot, so an assembled view has to add
+    wherever the foot ends up -- the bottom of the bore, since that is what the
+    mast stands on.
+    """
     course_span, topsail_span = rig.course_span
     return [
         (rig.course[0] * rig.mast_length, course_span * rig.mast_length / 2.0),
@@ -217,12 +224,16 @@ def _yards(rig: Rig) -> list[tuple[float, float]]:
     ]
 
 
-def _upright_mast(spec: HullSpec, lines: HullLines, rig: Rig) -> Part:
+def upright_mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     """The mast standing on the origin, which is the easy way to reason about it.
+
+    Public so an assembled view can stand it in the boat. `mast()` is the same
+    thing laid down for printing.
 
     Round for as long as it is in the tube, so it turns; hexagonal above, which
     is what lets it print lying down on a flat face rather than on a curve.
     """
+    rig = rig or Rig()
     seat = step(spec, lines, rig)
     width = mast_width(spec, lines)
     base = seat.socket + TOLERANCE  # stands proud of the tube by the clearance
@@ -234,15 +245,15 @@ def _upright_mast(spec: HullSpec, lines: HullLines, rig: Rig) -> Part:
     hexagon = RegularPolygon(width / np.sqrt(3.0), 6, rotation=30.0)
     shaft += Pos(0.0, 0.0, base) * extrude(hexagon, amount=rig.mast_length - base)
 
-    yard_radius = rig.yard_width * width / 2.0
-    for height, half in _yards(rig):
-        yard = Pos(0.0, 0.0, height) * (Rot(-90.0, 0.0, 0.0) * Cylinder(yard_radius, 2.0 * half))
+    radius = rig.yard_width * width / 2.0
+    for height, half in yards(rig):
+        yard = Pos(0.0, 0.0, height) * (Rot(-90.0, 0.0, 0.0) * Cylinder(radius, 2.0 * half))
         shaft += yard
         for side in (-1.0, 1.0):
             centre = side * half * (1.0 - rig.groove_inset)
-            ring = Rot(-90.0, 0.0, 0.0) * Cylinder(yard_radius + 1.0, rig.groove_width)
+            ring = Rot(-90.0, 0.0, 0.0) * Cylinder(radius + 1.0, rig.groove_width)
             core = Rot(-90.0, 0.0, 0.0) * Cylinder(
-                yard_radius - rig.groove_depth, rig.groove_width + 2.0
+                radius - rig.groove_depth, rig.groove_width + 2.0
             )
             shaft -= Pos(0.0, centre, height) * as_part(ring - core, "the groove cutter")
 
@@ -257,8 +268,29 @@ def mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     and leaves the yards along Y, all of it in the plane of the bed.
     """
     rig = rig or Rig()
-    laid = Rot(0.0, 90.0, 0.0) * _upright_mast(spec, lines, rig)
+    laid = Rot(0.0, 90.0, 0.0) * upright_mast(spec, lines, rig)
     return as_part(Pos(0.0, 0.0, -laid.bounding_box().min.Z) * laid, "laying the mast down")
+
+
+def yard_radius(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
+    """Half a yard's thickness, which is what a sail's corner has to clear."""
+    return rig.yard_width * mast_width(spec, lines) / 2.0
+
+
+def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
+    """How far a sail's plate hangs from the yard's axis.
+
+    Far enough to clear the mast. A sail spans the whole width of its yard and
+    the mast stands in the middle of it, so a plate any nearer the axis tries to
+    occupy the same space as the mast -- which is exactly what the first
+    assembled render showed it doing, 130 cubic millimetres of overlap a sail.
+
+    Measured against the mast across its corners, which is the wider way and so
+    holds however the mast is turned in its socket. It can turn: that is the
+    point of the round base.
+    """
+    corners = mast_width(spec, lines) / np.sqrt(3.0)
+    return corners + rig.sail_thickness + rig.mast_clearance
 
 
 def sail_sizes(rig: Rig) -> list[tuple[float, float]]:
@@ -279,36 +311,43 @@ def sail_sizes(rig: Rig) -> list[tuple[float, float]]:
     return sizes
 
 
-def _sail(rig: Rig, width: float, height: float, yard_radius: float) -> Part:
-    """One sail, lying flat: the plate in the XY plane, corner loops along Y.
+def sail(rig: Rig, width: float, height: float, radius: float, offset: float) -> Part:
+    """One sail, lying flat: the plate in the XY plane, corner eyes along Y.
+
+    Public so an assembled view can hang one on the yards; `sails()` lays both
+    out side by side for printing instead.
 
     The corners cannot simply be holes. The bore has to be wider than the yard,
     and the yard is several times thicker than the plate, so a hole through the
-    plate's edge would be wider than the plate itself. Each corner gets a loop
-    standing proud of the plate instead, which is what a real sail's cringle is
-    anyway.
+    plate's edge would be wider than the plate itself. Each corner gets an eye
+    on a short neck instead, which is what a real sail's cringle is anyway.
 
-    The loop is raised until it rests on the same plane as the plate, so the
-    whole sail lies on the bed with nothing to support. Its mouth opens upward,
-    away from the bed and -- once the sail is on the boat -- square to the sail,
-    so it presses onto both yards at once. A mouth facing up on one yard and
-    down on the other would need the sail to stretch to reach both.
+    The neck is what holds the plate clear of the mast -- see `stand_off` -- and
+    it is as wide as the eye, so nothing overhangs: the whole corner rises off
+    the bed as a wall with a ring on top. The eye's mouth opens away from the
+    bed, and so, once the sail is rigged, square to the sail, which is what lets
+    it press onto both its yards at once. A mouth facing up on one yard and down
+    on the other would need the sail to stretch to reach both.
     """
-    bore = yard_radius + TOLERANCE
+    bore = radius + TOLERANCE
     outer = bore + rig.loop_wall
     plate = Pos(0.0, 0.0, rig.sail_thickness / 2.0) * Box(height, width, rig.sail_thickness)
 
-    loop_length = rig.groove_width - 2.0 * TOLERANCE
-    mouth = rig.mouth * 2.0 * yard_radius
+    eye_length = rig.groove_width - 2.0 * TOLERANCE
+    mouth = rig.mouth * 2.0 * radius
+    lengthwise = Rot(-90.0, 0.0, 0.0)
     sail = plate
     for along in (-height / 2.0, height / 2.0):
         for across in (-width / 2.0, width / 2.0):
-            at = Pos(along, across, outer)
-            sail += at * (Rot(-90.0, 0.0, 0.0) * Cylinder(outer, loop_length))
-            sail -= at * (Rot(-90.0, 0.0, 0.0) * Cylinder(bore, loop_length + 2.0))
+            corner = Pos(along, across, 0.0)
+            sail += corner * Pos(0.0, 0.0, offset / 2.0) * Box(2.0 * outer, eye_length, offset)
+            sail += corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(outer, eye_length))
+            sail -= corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(bore, eye_length + 2.0))
             # The slot, from the bore's centre straight up and out.
             sail -= (
-                at * Pos(0.0, 0.0, outer / 2.0 + 0.5) * Box(mouth, loop_length + 2.0, outer + 1.0)
+                corner
+                * Pos(0.0, 0.0, offset + outer / 2.0 + 0.5)
+                * Box(mouth, eye_length + 2.0, outer + 1.0)
             )
     return as_part(sail, "a sail")
 
@@ -316,13 +355,14 @@ def _sail(rig: Rig, width: float, height: float, yard_radius: float) -> Part:
 def sails(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     """Both sails, side by side and flat on the bed."""
     rig = rig or Rig()
-    yard_radius = rig.yard_width * mast_width(spec, lines) / 2.0
+    radius = yard_radius(spec, lines, rig)
+    offset = stand_off(spec, lines, rig)
     gap = 5.0
     built = []
-    offset = 0.0
+    across = 0.0
     for width, height in sail_sizes(rig):
-        built.append(Pos(0.0, offset + width / 2.0, 0.0) * _sail(rig, width, height, yard_radius))
-        offset += width + gap
+        built.append(Pos(0.0, across + width / 2.0, 0.0) * sail(rig, width, height, radius, offset))
+        across += width + gap
     together = built[0]
     for extra in built[1:]:
         together += extra

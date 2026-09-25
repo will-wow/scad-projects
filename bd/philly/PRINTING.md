@@ -39,7 +39,7 @@ orientation and a different profile:
 | --- | --- | --- | --- |
 | `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
 | `philadelphia-mast.3mf` | 200.8 x 72.3 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
-| `philadelphia-sails.3mf` | 69 x 121 x 4.4mm | as exported, flat | two separate sails in one file |
+| `philadelphia-sails.3mf` | 69 x 121 x 6.6mm | as exported, flat | two separate sails in one file |
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal: it rests on
