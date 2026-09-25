@@ -8,29 +8,29 @@ Yes, comfortably, and at any infill you would plausibly choose. PLA is denser
 than water (1.24 g/cm³), so a solid lump of it sinks; this hull floats because
 it encloses far more air than it contains plastic.
 
-At 300mm LOA with the current spec, the modelled solid is **164.2 cm³** inside
+At 300mm LOA with the current spec, the modelled solid is **164.6 cm³** inside
 an external envelope of **408.3 cm³**. Everything follows from that ratio.
 
 | Infill | Mass | Draft | Freeboard |
 | -----: | ---: | ----: | --------: |
 | 10% | 20.4 g | 2.9 mm | 29.9 mm |
-| 15% | 30.5 g | 3.5 mm | 29.2 mm |
-| 25% | 50.9 g | 4.8 mm | 28.0 mm |
-| 40% | 81.5 g | 6.7 mm | 26.1 mm |
-| 100% (solid) | 203.6 g | 13.6 mm | 19.1 mm |
+| 15% | 30.6 g | 3.5 mm | 29.2 mm |
+| 25% | 51.0 g | 4.8 mm | 28.0 mm |
+| 40% | 81.6 g | 6.7 mm | 26.1 mm |
+| 100% (solid) | 204.1 g | 13.7 mm | 19.1 mm |
 
 Two worth noting:
 
 - **Even solid PLA floats**, with well over half the hull's depth above water.
 - **Even a waterlogged print floats.** If every infill void fills with water
-  (170.1 g at 15% infill) it settles to 11.8mm and stays there.
+  (170.5 g at 15% infill) it settles to 11.8mm and stays there.
 
-The rig barely registers: mast and sails together are 14.3 cm³, so at 15%
-infill they add 2.7 g and about two tenths of a millimetre of draft.
+The fittings barely register: mast, sails and awning together are 24.3 cm³, so
+at 15% infill they add 4.5 g and about a third of a millimetre of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
-## The three parts
+## The four parts
 
 `just build` writes one file per part, because each wants a different
 orientation and a different profile:
@@ -40,6 +40,7 @@ orientation and a different profile:
 | `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
 | `philadelphia-mast.3mf` | 200.8 x 72.3 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
 | `philadelphia-sails.3mf` | 69 x 121 x 6.6mm | as exported, flat | two separate sails in one file |
+| `philadelphia-awning.3mf` | 159.6 x 73.6 x 36.1mm | as exported, **roof down** | legs point up; do not flip it |
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the
@@ -56,6 +57,16 @@ The sails are 0.6mm thick -- three layers at 0.2mm. They want the *opposite* of
 the hull's profile: no extra walls, no solid infill, and no brim that would weld
 the corner loops to the bed. They should stay slightly flexible, since clipping
 one onto a yard means springing it over the mouth.
+
+The awning frame is exported **roof down**, which is the whole reason its roof
+is a flat plane rather than following the sheer. That way the roof is the first
+layer -- one connected grid, well stuck to the bed -- and the eight legs rise
+off it as plain columns with nothing to bridge. Flipped the other way up, the
+legs print first as thin towers and the entire roof has to span between them.
+
+The legs are the thing to watch: 3.4mm square and up to 30mm tall, eight of them
+standing free. Slow the outer walls down, and if the tops ring or lean, print
+them with a bit more cooling rather than adding supports.
 
 The bar across the forward well **bridges about 31.6mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would

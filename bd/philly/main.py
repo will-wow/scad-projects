@@ -10,6 +10,7 @@ Adjust HULL below and save to see it change.
 from build123d import Part, Pos
 from ocp_vscode import show_object
 
+import awning as awnings
 import lines as hull_lines
 import rig as rigging
 from hull import Bulge, Deck, HullSpec, build
@@ -41,11 +42,18 @@ HULL = HullSpec(
 
 RIG = rigging.Rig()
 
+AWNING = awnings.Awning()
+
 
 def model() -> Part:
-    """The hull, with the mast's bar and tube fitted. `just preview` renders this."""
+    """The hull, with the mast's step and the awning's sockets fitted.
+
+    Both fittings run after `build`, which is not optional: the cavity
+    subtraction would carve away anything added before it.
+    """
     lines = hull_lines.load()
-    return rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
+    hull = rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
+    return awnings.fit_awning(hull, HULL, lines, AWNING, RIG)
 
 
 def mast() -> Part:
@@ -56,6 +64,11 @@ def mast() -> Part:
 def sails() -> Part:
     """Both sails, flat on the bed."""
     return rigging.sails(HULL, hull_lines.load(), RIG)
+
+
+def awning() -> Part:
+    """The awning frame, roof down ready to print."""
+    return awnings.awning_part(HULL, hull_lines.load(), AWNING, RIG)
 
 
 def main() -> None:
@@ -71,6 +84,7 @@ def main() -> None:
     beside = hull.bounding_box().max.Y + 20.0
     show_object(Pos(0.0, beside, 0.0) * mast(), name="mast")
     show_object(Pos(0.0, beside + 60.0, 0.0) * sails(), name="sails")
+    show_object(Pos(0.0, beside + 140.0, 0.0) * awning(), name="awning")
 
 
 if __name__ == "__main__":

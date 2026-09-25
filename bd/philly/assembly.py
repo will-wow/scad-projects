@@ -21,10 +21,11 @@ from __future__ import annotations
 from build123d import Compound, Part, Pos, Rot
 from ocp_vscode import show_object
 
+import awning as awnings
 import lines as hull_lines
 import rig as rigging
 from hull import build
-from main import HULL, RIG
+from main import AWNING, HULL, RIG
 
 
 def _stepped_mast(lines, seat) -> Part:
@@ -69,11 +70,15 @@ def parts() -> dict[str, Part]:
     lines = hull_lines.load()
     seat = rigging.step(HULL, lines, RIG)
     sails = _hung_sails(lines, seat)
+    hull = rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
     return {
-        "hull": rigging.fit_mast(build(HULL, lines), HULL, lines, RIG),
+        "hull": awnings.fit_awning(hull, HULL, lines, AWNING, RIG),
         "mast": _stepped_mast(lines, seat),
         "course": sails[0],
         "topsail": sails[1],
+        # Standing in its sockets rather than laid down to print, which is the
+        # only way to see whether it clears the mast and its sails.
+        "awning": awnings.upright_frame(HULL, lines, AWNING, RIG),
     }
 
 

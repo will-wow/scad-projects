@@ -26,7 +26,7 @@ from preview import load_model
 # rather than one: each wants its own orientation on the bed, and the hull's
 # watertightness settings -- three walls, six bottom layers -- are wrong for a
 # 0.6mm sail.
-PARTS = ("main:model=hull", "main:mast=mast", "main:sails=sails")
+PARTS = ("main:model=hull", "main:mast=mast", "main:sails=sails", "main:awning=awning")
 
 # Tessellation tolerance in millimetres of the finished model. Finer than a
 # printer's nozzle, so the mesh is not what limits the print.
