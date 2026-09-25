@@ -7,9 +7,11 @@
 Adjust HULL below and save to see it change.
 """
 
-from build123d import Part
+from build123d import Part, Pos
 from ocp_vscode import show_object
 
+import lines as hull_lines
+import rig as rigging
 from hull import Bulge, Deck, HullSpec, build
 from preview import preview_mode
 
@@ -37,9 +39,23 @@ HULL = HullSpec(
 )
 
 
+RIG = rigging.Rig()
+
+
 def model() -> Part:
-    """The thing to render. `just preview` looks for this."""
-    return build(HULL)
+    """The hull, with the mast's bar and tube fitted. `just preview` renders this."""
+    lines = hull_lines.load()
+    return rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
+
+
+def mast() -> Part:
+    """The mast, lying down ready to print."""
+    return rigging.mast(HULL, hull_lines.load(), RIG)
+
+
+def sails() -> Part:
+    """Both sails, flat on the bed."""
+    return rigging.sails(HULL, hull_lines.load(), RIG)
 
 
 def main() -> None:
@@ -50,6 +66,11 @@ def main() -> None:
         f"{hull.volume / 1000:.1f} cm^3 of material"
     )
     show_object(hull, name="hull")
+    # Alongside, not in place: these print as separate parts, and the mast is
+    # two thirds as long as the boat, so it would swamp the view standing up.
+    beside = hull.bounding_box().max.Y + 20.0
+    show_object(Pos(0.0, beside, 0.0) * mast(), name="mast")
+    show_object(Pos(0.0, beside + 60.0, 0.0) * sails(), name="sails")
 
 
 if __name__ == "__main__":

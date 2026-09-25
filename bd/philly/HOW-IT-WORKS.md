@@ -279,11 +279,13 @@ with the bilge open between them.
 That's described declaratively in [`main.py`](main.py):
 
 ```python
-decks=(
-    Deck(0.0, 7 / 24, 0.50),
-    Deck(9 / 24, 15 / 24, 0.40),
-    Deck(17 / 24, 1.0, 0.20),
-),
+decks = (
+    (
+        Deck(0.0, 7 / 24, 0.50),
+        Deck(9 / 24, 15 / 24, 0.40),
+        Deck(17 / 24, 1.0, 0.20),
+    ),
+)
 ```
 
 `start` and `end` are fractions of the overall length; `height` is a fraction
@@ -424,6 +426,90 @@ stations = (12 if preview_mode() else 48,)
 The model decides what to trade. Because `stations` only affects smoothness,
 the shape you judge in the loop is the real one.
 
+## Part 9: the rig
+
+[`rig.py`](rig.py) adds the mast, and it is the one part of the project that
+uses build123d's primitives -- `Box`, `Cylinder`, `RegularPolygon`, `extrude` --
+rather than lofting sections. It also works in **finished millimetres**
+throughout, unlike `hull.py`: the hull arrives already scaled, so this is the
+far side of that line.
+
+Three printed parts: the bar and tube, unioned into the hull; the mast, which
+lifts out; and the sails, which clip onto the yards.
+
+### The socket is derived, not written down
+
+The mast stands in the forward well, and the well is wherever the decks are not:
+
+```python
+stretches = open_stretches(sorted(spec.decks, key=lambda d: d.start))
+start, end = stretches[0]
+```
+
+Move a deck and the mast moves with it, instead of ending up buried in a
+platform. This is why `hull.open_stretches` is public.
+
+Everything else about the socket comes from the lines plan at that station --
+the rail height, the chine, and `hull.inner_half_width`, which is the one place
+that knows where the inside of a flared, bowed hull actually is. The bar is cut
+to reach it:
+
+```python
+bar_half_length=inner_half_width(lines, source_x, wall, bar_top / factor, spec.bulge) * factor
+```
+
+Measured at the bar's **top**, because the side flares: the inside is widest
+there, so the bar overlaps into the wall at its lower edge rather than leaving a
+gap. The overlap is 0.73mm into a 2mm wall, and a test asserts the fitted hull
+is no wider than the bare one -- which is what catches a bar that punches
+through.
+
+### Two constraints that are not obvious
+
+**The bore must not reach the bottom.** It stops at the inside of the hull's
+floor. A bore one millimetre longer is a hole in the boat.
+
+**The tube runs all the way down**, which does two jobs. It steps the mast, and
+it plants a pillar under the middle of the bar. Without it the bar is a single
+73mm unsupported span to bridge, printed bottom-up; with it, two of 31.6mm.
+
+### Why the mast is hexagonal
+
+So it can print lying down. A round mast on the bed rolls and touches along a
+line; a hexagon rests on a flat. The shaft is built standing up, because yard
+heights are easier to reason about as z, then laid down as the last step:
+
+```python
+laid = Rot(0.0, 90.0, 0.0) * _upright_mast(spec, lines, rig)
+```
+
+That carries the shaft from +Z to +X and leaves the yards along Y, all in the
+plane of the bed. The hexagon is drawn with `rotation=30` so that its *flats*
+end up facing the bed rather than its corners -- a test measures the part's
+height against the across-flats figure, which is the narrower of the two, so
+getting this backwards fails rather than printing badly.
+
+Only the base is round, for as long as the tube holds it, so the mast can turn.
+Above that the hexagon is wider across its corners than the bore, which is what
+stops it dropping through.
+
+### Sails clip on, and the corners are the whole problem
+
+A sail is a 0.6mm plate. The yard is 2.5mm thick, and the hole has to be wider
+still -- so a hole through the plate's edge would be wider than the plate. Each
+corner therefore carries a small loop standing proud of the plate, which is what
+a real sail's cringle is anyway.
+
+The loop sits so it rests on the same plane as the plate, so the whole sail lies
+on the bed with nothing to support, and its mouth opens **upward** -- away from
+the bed while printing, and square to the sail once rigged, so it presses onto
+both yards at once. Mouths facing up on one yard and down on the other would
+need the sail to stretch to reach both.
+
+`sails()` is the one builder here that deliberately does *not* go through
+`as_part`: two sails really are two solids, so "more than one piece" is the
+answer rather than the failure it would be anywhere else.
+
 ## Making your own hull
 
 If you want to do this for a different boat:
@@ -457,6 +543,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`export.py`](export.py) | 3MF/STL/STEP out |
 | [`preview.py`](preview.py) | headless SVG/PNG renderer |
 | [`watch.py`](watch.py) | warm-process live reload |
+| [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |
 

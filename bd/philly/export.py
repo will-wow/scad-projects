@@ -20,7 +20,13 @@ import lib3mf
 import numpy as np
 from build123d import Part, export_step, export_stl
 
-from preview import DEFAULT_MODEL, load_model
+from preview import load_model
+
+# The parts a print needs, as module:callable=label. They are separate files
+# rather than one: each wants its own orientation on the bed, and the hull's
+# watertightness settings -- three walls, six bottom layers -- are wrong for a
+# 0.6mm sail.
+PARTS = ("main:model=hull", "main:mast=mast", "main:sails=sails")
 
 # Tessellation tolerance in millimetres of the finished model. Finer than a
 # printer's nozzle, so the mesh is not what limits the print.
@@ -92,8 +98,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--model",
-        default=DEFAULT_MODEL,
-        help=f"module:callable to build (default: {DEFAULT_MODEL})",
+        action="append",
+        metavar="MODULE:CALLABLE[=LABEL]",
+        help=f"a part to build; repeatable. Default: {' '.join(PARTS)}",
     )
     parser.add_argument(
         "--out", type=Path, default=Path("dist"), help="output directory (default: dist/)"
@@ -103,23 +110,30 @@ def main() -> int:
     parser.add_argument("--step", action="store_true", help="also write a STEP")
     args = parser.parse_args()
 
-    part = load_model(args.model)
-    if not part.is_valid:
-        raise SystemExit("the model is not a valid solid; refusing to export it")
+    args.out.mkdir(parents=True, exist_ok=True)
+    for target in args.model or PARTS:
+        source, _, label = target.partition("=")
+        label = label or source.rpartition(":")[2]
+        part = load_model(source)
+        if not part.is_valid:
+            raise SystemExit(f"{source} is not a valid solid; refusing to export it")
 
-    size = part.bounding_box().size
-    print(f"{size.X:.1f} x {size.Y:.1f} x {size.Z:.1f} mm, {part.volume / 1000:.1f} cm3 enclosed")
+        size = part.bounding_box().size
+        pieces = len(part.solids())
+        print(
+            f"{label:6} {size.X:7.1f} x {size.Y:6.1f} x {size.Z:6.1f} mm, "
+            f"{part.volume / 1000:6.2f} cm3"
+            f"{f', {pieces} pieces' if pieces > 1 else ''}"
+        )
 
-    target = args.out / f"{args.name}.3mf"
-    points, faces = write_3mf(part, target)
-    print(f"{target}  {points} vertices, {faces} triangles")
+        stem = f"{args.name}-{label}"
+        points, faces = write_3mf(part, args.out / f"{stem}.3mf")
+        print(f"       {args.out / f'{stem}.3mf'}  {points} vertices, {faces} triangles")
 
-    if args.stl:
-        export_stl(part, str(args.out / f"{args.name}.stl"), tolerance=MESH_TOLERANCE)
-        print(f"{args.out / f'{args.name}.stl'}")
-    if args.step:
-        export_step(part, str(args.out / f"{args.name}.step"))
-        print(f"{args.out / f'{args.name}.step'}")
+        if args.stl:
+            export_stl(part, str(args.out / f"{stem}.stl"), tolerance=MESH_TOLERANCE)
+        if args.step:
+            export_step(part, str(args.out / f"{stem}.step"))
     return 0
 
 

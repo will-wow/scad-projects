@@ -19,10 +19,10 @@ from hull import (
     HullSpec,
     _cavity_span,
     _inner_section,
-    _open,
     _section,
     _station_positions,
     build,
+    open_stretches,
 )
 
 STATIONS = 12
@@ -172,7 +172,7 @@ class TestDecks:
     ],
 )
 def test_open_stretches_are_the_complement_of_the_decks(decks, expected):
-    assert _open([Deck(a, b, 0.5) for a, b in decks]) == expected
+    assert open_stretches([Deck(a, b, 0.5) for a, b in decks]) == expected
 
 
 def test_a_backwards_deck_is_refused():

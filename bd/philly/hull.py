@@ -186,8 +186,12 @@ def _section(lines: HullLines, x: float, bulge: Bulge | None = None):
 DEBRIS_FRACTION = 1e-4
 
 
-def _as_part(shape: object, what: str) -> Part:
-    """Remove any extra slivers left from a boolean operation."""
+def as_part(shape: object, what: str) -> Part:
+    """Remove any extra slivers left from a boolean operation.
+
+    Public because rig.py does booleans against the hull too, and they can fail
+    the same ways.
+    """
 
     # build123d's operators are generic over shape kinds; ensure this is a solid.
     if not isinstance(shape, Compound):
@@ -247,6 +251,47 @@ def _assert_open(
             raise RuntimeError(f"the span {low:.2f}..{high:.2f} is still decked over")
 
 
+def inner_half_width(
+    lines: HullLines,
+    x: float,
+    wall: float,
+    z: float,
+    bulge: Bulge | None = None,
+) -> float:
+    """How far the cavity's side stands from the centreline at height `z`.
+
+    This is the inside face of the hull, and it is not the outside minus the
+    wall. The side is flared, so it has to be offset perpendicular to itself;
+    the line that results is what `_inner_section` builds its sections from and
+    what anything fitted against the inside of the hull -- the mast's bar, say
+    -- has to reach. One function so there is one answer.
+
+    `z` may sit above the rail or below the chine; the line is simply extended,
+    which is what the cavity itself needs at its top.
+    """
+    y_sheer = lines.sheer_half_width.value(x)
+    z_sheer = lines.sheer_height.value(x)
+    y_chine = lines.chine_half_width.value(x)
+    z_chine = lines.chine_height.value(x)
+
+    rise = z_sheer - z_chine
+    run = y_sheer - y_chine
+    if rise <= 1e-9:
+        raise ValueError(f"the hull has no depth at station {x}")
+    chord = float(np.hypot(rise, run))
+
+    # The side offset inward by `wall`, as a point on it and its slope.
+    base_y = y_chine - wall * rise / chord
+    base_z = z_chine + wall * run / chord
+    y = base_y + (z - base_z) * run / rise
+
+    if bulge is not None:
+        # The swell displaces the cavity by the same amount as the hull at the
+        # same height -- see `Bulge`.
+        y += bulge.at((z - z_chine) / rise) * bulge.amount * chord
+    return y
+
+
 def _inner_section(
     lines: HullLines,
     x: float,
@@ -283,32 +328,24 @@ def _inner_section(
     z_chine = lines.chine_height.value(x)
 
     rise = z_sheer - z_chine
-    run = y_sheer - y_chine
     if rise <= 1e-9:
         return None
-    length = float(np.hypot(rise, run))
-
-    # Inward normal of the side, and the side's own direction.
-    base_y = y_chine - wall * rise / length
-    base_z = z_chine + wall * run / length
 
     # Where the offset side meets the offset floor.
     bottom = z_chine + wall
     floor_z = bottom if floor_z is None else max(floor_z, bottom)
-    s_floor = (floor_z - base_z) * length / rise
-    floor_y = base_y + s_floor * run / length
+    floor_y = inner_half_width(lines, x, wall, floor_z)
 
     # Carry the same line up past the rail.
-    s_top = (z_sheer + wall - base_z) * length / rise
-    top_y = base_y + s_top * run / length
     top_z = z_sheer + wall
+    top_y = inner_half_width(lines, x, wall, top_z)
 
     if floor_y <= 1e-6 or top_y < floor_y or top_z <= floor_z:
         return None
 
     starboard = [(floor_y, floor_z), (top_y, top_z)]
     if bulge is not None:
-        chord = float(np.hypot(run, rise))
+        chord = float(np.hypot(y_sheer - y_chine, rise))
         curved: list[tuple[float, float]] = []
         for s_along in np.linspace(0.0, 1.0, SIDE_SAMPLES):
             y = floor_y + s_along * (top_y - floor_y)
@@ -373,8 +410,14 @@ def _ordered(decks: tuple[Deck, ...]) -> list[Deck]:
     return ordered
 
 
-def _open(decks: list[Deck]) -> list[tuple[float, float]]:
-    """Everything the decks leave over: the stretches hollowed to the bottom."""
+def open_stretches(decks: list[Deck]) -> list[tuple[float, float]]:
+    """Everything the decks leave over: the stretches hollowed to the bottom.
+
+    Public because the rig needs it: the mast steps into the forward well, and
+    that well is wherever the decks happen not to be. Deriving it means moving
+    a deck moves the mast with it, rather than leaving a socket in the middle
+    of a platform.
+    """
     stretches: list[tuple[float, float]] = []
     edge = 0.0
     for deck in decks:
@@ -412,7 +455,7 @@ def _cut(
     ]
     if len(faces) < 2:
         return hull
-    return _as_part(hull - loft(faces), "cavity subtraction")
+    return as_part(hull - loft(faces), "cavity subtraction")
 
 
 def _hollow(
@@ -434,10 +477,10 @@ def _hollow(
         return max(first, x0 + (x1 - x0) * a), min(last, x0 + (x1 - x0) * b)
 
     ordered = _ordered(decks)
-    open_stretches = _open(ordered)
+    stretches = open_stretches(ordered)
 
     hollowed = hull
-    for stretch in open_stretches:
+    for stretch in stretches:
         hollowed = _cut(
             hollowed,
             lines,
@@ -466,7 +509,7 @@ def _hollow(
 
     if hollowed.volume >= 0.95 * hull.volume:
         raise RuntimeError("hollowing removed nothing -- check the wall thickness and the decks")
-    _assert_open(hollowed, lines, wall, open_stretches, x0, x1, first, last)
+    _assert_open(hollowed, lines, wall, stretches, x0, x1, first, last)
     return hollowed
 
 
@@ -497,7 +540,7 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
             spec.bulge,
         )
 
-    return _as_part(scale(hull, factor), "scaling")
+    return as_part(scale(hull, factor), "scaling")
 
 
 if __name__ == "__main__":
