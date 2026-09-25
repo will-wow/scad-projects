@@ -14,11 +14,19 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import lines as hull_lines  # noqa: E402
-from hull import HullSpec, OpenSpan, build  # noqa: E402
+from hull import Deck, HullSpec, build  # noqa: E402
 
 # Few sections: these tests are about whether the geometry is right, and the
 # cavity ends are solved rather than sampled, so a coarse hull is the same hull.
 STATIONS = 12
+
+# The model's own layout: a forecastle, a middle platform and a quarterdeck,
+# stepping down from bow to stern, with the bilge open between them.
+DECKS = (
+    Deck(0.0, 7 / 24, 0.50),
+    Deck(9 / 24, 15 / 24, 0.40),
+    Deck(17 / 24, 1.0, 0.20),
+)
 
 
 @pytest.fixture(scope="session")
@@ -40,12 +48,5 @@ def solid_hull(lines):
 
 @pytest.fixture(scope="session")
 def decked_hull(lines):
-    """Two open slices, decked elsewhere, with bulwarks."""
-    return build(
-        HullSpec(
-            stations=STATIONS,
-            open_spans=(OpenSpan(0.18, 0.34), OpenSpan(0.58, 0.74)),
-            bulwark=10.0,
-        ),
-        lines,
-    )
+    """Three platforms at three heights, bilge open between them."""
+    return build(HullSpec(stations=STATIONS, decks=DECKS), lines)

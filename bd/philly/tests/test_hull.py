@@ -11,14 +11,15 @@ from __future__ import annotations
 import numpy as np
 import pytest
 from build123d import Plane, Vector
+from conftest import DECKS
 
 from hull import (
     Bulge,
+    Deck,
     HullSpec,
-    OpenSpan,
     _cavity_span,
-    _decked,
     _inner_section,
+    _open,
     _section,
     _station_positions,
     build,
@@ -111,58 +112,83 @@ def test_volume_converges_with_more_sections(lines):
 
 
 class TestDecks:
-    def test_open_slices_reach_the_bottom(self, decked_hull, lines):
+    def test_open_stretches_reach_the_bottom(self, decked_hull, lines):
         factor = HullSpec().length / lines.length
-        for fraction in (0.26, 0.66):  # middles of the two open spans
+        for fraction in (8 / 24, 16 / 24):  # middles of the two open stretches
             x = HullSpec().length * fraction
             rail = lines.sheer_height.value(x / factor) * factor
             floor = lines.chine_height.value(x / factor) * factor
             top = _top_of_material(decked_hull, x, rail)
             assert top == pytest.approx(floor + HullSpec().wall, abs=0.5)
 
-    def test_decked_stretches_carry_a_deck_below_the_rail(self, decked_hull, lines):
-        """The deck used to fill to the rail, leaving no bulwark at all."""
-        spec = HullSpec()
-        factor = spec.length / lines.length
-        for fraction in (0.10, 0.45, 0.85):
-            x = spec.length * fraction
+    def test_each_deck_sits_at_its_own_height(self, decked_hull, lines):
+        """The three platforms are at three heights, not one shared drop.
+
+        Height is measured from the bottom as a fraction of the hull's depth,
+        so the check is against that fraction rather than against the local
+        rail -- which is the whole difference from the version that hung every
+        deck the same distance below the sheer.
+        """
+        factor = HullSpec().length / lines.length
+        depth = lines.depth * factor
+        for deck in DECKS:
+            x = HullSpec().length * 0.5 * (deck.start + deck.end)
             rail = lines.sheer_height.value(x / factor) * factor
             top = _top_of_material(decked_hull, x, rail + 1.0)
-            assert rail - top == pytest.approx(10.0, abs=0.3), "bulwark height"
+            assert top == pytest.approx(deck.height * depth, abs=0.3), (
+                f"deck {deck.start:.2f}..{deck.end:.2f}"
+            )
 
-    def test_the_deck_parallels_the_sheer(self, decked_hull, lines):
-        """As a fraction of local depth the deck climbed faster than the sheer,
-        because the forefoot sweeps up under the forecastle."""
-        spec = HullSpec()
-        factor = spec.length / lines.length
-        drops = []
-        for fraction in (0.10, 0.45, 0.85):
-            x = spec.length * fraction
+    def test_the_platforms_step_down_from_bow_to_stern(self, decked_hull, lines):
+        """The forecastle is highest and the quarterdeck lowest."""
+        factor = HullSpec().length / lines.length
+        tops = []
+        for deck in DECKS:
+            x = HullSpec().length * 0.5 * (deck.start + deck.end)
             rail = lines.sheer_height.value(x / factor) * factor
-            drops.append(rail - _top_of_material(decked_hull, x, rail + 1.0))
-        assert max(drops) - min(drops) < 0.3, f"deck drop varied along the length: {drops}"
+            tops.append(_top_of_material(decked_hull, x, rail + 1.0))
+        assert tops[0] > tops[1] > tops[2], f"platforms do not step down: {tops}"
+
+    def test_a_deck_leaves_the_sides_standing_as_bulwarks(self, decked_hull, lines):
+        """The hull carries on above each platform rather than filling to the rail."""
+        factor = HullSpec().length / lines.length
+        for deck in DECKS:
+            x = HullSpec().length * 0.5 * (deck.start + deck.end)
+            rail = lines.sheer_height.value(x / factor) * factor
+            top = _top_of_material(decked_hull, x, rail + 1.0)
+            assert rail - top > 1.0, f"no bulwark over deck {deck.start:.2f}..{deck.end:.2f}"
 
     def test_decking_adds_material(self, decked_hull, open_hull):
         assert decked_hull.volume > 1.5 * open_hull.volume
 
 
 @pytest.mark.parametrize(
-    ("spans", "expected"),
+    ("decks", "expected"),
     [
         (((0.0, 1.0),), []),
         (((0.2, 0.4),), [(0.0, 0.2), (0.4, 1.0)]),
         (((0.2, 0.4), (0.6, 0.8)), [(0.0, 0.2), (0.4, 0.6), (0.8, 1.0)]),
         (((0.0, 0.5),), [(0.5, 1.0)]),
-        (((0.2, 0.5), (0.3, 0.7)), [(0.0, 0.2), (0.7, 1.0)]),  # overlapping
     ],
 )
-def test_decked_stretches_are_the_complement_of_the_open_ones(spans, expected):
-    assert _decked(tuple(OpenSpan(a, b) for a, b in spans)) == expected
+def test_open_stretches_are_the_complement_of_the_decks(decks, expected):
+    assert _open([Deck(a, b, 0.5) for a, b in decks]) == expected
 
 
-def test_a_backwards_span_is_refused(lines):
+def test_a_backwards_deck_is_refused():
     with pytest.raises(ValueError, match="increasing"):
-        build(HullSpec(stations=8, open_spans=(OpenSpan(0.6, 0.2),)), lines)
+        Deck(0.6, 0.2, 0.5)
+
+
+def test_a_deck_height_outside_the_hull_is_refused():
+    with pytest.raises(ValueError, match="height"):
+        Deck(0.0, 0.5, 1.5)
+
+
+def test_overlapping_decks_are_refused(lines):
+    """Two heights over one stretch has no answer, so it is not guessed at."""
+    with pytest.raises(ValueError, match="overlap"):
+        build(HullSpec(stations=8, decks=(Deck(0.2, 0.6, 0.5), Deck(0.4, 0.8, 0.3))), lines)
 
 
 class TestBulge:
@@ -280,8 +306,7 @@ class TestBulge:
         hull = build(
             HullSpec(
                 stations=STATIONS,
-                open_spans=(OpenSpan(0.18, 0.34), OpenSpan(0.58, 0.74)),
-                bulwark=10.0,
+                decks=DECKS,
                 bulge=self.SPEC,
             ),
             lines,

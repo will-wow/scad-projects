@@ -10,7 +10,7 @@ Adjust HULL below and save to see it change.
 from build123d import Part
 from ocp_vscode import show_object
 
-from hull import Bulge, HullSpec, OpenSpan, build
+from hull import Bulge, Deck, HullSpec, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -20,18 +20,16 @@ HULL = HullSpec(
     # dimensions and its solid bow and stern plugs are solved from the geometry
     # -- so a preview can afford far fewer and still show the real shape.
     stations=12 if preview_mode() else 48,
-    # The real boat is decked in three stretches -- forecastle, a decked middle,
-    # and the quarterdeck aft -- with an open slice between each. These are the
-    # two open slices; everything else carries a deck.
-    #
-    # Fractions of the overall length, measured off the scan.
-    open_spans=(
-        OpenSpan(7 / 24, 9 / 24),
-        OpenSpan(15 / 24, 17 / 24),
+    # The real boat is decked in three stretches -- forecastle, a middle
+    # platform, and the quarterdeck aft -- each at its own height, with the
+    # bilge open between them. Lengthwise fractions measured off the scan;
+    # heights as fractions of the hull's depth, and the platforms step down
+    # from bow to stern.
+    decks=(
+        Deck(0.0, 7 / 24, 0.50),
+        Deck(9 / 24, 15 / 24, 0.40),
+        Deck(17 / 24, 1.0, 0.20),
     ),
-    # How far the deck sits below the rail, in mm: the bulwark's height. The
-    # deck parallels the sheer, so it rises toward bow and stern with it.
-    bulwark=10.0,
     # How far the sides bow out between chine and rail, as a fraction of the
     # side's slant height. The lines plan gives straight panels; the scan's
     # topsides swell. Dial this by eye against the scan -- 0 is the old shape.

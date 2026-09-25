@@ -270,55 +270,56 @@ The cavity is also carried one wall thickness *above* the rail
 (`top_z = z_sheer + wall`), which is what makes the subtraction remove the
 section's closed top edge and leave an open boat.
 
-## Part 5: decks, wells and bulwarks
+## Part 5: decks and bulwarks
 
-The real boat isn't one continuous open cavity: it's decked at the bow, has an
-open slice, a decked middle, another open slice, then a decked quarterdeck.
+The real boat isn't one continuous open cavity: it carries three platforms — a
+forecastle, a middle platform and the quarterdeck — at three different heights,
+with the bilge open between them.
 
 That's described declaratively in [`main.py`](main.py):
 
 ```python
-open_spans = (
-    (
-        OpenSpan(7 / 24, 9 / 24),
-        OpenSpan(15 / 24, 17 / 24),
-    ),
-)
-bulwark = (10.0,)
+decks=(
+    Deck(0.0, 7 / 24, 0.50),
+    Deck(9 / 24, 15 / 24, 0.40),
+    Deck(17 / 24, 1.0, 0.20),
+),
 ```
 
-Spans are fractions of the overall length. [`_decked`](hull.py#L384) computes
-the complement — every stretch the open spans leave over — and
-[`_hollow`](hull.py#L427) makes one subtraction per region, with a different
-floor height for each:
-
-```python
-for span in spec_spans:
-    hollowed = _cut(..., lambda x, lift=lift: lines.chine_height.value(x) + wall + lift)
-
-for stretch in _decked(spec_spans):
-    hollowed = _cut(..., deck_height)
-```
+`start` and `end` are fractions of the overall length; `height` is a fraction
+of the hull's depth, measured up from the bottom. Anything no deck covers is
+hollowed right down to the inside of the bottom, so the gaps don't need
+declaring — [`_open`](hull.py) computes the complement.
 
 The trick that makes decks cheap: a **deck is just a cavity with a raised
-floor**. Put the cavity's bottom part-way up and the hull's own sides carry on
-past it as bulwarks, for free. No separate deck surface, no lids, no extra
-booleans.
-
-And the deck follows the sheer rather than sitting at a fixed height:
+floor**. Put the cavity's bottom part-way up and the material below it is the
+platform, while the hull's own sides carry on past it as bulwarks — for free.
+No separate deck surface, no lids, no extra booleans.
 
 ```python
-def deck_height(x: float) -> float:
-    return lines.sheer_height.value(x) - drop
+for stretch in _open(ordered):
+    hollowed = _cut(..., lambda x: lines.chine_height.value(x) + wall)
+
+for deck in ordered:
+    floor = deck.height * lines.depth
+    hollowed = _cut(..., lambda x, floor=floor: floor)
 ```
 
-A fixed drop below the rail means the deck rises toward bow and stern with the
-sheer, which is what boats do. Measuring it as a fraction of local depth
-instead makes the forecastle climb faster than the sheer, because the forefoot
-sweeps up underneath it.
+Both loops call the same `_cut`. The only difference is where the floor goes —
+which is why there's one concept here and not two. A shallow well that
+shouldn't reach the bottom is just a low deck.
+
+Note `lambda x, floor=floor: floor`. Binding the loop variable as a default
+argument matters: a bare closure over `floor` would see whatever the variable
+held when the lambda was finally called. It happens to be safe here because
+`_cut` runs immediately, but it's the kind of thing that's safe until someone
+makes the call lazy.
 
 Each `loft` caps its own ends, so **every cut leaves a bulkhead** where it
 stops. You get transverse structure without modelling any.
+
+Overlapping decks are refused rather than merged. Two heights over one stretch
+has no sensible answer, and picking one quietly is worse than saying so.
 
 ## Part 6: the guardrails
 

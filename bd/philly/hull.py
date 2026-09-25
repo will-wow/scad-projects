@@ -38,22 +38,32 @@ from lines import HullLines
 
 
 @dataclass(frozen=True)
-class OpenSpan:
-    """A stretch of the hull that is hollowed out, as fractions of the length.
+class Deck:
+    """A platform across the hull, and the stretch of length it covers.
 
-    The real boat is decked over forward and aft with an open waist between, so
-    the hull is not one continuous cavity. Everything outside these spans is
-    left solid from the bottom up -- which is not how the boat was built, where
-    the decked ends covered storage and sleeping space, but is what prints.
+    The boat is decked in three places -- a forecastle, a middle platform and
+    the quarterdeck -- each at its own height, with the bilge open between
+    them. A deck is modelled as solid from the bottom up to its height, which
+    is not how the boat was built (the decked ends covered storage and sleeping
+    space) but is what prints; the hull's sides carry on past it as bulwarks.
 
-    `floor` raises this span's bottom, in millimetres of the finished model, for
-    a well that should not go all the way down. Zero hollows to the inside of
-    the hull's bottom.
+    Anywhere no deck covers is hollowed right down to the inside of the bottom.
+    A shallow well is therefore just a low deck -- both are a cavity with its
+    floor part-way up, so one idea covers both.
     """
 
     start: float
+    """where the deck begins, as a fraction of the overall length"""
     end: float
-    floor: float = 0.0
+    """where it ends, as a fraction of the overall length"""
+    height: float
+    """the platform's height above the bottom, as a fraction of the hull's depth"""
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.start < self.end <= 1.0:
+            raise ValueError(f"deck {self.start}..{self.end} is not an increasing 0..1 range")
+        if not 0.0 < self.height <= 1.0:
+            raise ValueError(f"deck height must lie in 0..1, got {self.height}")
 
 
 @dataclass(frozen=True)
@@ -90,15 +100,10 @@ class HullSpec:
     # Transverse sections in the loft. Cosine-spaced, so they bunch up toward the
     # bow and stern where the curves bend hardest.
     stations: int = 48
-    # Which stretches are open to the bottom. The default is one span end to
-    # end: a hull open for its whole length.
-    open_spans: tuple[OpenSpan, ...] = (OpenSpan(0.0, 1.0),)
-    # How far the deck sits below the rail, in millimetres of the finished
-    # model, over every stretch the open spans leave over. The hull's sides
-    # carry on above it as bulwarks, so this is the bulwark's height -- and the
-    # deck parallels the sheer, rising toward bow and stern with it. None fills
-    # the decked stretches to the rail instead.
-    bulwark: float | None = None
+    # The platforms, each with its own height. Everything they leave over is
+    # hollowed to the bottom, so the default -- none at all -- is a hull open
+    # for its whole length.
+    decks: tuple[Deck, ...] = ()
     # How far the sides bow outward between chine and rail. None keeps them the
     # dead-straight panels the lines plan alone gives.
     bulge: Bulge | None = None
@@ -214,7 +219,7 @@ def _assert_open(
     hull: Part,
     lines: HullLines,
     wall: float,
-    spans: tuple[OpenSpan, ...],
+    spans: list[tuple[float, float]],
     x0: float,
     x1: float,
     first: float,
@@ -228,9 +233,9 @@ def _assert_open(
     looks inside -- and only inside the spans that are meant to be open, since
     a decked stretch is supposed to have material there.
     """
-    for span in spans:
-        start = max(first, x0 + (x1 - x0) * span.start)
-        end = min(last, x0 + (x1 - x0) * span.end)
+    for low, high in spans:
+        start = max(first, x0 + (x1 - x0) * low)
+        end = min(last, x0 + (x1 - x0) * high)
         if end - start <= 1e-6:
             continue
         x = 0.5 * (start + end)
@@ -239,7 +244,7 @@ def _assert_open(
         # is a check that always passes -- as an earlier version of this did.
         z = lines.sheer_height.value(x) - 0.5 * wall
         if hull.is_inside(Vector(x, 0.0, z)):
-            raise RuntimeError(f"the span {span.start:.2f}..{span.end:.2f} is still decked over")
+            raise RuntimeError(f"the span {low:.2f}..{high:.2f} is still decked over")
 
 
 def _inner_section(
@@ -352,26 +357,30 @@ def _cavity_span(lines: HullLines, wall: float, x0: float, x1: float) -> tuple[f
     return boundary(x0), boundary(x1)
 
 
-def _merge(spans: tuple[OpenSpan, ...]) -> list[tuple[float, float]]:
-    """The open spans as sorted, non-overlapping fraction ranges."""
-    merged: list[tuple[float, float]] = []
-    for start, end in sorted((s.start, s.end) for s in spans):
-        if merged and start <= merged[-1][1]:
-            merged[-1] = (merged[-1][0], max(merged[-1][1], end))
-        else:
-            merged.append((start, end))
-    return merged
+def _ordered(decks: tuple[Deck, ...]) -> list[Deck]:
+    """The decks bow to stern, refusing any that overlap.
+
+    Overlapping decks are not merged the way overlapping open spans once were:
+    two decks covering the same stretch at different heights have no sensible
+    answer, and picking one quietly would be worse than saying so.
+    """
+    ordered = sorted(decks, key=lambda d: d.start)
+    for earlier, later in zip(ordered, ordered[1:], strict=False):
+        if later.start < earlier.end:
+            raise ValueError(
+                f"decks {earlier.start}..{earlier.end} and {later.start}..{later.end} overlap"
+            )
+    return ordered
 
 
-def _decked(spans: tuple[OpenSpan, ...]) -> list[tuple[float, float]]:
-    """Everything the open spans leave over: the stretches that carry a deck."""
-    covered = _merge(spans)
+def _open(decks: list[Deck]) -> list[tuple[float, float]]:
+    """Everything the decks leave over: the stretches hollowed to the bottom."""
     stretches: list[tuple[float, float]] = []
     edge = 0.0
-    for start, end in covered:
-        if start > edge:
-            stretches.append((edge, start))
-        edge = end
+    for deck in decks:
+        if deck.start > edge:
+            stretches.append((edge, deck.start))
+        edge = deck.end
     if edge < 1.0:
         stretches.append((edge, 1.0))
     return stretches
@@ -411,59 +420,53 @@ def _hollow(
     lines: HullLines,
     stations: np.ndarray,
     wall: float,
-    spec_spans: tuple[OpenSpan, ...],
-    bulwark: float | None,
-    factor: float,
+    decks: tuple[Deck, ...],
     bulge: Bulge | None = None,
 ) -> Part:
-    """Hollow the open spans to the bottom, and the decked stretches to the deck."""
+    """Hollow the undecked stretches to the bottom, and each deck to its height."""
     x0, x1 = float(stations[0]), float(stations[-1])
-    # Where the hull is wide enough to hold a cavity at all; a span reaching
+    # Where the hull is wide enough to hold a cavity at all; a stretch reaching
     # past that is clipped rather than refused, so "open to the bow" means as
     # far forward as the stem allows.
     first, last = _cavity_span(lines, wall, x0, x1)
 
-    def to_source(fraction: float) -> float:
-        return x0 + (x1 - x0) * fraction
-
     def clip(a: float, b: float) -> tuple[float, float]:
-        return max(first, to_source(a)), min(last, to_source(b))
+        return max(first, x0 + (x1 - x0) * a), min(last, x0 + (x1 - x0) * b)
 
-    for span in spec_spans:
-        if not 0.0 <= span.start < span.end <= 1.0:
-            raise ValueError(f"open span {span.start}..{span.end} is not an increasing 0..1 range")
+    ordered = _ordered(decks)
+    open_stretches = _open(ordered)
 
     hollowed = hull
-    for span in spec_spans:
-        lift = span.floor / factor
+    for stretch in open_stretches:
         hollowed = _cut(
             hollowed,
             lines,
             stations,
             wall,
-            clip(span.start, span.end),
-            lambda x, lift=lift: lines.chine_height.value(x) + wall + lift,
+            clip(*stretch),
+            lambda x: lines.chine_height.value(x) + wall,
             bulge,
         )
 
-    if bulwark is not None:
-        if bulwark <= 0.0:
-            raise ValueError(f"bulwark height must be positive, got {bulwark}")
-        drop = bulwark / factor
-
-        def deck_height(x: float) -> float:
-            # A fixed drop below the rail, so the deck parallels the sheer
-            # rather than the bottom. Measuring it as a fraction of the local
-            # depth instead made the forecastle climb faster than the sheer,
-            # because the forefoot sweeps up under it.
-            return lines.sheer_height.value(x) - drop
-
-        for stretch in _decked(spec_spans):
-            hollowed = _cut(hollowed, lines, stations, wall, clip(*stretch), deck_height, bulge)
+    for deck in ordered:
+        # Flat, and measured from the bottom rather than down from the rail:
+        # the three platforms sit at three different heights, so each one is
+        # its own number instead of a single drop below a sheer they no longer
+        # share.
+        floor = deck.height * lines.depth
+        hollowed = _cut(
+            hollowed,
+            lines,
+            stations,
+            wall,
+            clip(deck.start, deck.end),
+            lambda x, floor=floor: floor,
+            bulge,
+        )
 
     if hollowed.volume >= 0.95 * hull.volume:
-        raise RuntimeError("hollowing removed nothing -- check the wall thickness and open spans")
-    _assert_open(hollowed, lines, wall, spec_spans, x0, x1, first, last)
+        raise RuntimeError("hollowing removed nothing -- check the wall thickness and the decks")
+    _assert_open(hollowed, lines, wall, open_stretches, x0, x1, first, last)
     return hollowed
 
 
@@ -490,9 +493,7 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
             lines,
             stations,
             spec.wall / factor,
-            spec.open_spans,
-            spec.bulwark,
-            factor,
+            spec.decks,
             spec.bulge,
         )
 
