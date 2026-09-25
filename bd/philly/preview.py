@@ -185,7 +185,11 @@ def render(
 
 
 def find_chromium() -> str | None:
-    """Playwright's Chromium if it's installed, else whatever is on PATH."""
+    """Playwright's Chromium, else one on PATH, else Windows' usual shelves.
+
+    Windows installers do not put the browser on PATH, so without the last
+    look this writes SVG only on the machine most likely to have a browser.
+    """
     for pattern in (
         "/opt/pw-browsers/chromium-*/chrome-linux/chrome",
         "/opt/pw-browsers/chromium_headless_shell-*/chrome-linux/*",
@@ -197,6 +201,14 @@ def find_chromium() -> str | None:
         found = shutil.which(name)
         if found:
             return found
+    for root in ("ProgramFiles", "ProgramFiles(x86)", "LOCALAPPDATA"):
+        for relative in (
+            r"Google\Chrome\Application\chrome.exe",
+            r"Microsoft\Edge\Application\msedge.exe",
+        ):
+            installed = Path(os.environ.get(root, "")) / relative
+            if os.environ.get(root) and installed.is_file():
+                return str(installed)
     return None
 
 
@@ -211,8 +223,9 @@ def rasterise(chromium: str, view: View, path: Path) -> bool:
                 "--no-sandbox",
                 "--hide-scrollbars",
                 f"--window-size={view.width},{view.height}",
-                f"--screenshot={path.with_suffix('.png')}",
-                f"file://{path.with_suffix('.html').resolve()}",
+                f"--screenshot={path.with_suffix('.png').resolve()}",
+                # as_uri, because a Windows path pasted after file:// is not one.
+                path.with_suffix(".html").resolve().as_uri(),
             ],
             check=True,
             capture_output=True,
