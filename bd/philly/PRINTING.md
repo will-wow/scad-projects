@@ -25,8 +25,8 @@ Two worth noting:
 - **Even a waterlogged print floats.** If every infill void fills with water
   (170.1 g at 15% infill) it settles to 11.8mm and stays there.
 
-The rig barely registers: mast and sails together are 9.8 cm³, so at 15% infill
-they add 1.8 g and about a tenth of a millimetre of draft.
+The rig barely registers: mast and sails together are 14.3 cm³, so at 15%
+infill they add 2.7 g and about two tenths of a millimetre of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
@@ -42,8 +42,15 @@ orientation and a different profile:
 | `philadelphia-sails.3mf` | 69 x 121 x 6.6mm | as exported, flat | two separate sails in one file |
 
 The mast is exported **lying down** rather than standing. Upright it would be a
-200mm tower on a 5mm footprint, which is why the shaft is hexagonal: it rests on
-a flat rather than rolling on a curve. Do not let the slicer stand it up.
+200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the
+yards are square: everything rests on a flat rather than rolling on a curve. Do
+not let the slicer stand it up.
+
+The yards used to be round and thinner than the mast, which looked better and
+did not print -- each one hung 1.25mm clear of the bed along its whole 72mm with
+nothing underneath. Square and mast-width, they lie on it. The only thing left
+off the bed is the short necked section at each tip where a sail clips on, and
+that is a 2.5mm bridge with a square shoulder holding each end.
 
 The sails are 0.6mm thick -- three layers at 0.2mm. They want the *opposite* of
 the hull's profile: no extra walls, no solid infill, and no brim that would weld

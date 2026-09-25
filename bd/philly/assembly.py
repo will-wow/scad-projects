@@ -51,7 +51,7 @@ def _hung_sails(lines, seat) -> list[Part]:
     so a mouth is always on the far side of the bore from the plate -- canvas
     forward means the sails press on from astern.
     """
-    radius = rigging.yard_radius(HULL, lines, RIG)
+    radius = rigging.neck_radius(HULL, lines, RIG)
     offset = rigging.stand_off(HULL, lines, RIG)
 
     hung = []

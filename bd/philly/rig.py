@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Box, Cylinder, Part, Pos, RegularPolygon, Rot, extrude
+from build123d import Axis, Box, Cylinder, Part, Pos, RegularPolygon, Rot, extrude, fillet
 
 from hull import HullSpec, as_part, inner_half_width, open_stretches
 from lines import HullLines
@@ -52,20 +52,24 @@ class Rig:
 
     mast_length: float = 200.8
     """the whole mast, foot to truck: 36ft at this model's 1:55"""
-    yard_width: float = 0.5
-    """each yard's diameter, as a fraction of the mast's width"""
+    neck_width: float = 0.5
+    """the necked clip section's diameter, as a fraction of the mast's width
+
+    The yard itself is square and as wide as the mast; this is only the short
+    turned-down section a sail clips into.
+    """
+    yard_fillet: float = 0.6
+    """how far the square yard's long edges are rounded off"""
     course: tuple[float, float] = (0.20, 0.52)
     """the lower sail's yards, as fractions of the mast's length from its foot"""
     topsail: tuple[float, float] = (0.58, 0.88)
     """the upper sail's yards, likewise"""
     course_span: tuple[float, float] = (0.36, 0.26)
     """yard lengths for the course and the topsail, as fractions of mast length"""
-    groove_inset: float = 0.08
-    """how far in from a yard's tip its groove sits, as a fraction of its half-length"""
-    groove_width: float = 2.5
-    """the groove along the yard, which is what locates a sail"""
-    groove_depth: float = 0.3
-    """how deep the groove cuts. The yard is thin, so this stays modest."""
+    clip_inset: float = 0.08
+    """how far in from a yard's tip a sail clips on, as a fraction of its half-length"""
+    clip_length: float = 2.5
+    """the length of the necked section, which is what locates a sail fore and aft"""
     sail_thickness: float = 0.6
     """three layers at 0.2mm: thin enough to look like canvas, thick enough to survive"""
     loop_wall: float = 0.8
@@ -73,7 +77,7 @@ class Rig:
     mast_clearance: float = 1.0
     """how far a sail must stay clear of the mast it hangs in front of"""
     mouth: float = 0.9
-    """a corner loop's opening, as a fraction of the yard's diameter
+    """a corner eye's opening, as a fraction of the neck's diameter
 
     Under 1.0 so the sail clips on and stays put rather than falling off.
     """
@@ -224,6 +228,30 @@ def yards(rig: Rig) -> list[tuple[float, float]]:
     ]
 
 
+def _yard(rig: Rig, width: float, half: float) -> Part:
+    """One yard, centred on the origin and running along y.
+
+    Square, and as wide as the mast, so that it lies on the bed when the mast is
+    laid down to print. Round yards looked better and did not print: a 2.5mm
+    cylinder on the mast's centreline hangs 1.25mm clear of the bed for the
+    whole 72mm of its length, with nothing underneath it.
+
+    Where a sail clips on, a short length is turned down to a round neck. That
+    is a 2.5mm bridge between two square shoulders rather than an overhang, and
+    the shoulders are what stop a sail sliding along the yard.
+    """
+    radius = rig.neck_width * width / 2.0
+    bar = Box(width, 2.0 * half, width)
+    bar = fillet(bar.edges().filter_by(Axis.Y), rig.yard_fillet)
+    lengthwise = Rot(-90.0, 0.0, 0.0)
+    for side in (-1.0, 1.0):
+        at = Pos(0.0, side * half * (1.0 - rig.clip_inset), 0.0)
+        # Cut the square away over the clip's length, then put the neck back.
+        bar -= at * Box(2.0 * width, rig.clip_length, 1.2 * width)
+        bar += at * (lengthwise * Cylinder(radius, rig.clip_length))
+    return as_part(bar, "a yard")
+
+
 def upright_mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     """The mast standing on the origin, which is the easy way to reason about it.
 
@@ -245,17 +273,8 @@ def upright_mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Pa
     hexagon = RegularPolygon(width / np.sqrt(3.0), 6, rotation=30.0)
     shaft += Pos(0.0, 0.0, base) * extrude(hexagon, amount=rig.mast_length - base)
 
-    radius = rig.yard_width * width / 2.0
     for height, half in yards(rig):
-        yard = Pos(0.0, 0.0, height) * (Rot(-90.0, 0.0, 0.0) * Cylinder(radius, 2.0 * half))
-        shaft += yard
-        for side in (-1.0, 1.0):
-            centre = side * half * (1.0 - rig.groove_inset)
-            ring = Rot(-90.0, 0.0, 0.0) * Cylinder(radius + 1.0, rig.groove_width)
-            core = Rot(-90.0, 0.0, 0.0) * Cylinder(
-                radius - rig.groove_depth, rig.groove_width + 2.0
-            )
-            shaft -= Pos(0.0, centre, height) * as_part(ring - core, "the groove cutter")
+        shaft += Pos(0.0, 0.0, height) * _yard(rig, width, half)
 
     return as_part(shaft, "the mast")
 
@@ -272,9 +291,9 @@ def mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     return as_part(Pos(0.0, 0.0, -laid.bounding_box().min.Z) * laid, "laying the mast down")
 
 
-def yard_radius(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
-    """Half a yard's thickness, which is what a sail's corner has to clear."""
-    return rig.yard_width * mast_width(spec, lines) / 2.0
+def neck_radius(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
+    """Half the necked clip section, which is what a sail's corner has to clear."""
+    return rig.neck_width * mast_width(spec, lines) / 2.0
 
 
 def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
@@ -294,7 +313,7 @@ def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
 
 
 def sail_sizes(rig: Rig) -> list[tuple[float, float]]:
-    """Each sail as (width between the yard grooves, height between the yards)."""
+    """Each sail as (width between the yards' clip necks, height between the yards)."""
     course_span, topsail_span = rig.course_span
     sizes = []
     for (low, high), span in (
@@ -304,7 +323,7 @@ def sail_sizes(rig: Rig) -> list[tuple[float, float]]:
         half = span * rig.mast_length / 2.0
         sizes.append(
             (
-                2.0 * half * (1.0 - rig.groove_inset),
+                2.0 * half * (1.0 - rig.clip_inset),
                 (high - low) * rig.mast_length,
             )
         )
@@ -333,7 +352,7 @@ def sail(rig: Rig, width: float, height: float, radius: float, offset: float) ->
     outer = bore + rig.loop_wall
     plate = Pos(0.0, 0.0, rig.sail_thickness / 2.0) * Box(height, width, rig.sail_thickness)
 
-    eye_length = rig.groove_width - 2.0 * TOLERANCE
+    eye_length = rig.clip_length - 2.0 * TOLERANCE
     mouth = rig.mouth * 2.0 * radius
     lengthwise = Rot(-90.0, 0.0, 0.0)
     sail = plate
@@ -355,7 +374,7 @@ def sail(rig: Rig, width: float, height: float, radius: float, offset: float) ->
 def sails(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     """Both sails, side by side and flat on the bed."""
     rig = rig or Rig()
-    radius = yard_radius(spec, lines, rig)
+    radius = neck_radius(spec, lines, rig)
     offset = stand_off(spec, lines, rig)
     gap = 5.0
     built = []

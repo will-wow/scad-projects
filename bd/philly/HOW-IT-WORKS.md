@@ -495,6 +495,31 @@ Only the base is round, for as long as the tube holds it, so the mast can turn.
 Above that the hexagon is wider across its corners than the bore, which is what
 stops it dropping through.
 
+The yards follow the same logic and were got wrong first. Round, and thinner
+than the mast, they sat on its centreline -- which left each one hanging 1.25mm
+above the bed for the whole 72mm of its length, with nothing underneath. They
+are now square and exactly as wide as the mast, so they lie on the bed with it:
+
+```python
+bar = Box(width, 2.0 * half, width)
+bar = fillet(bar.edges().filter_by(Axis.Y), rig.yard_fillet)
+```
+
+A sail still needs something round to clip onto, so a short length near each tip
+is turned down to a neck -- cut the square away, put a cylinder back:
+
+```python
+bar -= at * Box(2.0 * width, rig.clip_length, 1.2 * width)
+bar += at * (lengthwise * Cylinder(radius, rig.clip_length))
+```
+
+That is a 2.5mm bridge with a square shoulder at each end rather than a
+cantilever, and the shoulders double as what stops a sail sliding along the
+yard. It also fixed something that was quietly broken: when the clip was a
+shallow groove turned into a round yard, the groove's floor was *narrower* than
+a sail's mouth, so nothing held the sail on at all. Clipping onto the full neck
+diameter, the mouth has to spring over it.
+
 ### Sails clip on, and the corners are the whole problem
 
 A sail is a 0.6mm plate. The yard is 2.5mm thick, and the hole has to be wider

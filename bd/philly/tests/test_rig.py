@@ -16,7 +16,7 @@ from conftest import DECKS, STATIONS
 import rig as rigging
 from export import write_3mf
 from hull import Deck, HullSpec, build
-from rig import TOLERANCE, Rig, fit_mast, mast_width, sail_sizes, stand_off, step
+from rig import TOLERANCE, Rig, fit_mast, mast_width, sail_sizes, stand_off, step, yards
 
 SPEC = HullSpec(stations=STATIONS, decks=DECKS)
 RIG = Rig()
@@ -142,6 +142,27 @@ class TestMast:
         across_corners = 2.0 * mast_width(SPEC, lines) / np.sqrt(3.0)
         assert across_corners / 2.0 > seat.bore_radius
 
+    def test_the_yards_lie_on_the_bed(self, part):
+        """The reason they are square, and the thing that made them so.
+
+        Round yards were 2.5mm cylinders on the mast's centreline, which left
+        them hanging 1.25mm clear of the bed for the whole 72mm of their length
+        with nothing underneath. Square and mast-width, they rest on it.
+        """
+        for height, half in yards(RIG):
+            for fraction in (0.2, 0.5, 0.8):
+                at = Vector(height, half * fraction, 0.15)
+                assert part.is_inside(at), f"the yard at {height:.0f}mm is off the bed"
+
+    def test_a_clip_neck_is_a_short_bridge_rather_than_an_overhang(self, part):
+        """Turned down to a neck, so it does leave the bed -- but only over the
+        clip's length, and with a square shoulder holding each end."""
+        for height, half in yards(RIG):
+            neck = half * (1.0 - RIG.clip_inset)
+            assert not part.is_inside(Vector(height, neck, 0.15)), "the neck was not turned down"
+            assert part.is_inside(Vector(height, neck, 2.5)), "there is no neck to clip onto"
+        assert RIG.clip_length < 5.0, "a bridge this long wants supporting"
+
     def test_the_yards_span_what_the_rig_asks_for(self, part):
         course, _ = RIG.course_span
         assert pytest.approx(course * RIG.mast_length, abs=0.01) == part.bounding_box().size.Y
@@ -169,17 +190,22 @@ class TestSails:
         for (_, height), pair in zip(sail_sizes(RIG), (RIG.course, RIG.topsail), strict=True):
             assert height == pytest.approx((pair[1] - pair[0]) * RIG.mast_length, abs=1e-6)
 
-    def test_each_sail_is_as_wide_as_its_yard_grooves_are_apart(self):
+    def test_each_sail_is_as_wide_as_its_yards_clip_necks_are_apart(self):
         for (width, _), span in zip(sail_sizes(RIG), RIG.course_span, strict=True):
             half = span * RIG.mast_length / 2.0
-            groove = half * (1.0 - RIG.groove_inset)
-            assert width == pytest.approx(2.0 * groove, abs=1e-6)
+            neck = half * (1.0 - RIG.clip_inset)
+            assert width == pytest.approx(2.0 * neck, abs=1e-6)
 
-    def test_a_corner_clips_over_its_yard_and_holds(self, lines):
-        """The bore clears the yard; the mouth does not, so it snaps on."""
-        yard = RIG.yard_width * mast_width(SPEC, lines) / 2.0
-        assert yard + TOLERANCE > yard, "the bore does not clear the yard"
-        assert RIG.mouth * 2.0 * yard < 2.0 * (yard + TOLERANCE), "the mouth cannot retain a yard"
+    def test_a_corner_clips_over_its_neck_and_holds(self, lines):
+        """The bore clears the neck; the mouth does not, so it snaps on.
+
+        This is what the necked yard bought beyond printability. When the yard
+        was a plain cylinder with a shallow groove turned in it, the groove's
+        floor was narrower than the mouth, so nothing held a sail on at all.
+        """
+        neck = RIG.neck_width * mast_width(SPEC, lines) / 2.0
+        assert neck + TOLERANCE > neck, "the bore does not clear the neck"
+        assert RIG.mouth * 2.0 * neck < 2.0 * neck, "the mouth would slip off the neck"
 
     def test_a_corner_eye_is_open_at_the_top(self, lines):
         """Open upward: away from the bed when printing, and square to the sail
@@ -191,7 +217,7 @@ class TestSails:
         nothing either way, so it passed without checking anything.
         """
         width, height = sail_sizes(RIG)[0]
-        radius = RIG.yard_width * mast_width(SPEC, lines) / 2.0
+        radius = RIG.neck_width * mast_width(SPEC, lines) / 2.0
         outer = radius + TOLERANCE + RIG.loop_wall
         offset = stand_off(SPEC, lines, RIG)
         one = rigging.sail(RIG, width, height, radius, offset)
