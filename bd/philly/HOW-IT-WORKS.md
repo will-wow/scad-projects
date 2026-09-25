@@ -580,7 +580,67 @@ assert shared == pytest.approx(0.0, abs=1e-6)
 Every pair of parts, no overlap. That is what caught the sails passing through
 the mast, and it would catch it again.
 
-## Making your own hull## Making your own hull
+## Part 11: the awning frame
+
+[`awning.py`](awning.py) is a fourth printed part: a frame over the after half
+that drops into sockets in the decks and lifts out again, and that the topsail
+can be clipped onto, so a sail can be struck from the mast and rigged as shade.
+
+Two numbers it needs belong to the rig, and neither is written down twice.
+
+**The crossbars are pitched at half the topsail's height.** That way *any*
+two-apart pair spans the sail exactly, so there is no special pair to keep in
+step if the rig changes:
+
+```python
+sail_width, sail_height = sail_sizes(rig)[1]
+pitch = sail_height / 2.0
+```
+
+**The clip necks are `rig.neck_radius`** — the same number the sails' corner
+eyes were cut for, imported rather than copied. The neck itself is the yard's
+trick again: cut the square away over the clip's length, put a cylinder back.
+
+### Measure the hull where the leg actually is
+
+A leg's offset comes from `hull.inner_half_width` **at the height of the deck it
+stands on**, not at the rail:
+
+```python
+inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.bulge)
+```
+
+The side flares outward going up, so the inside is narrowest down at the deck —
+by 5mm on the quarterdeck. Measuring at the rail would put the feet through the
+planking. It also means legs too far aft pinch the frame to a point, which is
+why they stop at 0.86 rather than running to the transom.
+
+### A boss keeps the socket out of the water
+
+The obvious thing is to bore the socket straight into the deck. On the
+quarterdeck that nearly sinks the boat: the deck is at z 6.6 and the hull's
+outside at 1.54, so there is about 5mm of solid, and she floats at 3.5mm. A
+socket deep enough to hold a leg would bottom out **below the waterline** with a
+millimetre of hull under it.
+
+So each leg steps on a 3mm boss and the socket is bored into that, leaving 3mm
+of floor. `fit_awning` refuses to build a frame whose sockets come within 2mm of
+the outside, and a test checks the same thing from the other end.
+
+### The roof is planar on purpose
+
+The sheer rises about 5mm under the awning and the roof does not follow it — the
+legs absorb it instead. That is what lets the part print **roof down**, with the
+roof as one flat connected first layer and the legs rising off it as plain
+columns. Following the sheer would leave the ends of the roof standing up to 5mm
+off the bed with the first crossbars hanging in air.
+
+The side rails are a polyline through the leg tops, carried past the end legs on
+the line of the last two rather than measured against the hull again — the ends
+overhang the legs, and the hull's inside at the rail is wider than down at the
+deck, so asking it would kink the rail outward at each end.
+
+## Making your own hull
 
 If you want to do this for a different boat:
 
@@ -589,7 +649,7 @@ If you want to do this for a different boat:
    closing lines on their own layer or omit them.
 2. **Point [`lines.py`](lines.py) at your layer names** and set `PROFILE_OFFSET`
    to however far apart you drew the two views.
-3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `open_spans`,
+3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `decks`,
    `bulwark`, `bulge`.
 4. **Run `just watch`** and tune by eye.
 
@@ -614,6 +674,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`preview.py`](preview.py) | headless SVG/PNG renderer |
 | [`watch.py`](watch.py) | warm-process live reload |
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
+| [`awning.py`](awning.py) | the awning frame and its sockets in the decks |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |
