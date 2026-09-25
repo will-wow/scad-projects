@@ -11,9 +11,20 @@ swings it the way the real one swings on its trunnions.
 
 from __future__ import annotations
 
-from build123d import Axis, Color, Compound, Part, Plane, RevoluteJoint, RigidJoint
+from build123d import (
+    Axis,
+    Color,
+    Compound,
+    Part,
+    Plane,
+    Pos,
+    RevoluteJoint,
+    RigidJoint,
+    Rot,
+)
 
 from cannon.cannon import cannon, trunnion_height
+from cannon.cap_square import CapSquareSpec, cap_square
 from cannon.carriage import CarriageSpec, carriage
 from cannon.trunnion import trunnion
 
@@ -27,7 +38,6 @@ def assembly(spec: CarriageSpec | None = None, elevation: float = 0.0) -> Compou
     spec = spec or CarriageSpec()
     pegs = spec.pegs
     axis_height = spec.bed + spec.axis_height
-    outside = spec.gap / 2 + spec.bracket
 
     truck = carriage(spec)
     truck.color = WOOD
@@ -39,7 +49,10 @@ def assembly(spec: CarriageSpec | None = None, elevation: float = 0.0) -> Compou
         RigidJoint(
             f"trunnion{side:+d}",
             truck,
-            Plane(origin=(0, side * outside, axis_height), z_dir=(0, side, 0)).location,
+            Plane(
+                origin=(0, side * (spec.gap / 2 - pegs.stand_off - pegs.into_barrel), axis_height),
+                z_dir=(0, side, 0),
+            ).location,
         )
 
     gun = cannon(spec.gun)
@@ -53,13 +66,32 @@ def assembly(spec: CarriageSpec | None = None, elevation: float = 0.0) -> Compou
     truck.joints["elevation"].connect_to(gun.joints["trunnions"], angle=elevation)
 
     parts: list[Part] = [truck, gun]
+    straps = CapSquareSpec(carriage=spec)
+    rail_top = spec.bed + spec.top
     for side in (1, -1):
         peg = trunnion(pegs)
         peg.color = BRASS
         peg.label = f"trunnion{side:+d}"
-        RigidJoint("seat", peg, Plane(origin=(0, 0, pegs.shank_length + pegs.key_length)).location)
+        RigidJoint("seat", peg, Plane(origin=(0, 0, 0)).location)
         truck.joints[f"trunnion{side:+d}"].connect_to(peg.joints["seat"])
         parts.append(peg)
+
+        # Turned back the right way up -- it prints groove-up -- and slid
+        # home: aft of the detent, against the step.
+        strap = Rot(180, 0, 0) * cap_square(straps)
+        if side < 0:
+            strap = strap.mirror(Plane.XZ)
+        strap = (
+            Pos(
+                spec.rail_end - straps.length / 2,
+                side * (spec.gap / 2 + straps.stand_off + straps.width / 2),
+                rail_top - spec.flare + straps.height,
+            )
+            * strap
+        )
+        strap.color = IRON
+        strap.label = f"cap square{side:+d}"
+        parts.append(strap)
 
     return Compound(children=parts)
 

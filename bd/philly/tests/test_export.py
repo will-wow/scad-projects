@@ -50,15 +50,17 @@ def test_a_box_exports_as_a_manifold_3mf(tmp_path):
     assert mesh.GetTriangleCount() == 12
 
 
-@pytest.mark.parametrize("part", ["cannon", "carriage", "trunnion"])
+@pytest.mark.parametrize("part", ["cannon", "carriage", "trunnion", "cap_square"])
 def test_every_printed_part_of_a_gun_exports_as_a_manifold_3mf(part, tmp_path):
     """The trunnion sockets, cut before the gun was scaled down, used to tessellate
     into a mesh no slicer would take: the sliver where a socket's apex pierces the
     barrel came out below the size OCCT meshes cleanly."""
     pytest.importorskip("lib3mf")
     gun = import_module(f"cannon.{part}")
+    # write_3mf refuses a mesh that is not manifold, so reaching here is the
+    # test; a cap square is a prism, and welds down to 20 vertices.
     points, faces = write_3mf(gun.model(), tmp_path / f"{part}.3mf")
-    assert points > 100 and faces > 100
+    assert points >= 8 and faces >= 12
 
 
 def test_the_hull_exports_as_a_manifold_3mf(decked_hull, tmp_path):
