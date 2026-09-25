@@ -44,6 +44,7 @@ from build123d import (
     BuildLine,
     BuildPart,
     BuildSketch,
+    CenterArc,
     Cone,
     Cylinder,
     Line,
@@ -54,11 +55,15 @@ from build123d import (
     Polyline,
     SagittaArc,
     ThreePointArc,
+    add,
+    extrude,
     make_face,
     revolve,
     scale,
 )
 from ocp_vscode import show_object
+
+from cannon.trunnion import TrunnionSpec
 
 
 @dataclass(frozen=True)
@@ -87,7 +92,10 @@ class CannonSpec:
     muzzle: float = 1.3  # muzzle face to the neck
     base_of_breech: float = 0.5  # base ring to the cascabel's neck
     cascabel_neck: float = 0.3  # length of the neck carrying the button
-    bore_depth: float = 1.0  # solid metal left behind the bottom of the bore
+    # How far the bore is sunk from the muzzle face. A real gun is bored nearly
+    # its whole length; this one stops short so the trunnion sockets bear on
+    # solid metal.
+    bore_length: float = 3.0
 
     # The cascabel, as diameters in calibres.
     cascabel_neck_diameter: float = 0.7
@@ -102,6 +110,11 @@ class CannonSpec:
         Ring(at=0.71, proud=0.2),  # first reinforce ring
     )
     base_ring: float = 0.25  # proud, calibres; it sits at the very end of the barrel
+
+    # Sockets for the trunnion pegs, and where their axis crosses the piece:
+    # the founders' rule puts it 3/7 of the length forward of the breech.
+    trunnions: TrunnionSpec | None = TrunnionSpec()
+    trunnions_at: float = 0.57
 
     # Steepest the underside of anything may lean, degrees from vertical. The
     # gun prints muzzle-down, so every ring and the button get a straight
@@ -141,6 +154,68 @@ def _teardrop_onto(
     return top
 
 
+def _barrel(spec: CannonSpec, y: float) -> float:
+    """Radius of the bare barrel (no rings) at height y, both in source mm."""
+    neck_y = spec.muzzle * spec.calibre
+    neck_r = spec.neck * spec.calibre / 2
+    breech_r = spec.breech * spec.calibre / 2
+    return neck_r + (breech_r - neck_r) * (y - neck_y) / (spec.length - neck_y)
+
+
+def barrel_radius(spec: CannonSpec, at: float) -> float:
+    """Printed radius of the bare barrel, `at` a fraction of the length."""
+    return _barrel(spec, at * spec.length) * spec.scale
+
+
+def trunnion_height(spec: CannonSpec) -> float:
+    """Printed height of the trunnion axis above the muzzle face."""
+    return spec.trunnions_at * spec.length * spec.scale
+
+
+def base_ring_radius(spec: CannonSpec) -> float:
+    """Printed radius over the base ring: the widest the gun gets."""
+    return (spec.breech / 2 + spec.base_ring) * spec.calibre * spec.scale
+
+
+def _sockets(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
+    """The two blind sockets for the trunnion pegs, as a solid to subtract.
+
+    Teardrops rather than round holes: the gun prints muzzle-down, so these are
+    horizontal holes, and the apex points toward the breech -- up, as printed --
+    to carry the roof of each one.
+
+    In printed millimetres, like the pegs they take, and so cut after the gun
+    has been scaled: scaling a cut this fine afterwards shrinks the sliver where
+    the apex pierces the barrel below what OCCT will mesh into a closed surface.
+
+    Returns a part to subtract rather than cutting the caller's, because a
+    builder only nests into its parent when both are opened in the same Python
+    frame: a BuildSketch opened down here would quietly go nowhere.
+    """
+    lean = math.radians(spec.max_overhang)
+    height = trunnion_height(spec)
+    radius = pegs.socket / 2
+    surface = barrel_radius(spec, spec.trunnions_at)
+    shoulder = (radius * math.cos(lean), height + radius * math.sin(lean))
+    apex = (0, height + radius / math.sin(lean))
+    with BuildPart() as cutter:
+        for side in (1, -1):
+            with BuildSketch(Plane.XZ.offset(-side * (surface + 1))):
+                with BuildLine():
+                    CenterArc(
+                        (0, height),
+                        radius,
+                        start_angle=180 - spec.max_overhang,
+                        arc_size=180 + 2 * spec.max_overhang,
+                    )
+                    Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
+                make_face()
+            extrude(amount=side * (pegs.socket_depth + 1))
+
+    assert cutter.part is not None
+    return cutter.part
+
+
 def cannon(spec: CannonSpec) -> Part:
     cal = spec.calibre
     lean = math.radians(spec.max_overhang)
@@ -150,11 +225,9 @@ def cannon(spec: CannonSpec) -> Part:
     # until the one scale() at the end.
     neck_y = spec.muzzle * cal
     neck_r = spec.neck * cal / 2
-    breech_r = spec.breech * cal / 2
 
     def barrel(y: float) -> float:
-        """Radius of the bare barrel (no rings) at height y."""
-        return neck_r + (breech_r - neck_r) * (y - neck_y) / (spec.length - neck_y)
+        return _barrel(spec, y)
 
     with BuildPart() as gun:
         # Plane.XZ, so the sketch's y is the world's Z: the profile stands up
@@ -203,14 +276,18 @@ def cannon(spec: CannonSpec) -> Part:
         # than flat, so its roof prints without bridging.
         bore_r = cal / 2
         point = bore_r / math.tan(lean)
-        depth = spec.length - spec.bore_depth * cal - point
+        depth = spec.bore_length * cal - point
         from_the_bed = (Align.CENTER, Align.CENTER, Align.MIN)
         Cylinder(bore_r, depth, align=from_the_bed, mode=Mode.SUBTRACT)
         with Locations((0, 0, depth)):
             Cone(bore_r, 0, point, align=from_the_bed, mode=Mode.SUBTRACT)
 
-        # Last, down to toy size. Everything above is real-world millimetres.
+        # Down to toy size. Everything above is real-world millimetres.
         scale(by=spec.scale)
+
+        # The sockets are in printed millimetres, so they come after the scale.
+        if spec.trunnions is not None:
+            add(_sockets(spec, spec.trunnions), mode=Mode.SUBTRACT)
 
     assert gun.part is not None, "BuildPart always holds a part once revolve() has run"
     return gun.part

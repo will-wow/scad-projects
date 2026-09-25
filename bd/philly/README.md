@@ -169,4 +169,40 @@ just test tests/test_cannon.py
 It is built in print orientation: muzzle face down on the bed, bore up. Every
 ring and the cascabel's button is a half-round with its underside cut off as a
 chamfer at `max_overhang`, and the bore ends in a point at the same angle, so
-the gun prints standing on its muzzle with a brim and no support.
+the gun prints standing on its muzzle with a brim and no support. The bore only
+goes a few calibres in, so the trunnion sockets bear on solid metal.
+
+### Carriage and trunnions
+
+Three printed parts per gun: the barrel, two **trunnion** pegs, and a
+**carriage** -- two **brackets** on a **bed**, with a **quoin**, the wedge that
+holds the breech up. A peg's round shank is a running fit in a socket bored
+into the barrel, so the gun elevates on it, and its diamond head keys into a
+**trunnion hole** through a bracket. The brackets spread apart to take the gun
+and click shut over the heads.
+
+`cannon/trunnion.py` holds the fits, and both the barrel and the carriage cut
+their own holes from that one `TrunnionSpec`. Its numbers are in printed
+millimetres rather than calibres: a clearance does not scale.
+
+Whether the snap is possible at all comes down to two of them. Bowing a bracket
+out by `d` at a hole `h` above the bed strains its surface by about
+`3 * bracket * d / (2 * h**2)`, and PLA gives up around 2%; the defaults ask for
+1.7%. `bracket` and the pegs' `lead_in` are the numbers to turn if it cracks or
+if the gun falls out. The same geometry also goes together by pushing the pegs
+in from outside, with no flexing at all.
+
+The horizontal holes are teardrops in the barrel and diamonds in the brackets,
+both closing at `max_overhang`, so the roof of each carries itself with the
+parts in their printing positions.
+
+```sh
+just watch cannon/assembly.py   # the three parts together
+just watch cannon/carriage.py
+just build --model cannon.carriage:model --name carriage-12pdr
+just build --model cannon.trunnion:model --name trunnion-12pdr
+```
+
+`cannon/assembly.py` is not printed. It hangs the gun off a `RevoluteJoint` on
+the trunnion axis -- positive `elevation` raises the muzzle -- and the tests
+assert that no two parts there share any volume.
