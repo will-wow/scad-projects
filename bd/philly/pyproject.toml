@@ -37,6 +37,8 @@ ignore = [
 
 [tool.pyright]
 include = ["."]
+# Standalone: run with its own dependencies, which the project does not carry.
+exclude = ["designs/measure_scan.py", ".venv"]
 venvPath = "."
 venv = ".venv"
 pythonVersion = "3.14"

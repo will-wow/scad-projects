@@ -1,8 +1,7 @@
-# The guns: what is built, and one question left open
+# The guns: what is built
 
-Branch `claude/philly-cannon-model-6a18f9`, on top of `wow/philly` at `1235d07`
-(the mast and sails). Everything below is in `cannon/`, with tests in
-`tests/test_cannon.py` and `tests/test_carriage.py`.
+Everything below is in `cannon/`, with tests in `tests/test_cannon.py` and
+`tests/test_carriage.py`.
 
 ## What is built
 
@@ -43,47 +42,7 @@ will mesh and the 3MF comes out non-manifold.
 
 ## Still to do
 
-The slide and the runners it rides in. The carriage's underside is a plain flat
-bed, ready for whatever clips it to the deck; the hook-and-chamfer rail the cap
-squares use would work there too.
-
-## The open question: nothing clears the bulwark
-
-Measured against the current hull, above the deck:
-
-| | mm |
-|---|---|
-| bow rail at the stem | 16.1 |
-| bow rail at x=14 | 14.1 |
-| bulwark amidships (broadside guns) | 10.1 - 10.6 |
-| gun's axis on its carriage | 6.2 |
-| top of the muzzle swell | 8.75 |
-
-So the bow gun points at the inside of the bow, seven millimetres below the
-top, and the broadside guns are under their rail too.
-
-Raising the gun does not fix it at any sane height: the barrel has to cross the
-rail line at the stem, where it is tallest, so the trunnion axis would need to
-be 19.1mm above the deck at 0 degrees, or 15.6mm at 10 degrees -- and still
-15.5mm at 25, because past about 10 degrees the binding point stops moving.
-That is a carriage three times its present height.
-
-Elevation cannot do it either, and is capped anyway: past 2 degrees the breech
-fouls the carriage's own bed, and at 8 degrees it is on the deck. Ending the
-bed short of the breech would buy 8 degrees, which is worth doing for looks but
-does not change the clearance.
-
-What could work, in rough order of how much it disturbs:
-
-1. **Raise the bow gun on its slide.** The bow platform carrying the bow gun is
-   in the record, and the slide is the part still to be designed, so the height
-   belongs there rather than in the brackets -- which are shared with the two
-   9-pounders and would look wrong amidships if they grew.
-2. **Cut the bow bulwark down where the gun fires.** To clear a level gun the
-   rail would have to come down about 12mm, which is most of the bow bulwark.
-   Worth measuring the model's bow sheer against the scan first: 16mm above the
-   deck is 0.9m at full size, which may be more than the boat had.
-3. **Gunports amidships** for the 9-pounders, where the gap is only 1.4mm.
-
-This is a hull-side decision -- deck heights and sheer -- which is why it is
-written down here rather than solved in `cannon/`.
+Fitting the guns to the hull: the slide each carriage rides on, and the height
+each gun has to sit at to fire over its rail. Both are planned in
+[`guns-integration-plan.md`](guns-integration-plan.md), against measurements
+taken off the Smithsonian's scan.
