@@ -60,7 +60,7 @@ def test_each_sail_hangs_between_the_yards_it_belongs_to(assembled, lines):
     """Yard heights and sail heights are computed from opposite ends, so this
     is what catches them drifting apart."""
     seat = rigging.step(HULL, lines, RIG)
-    yards = rigging.yards(RIG)
+    yards = rigging.yards(HULL, lines, RIG)
     for name, (low, high) in (("course", yards[:2]), ("topsail", yards[2:])):
         middle = seat.floor + 0.5 * (low[0] + high[0])
         assert pytest.approx(middle, abs=0.01) == assembled[name].bounding_box().center().Z

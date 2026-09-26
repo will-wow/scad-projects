@@ -185,8 +185,9 @@ sockets do.
      wide along the length, spans about 176-188.
    - Try 0.55: boss 161.5-168.5, clear of both guns (the port one spans about
      139-151).
-   - The crossbars are pitched from the span's start, not from the legs, so
-     the topsail pairs do not move.
+   - A crossbar stands over every pair of legs, so it moves with the leg, and
+     the frame's ends are its first and last legs, so moving a middle leg
+     changes nothing else.
 
 ## Tests
 

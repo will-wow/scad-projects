@@ -16,7 +16,17 @@ from conftest import DECKS, STATIONS
 import rig as rigging
 from export import write_3mf
 from hull import Deck, HullSpec, build
-from rig import TOLERANCE, Rig, fit_mast, mast_width, sail_sizes, stand_off, step, yards
+from rig import (
+    TOLERANCE,
+    Rig,
+    course_yard,
+    fit_mast,
+    mast_width,
+    sail_sizes,
+    stand_off,
+    step,
+    yards,
+)
 
 SPEC = HullSpec(stations=STATIONS, decks=DECKS)
 RIG = Rig()
@@ -142,30 +152,39 @@ class TestMast:
         across_corners = 2.0 * mast_width(SPEC, lines) / np.sqrt(3.0)
         assert across_corners / 2.0 > seat.bore_radius
 
-    def test_the_yards_lie_on_the_bed(self, part):
+    def test_the_yards_lie_on_the_bed(self, part, lines):
         """The reason they are square, and the thing that made them so.
 
         Round yards were 2.5mm cylinders on the mast's centreline, which left
         them hanging 1.25mm clear of the bed for the whole 72mm of their length
         with nothing underneath. Square and mast-width, they rest on it.
         """
-        for height, half in yards(RIG):
+        for height, half in yards(SPEC, lines, RIG):
             for fraction in (0.2, 0.5, 0.8):
                 at = Vector(height, half * fraction, 0.15)
                 assert part.is_inside(at), f"the yard at {height:.0f}mm is off the bed"
 
-    def test_a_clip_neck_is_a_short_bridge_rather_than_an_overhang(self, part):
+    def test_a_clip_neck_is_a_short_bridge_rather_than_an_overhang(self, part, lines):
         """Turned down to a neck, so it does leave the bed -- but only over the
         clip's length, and with a square shoulder holding each end."""
-        for height, half in yards(RIG):
+        for height, half in yards(SPEC, lines, RIG):
             neck = half * (1.0 - RIG.clip_inset)
             assert not part.is_inside(Vector(height, neck, 0.15)), "the neck was not turned down"
             assert part.is_inside(Vector(height, neck, 2.5)), "there is no neck to clip onto"
         assert RIG.clip_length < 5.0, "a bridge this long wants supporting"
 
-    def test_the_yards_span_what_the_rig_asks_for(self, part):
-        course, _ = RIG.course_span
-        assert pytest.approx(course * RIG.mast_length, abs=0.01) == part.bounding_box().size.Y
+    def test_the_course_yard_reaches_past_the_rail(self, part, lines, solid_hull):
+        """Wider than the boat by `yard_beam`, as the models of her show it."""
+        beam = solid_hull.bounding_box().size.Y
+        assert pytest.approx(RIG.yard_beam * beam, rel=0.01) == part.bounding_box().size.Y
+        assert course_yard(SPEC, lines, RIG) > beam
+
+    def test_the_topsail_narrows_toward_its_head(self, lines):
+        """Its foot yard is the course's length; its head yard is shorter."""
+        course_foot, course_head, topsail_foot, topsail_head = yards(SPEC, lines, RIG)
+        assert course_foot[1] == course_head[1] == topsail_foot[1]
+        assert topsail_head[1] == pytest.approx(RIG.topsail_taper * topsail_foot[1], abs=1e-9)
+        assert topsail_head[1] < topsail_foot[1]
 
     def test_the_mast_writes_a_manifold_mesh(self, part, tmp_path):
         write_3mf(part, tmp_path / "mast.3mf")
@@ -181,20 +200,30 @@ class TestSails:
         assert len(part.solids()) == 2
         assert pytest.approx(0.0, abs=1e-6) == part.bounding_box().min.Z
 
-    def test_each_sail_spans_its_pair_of_yards(self):
+    def test_each_sail_spans_its_pair_of_yards(self, lines):
         """The sail's height is the gap between the yards it hangs from.
 
-        Computed twice from different ends -- the yards from the rig, the sail
-        from `sail_sizes` -- so this is what catches the two drifting apart.
+        Computed twice from different ends -- the yards from the rig's
+        fractions, the sail from `sail_sizes` -- so this is what catches the
+        two drifting apart.
         """
-        for (_, height), pair in zip(sail_sizes(RIG), (RIG.course, RIG.topsail), strict=True):
+        for (_, _, height), pair in zip(
+            sail_sizes(SPEC, lines, RIG), (RIG.course, RIG.topsail), strict=True
+        ):
             assert height == pytest.approx((pair[1] - pair[0]) * RIG.mast_length, abs=1e-6)
 
-    def test_each_sail_is_as_wide_as_its_yards_clip_necks_are_apart(self):
-        for (width, _), span in zip(sail_sizes(RIG), RIG.course_span, strict=True):
-            half = span * RIG.mast_length / 2.0
-            neck = half * (1.0 - RIG.clip_inset)
-            assert width == pytest.approx(2.0 * neck, abs=1e-6)
+    def test_each_edge_is_as_wide_as_its_yards_clip_necks_are_apart(self, lines):
+        halves = [half for _, half in yards(SPEC, lines, RIG)]
+        for (foot, head, _), (low, high) in zip(
+            sail_sizes(SPEC, lines, RIG), (halves[0:2], halves[2:4]), strict=True
+        ):
+            assert foot == pytest.approx(2.0 * low * (1.0 - RIG.clip_inset), abs=1e-6)
+            assert head == pytest.approx(2.0 * high * (1.0 - RIG.clip_inset), abs=1e-6)
+
+    def test_the_topsail_meets_the_course_edge_to_edge(self, lines):
+        (_, course_head, _), (topsail_foot, topsail_head, _) = sail_sizes(SPEC, lines, RIG)
+        assert topsail_foot == pytest.approx(course_head, abs=1e-9)
+        assert topsail_head < topsail_foot
 
     def test_a_corner_clips_over_its_neck_and_holds(self, lines):
         """The bore clears the neck; the mouth does not, so it snaps on.
@@ -216,16 +245,19 @@ class TestSails:
         aimed at the middle of an edge instead of a corner -- where there is
         nothing either way, so it passed without checking anything.
         """
-        width, height = sail_sizes(RIG)[0]
+        foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
         radius = RIG.neck_width * mast_width(SPEC, lines) / 2.0
         outer = radius + TOLERANCE + RIG.loop_wall
         offset = stand_off(SPEC, lines, RIG)
-        one = rigging.sail(RIG, width, height, radius, offset)
+        one = rigging.sail(RIG, foot, head, height, radius, offset)
 
-        corner = (-height / 2.0, width / 2.0)
-        assert one.is_inside(Vector(*corner, offset / 2.0)), "the eye has no neck holding it"
-        assert not one.is_inside(Vector(*corner, offset)), "the bore is filled"
-        assert not one.is_inside(Vector(*corner, offset + outer - 0.1)), "the mouth is closed"
+        # All four corners, on the tapered topsail: head at -x, foot at +x.
+        for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
+            for across in (-width / 2.0, width / 2.0):
+                corner = (along, across)
+                assert one.is_inside(Vector(*corner, offset / 2.0)), "no neck holds the eye"
+                assert not one.is_inside(Vector(*corner, offset)), "the bore is filled"
+                assert not one.is_inside(Vector(*corner, offset + outer - 0.1)), "mouth closed"
 
     def test_the_neck_holds_the_plate_clear_of_the_mast(self, lines):
         """A sail spans the whole yard and the mast stands in the middle of it.

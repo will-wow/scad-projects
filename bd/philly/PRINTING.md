@@ -30,8 +30,9 @@ Two worth noting:
 - **Even a waterlogged print floats.** If every infill void fills with water
   (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
-The fittings barely register: mast, sails and awning together are 23.3 cm³, so
-at 15% infill they add 4.3 g and about a quarter of a millimetre of draft.
+The fittings barely register: mast, sails, awning and its canvas together are
+29.7 cm³, so at 15% infill they add 5.5 g and about a third of a millimetre of
+draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
@@ -43,9 +44,10 @@ orientation and a different profile. The rig and the hull:
 | File | Size | Orientation | Notes |
 | --- | --- | --- | --- |
 | `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
-| `philadelphia-mast.3mf` | 200.8 x 72.3 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
-| `philadelphia-sails.3mf` | 69 x 121.4 x 6.6mm | as exported, flat | two separate sails in one file |
-| `philadelphia-awning.3mf` | 143.1 x 72.7 x 33.4mm | as exported, **roof down** | legs point up; do not flip it |
+| `philadelphia-mast.3mf` | 200.8 x 93.0 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
+| `philadelphia-sails.3mf` | 69 x 178 x 6.6mm | as exported, flat | two separate sails in one file |
+| `philadelphia-awning.3mf` | 123.4 x 72.1 x 32.2mm | as exported, **roof down** | legs point up; do not flip it |
+| `philadelphia-awning-canvas.3mf` | 124.7 x 61.3 x 4.7mm | as exported, flat | print it with the sails' settings |
 
 It also writes the four gun parts -- `gun`, `carriage`, `trunnion` and
 `cap-square` -- each in its own print orientation; the README's section on the
@@ -57,15 +59,16 @@ yards are square: everything rests on a flat rather than rolling on a curve. Do
 not let the slicer stand it up.
 
 The yards used to be round and thinner than the mast, which looked better and
-did not print -- each one hung 1.25mm clear of the bed along its whole 72mm with
-nothing underneath. Square and mast-width, they lie on it. The only thing left
+did not print -- each one hung 1.25mm clear of the bed along its whole length
+with nothing underneath. Square and mast-width, they lie on it. The only thing left
 off the bed is the short necked section at each tip where a sail clips on, and
 that is a 2.5mm bridge with a square shoulder holding each end.
 
-The sails are 0.6mm thick -- three layers at 0.2mm. They want the *opposite* of
-the hull's profile: no extra walls, no solid infill, and no brim that would weld
-the corner loops to the bed. They should stay slightly flexible, since clipping
-one onto a yard means springing it over the mouth.
+The sails and the awning's canvas are 0.6mm thick -- three layers at 0.2mm.
+They want the *opposite* of the hull's profile: no extra walls, no solid infill,
+and no brim that would weld the corner loops to the bed. They should stay
+slightly flexible, since clipping one on means springing each eye over its
+neck.
 
 The awning frame is exported **roof down**, which is the whole reason its roof
 is a flat plane rather than following the sheer. That way the roof is the first

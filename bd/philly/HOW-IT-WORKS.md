@@ -505,7 +505,7 @@ stops it dropping through.
 
 The yards follow the same logic and were got wrong first. Round, and thinner
 than the mast, they sat on its centreline -- which left each one hanging 1.25mm
-above the bed for the whole 72mm of its length, with nothing underneath. They
+above the bed for its whole length, with nothing underneath. They
 are now square and exactly as wide as the mast, so they lie on the bed with it:
 
 ```python
@@ -527,6 +527,24 @@ yard. It also fixed something that was quietly broken: when the clip was a
 shallow groove turned into a round yard, the groove's floor was *narrower* than
 a sail's mouth, so nothing held the sail on at all. Clipping onto the full neck
 diameter, the mouth has to spring over it.
+
+### How long the yards are
+
+Nothing in the record gives the yards, only the 36ft mast. Models of the boat
+show the course's yard reaching past the rail on both sides, so its length is
+set against the hull's beam rather than the mast -- `yard_beam = 1.10`, 10%
+wider than the boat -- and moves with the hull:
+
+```python
+def course_yard(spec, lines, rig):
+    return rig.yard_beam * lines.beam * (spec.length / lines.length)
+```
+
+The topsail's foot yard is the same length, so the two sails meet edge to edge,
+and its head yard is `topsail_taper` (0.72) of that: the topsail narrows toward
+the masthead. A sail is therefore a trapezoid, `sail(rig, foot, head, height,
+...)`, with the eyes at its four corners; the course is just the case where foot
+and head are equal.
 
 ### Sails clip on, and the corners are the whole problem
 
@@ -590,24 +608,34 @@ the mast, and it would catch it again.
 
 ## Part 11: the awning frame
 
-[`awning.py`](awning.py) is a fourth printed part: a frame over the after half
-that drops into sockets in the decks and lifts out again, and that the topsail
-can be clipped onto, so a sail can be struck from the mast and rigged as shade.
+[`awning.py`](awning.py) makes two more printed parts: a frame over the after
+half that drops into sockets in the decks and lifts out again, and a canvas
+that clips onto it.
 
-Two numbers it needs belong to the rig, and neither is written down twice.
-
-**The crossbars are pitched at half the topsail's height.** That way *any*
-two-apart pair spans the sail exactly, so there is no special pair to keep in
-step if the rig changes:
+**The frame is its legs.** It runs from the first pair of legs to the last, with
+a crossbar over every pair, so both ends are closed and every crossbar stands on
+something:
 
 ```python
-sail_width, sail_height = sail_sizes(rig)[1]
-pitch = sail_height / 2.0
+nodes = (tuple((f.station, f.half) for f in feet),)
 ```
 
-**The clip necks are `rig.neck_radius`** — the same number the sails' corner
-eyes were cut for, imported rather than copied. The neck itself is the yard's
-trick again: cut the square away over the clip's length, put a cylinder back.
+`Frame.bars` is just those stations. The rails and crossbars all stop at a
+leg's centre, so each leg runs up to the bars' tops rather than to the roof's
+middle plane -- otherwise every end corner would print with a notch in it.
+
+**The canvas is a sail.** It is `rig.sail` again, cut to the frame instead of
+the yards: its foot spans the necks on the first crossbar and its head the necks
+on the last, which is narrower because the hull closes in toward the transom.
+Only those two crossbars are necked, each neck just inboard of the rail with a
+square shoulder between them. The necks are `rig.neck_radius` — the same number
+the canvas's eyes were cut for, imported rather than copied.
+
+It prints flat and eyes up, like the sails, and is rigged the other way up:
+`rigged_canvas` gives it a half turn about y, which puts the plate on top, the
+eyes' mouths facing down onto the necks, and the wider foot forward. Its plate
+stands off its eyes only far enough to clear the bars' tops (`canvas_offset`);
+the sails stand off further, but that is to clear the mast.
 
 ### Measure the hull where the leg actually is
 
@@ -621,8 +649,8 @@ inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.b
 The side flares outward going up, so the inside is narrowest down at the deck —
 by about 3.5mm on the quarterdeck. Measuring at the rail would put the feet
 through the planking. The hull also closes in fast toward the transom, so legs
-too far aft pinch the frame to a point, which is why they stop at 0.82 and the
-frame at 0.86 rather than running to the transom.
+too far aft pinch the frame to a point, which is why they stop at 0.82 rather
+than running to the transom.
 
 ### A boss keeps the socket out of the bottom
 
@@ -637,16 +665,13 @@ So each leg steps on a 3mm boss and the socket is bored into that, leaving over
 
 ### The roof is planar on purpose
 
-The sheer rises about 3.5mm toward the transom under the awning and the roof
-does not follow it — the legs absorb it instead. That is what lets the part print **roof down**, with the
+The sheer rises about 2mm toward the transom under the awning and the roof does
+not follow it — the legs absorb it instead. That is what lets the part print **roof down**, with the
 roof as one flat connected first layer and the legs rising off it as plain
-columns. Following the sheer would leave the ends of the roof standing 3.5mm
-off the bed with the first crossbars hanging in air.
+columns. Following the sheer would leave one end of the roof standing 2mm off
+the bed with its crossbar hanging in air.
 
-The side rails are a polyline through the leg tops, carried past the end legs on
-the line of the last two rather than measured against the hull again — the ends
-overhang the legs, and the hull's inside at the rail is wider than down at the
-deck, so asking it would kink the rail outward at each end.
+The side rails are a polyline through the leg tops.
 
 ## Making your own hull
 
@@ -682,7 +707,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`preview.py`](preview.py) | headless SVG/PNG renderer |
 | [`watch.py`](watch.py) | warm-process live reload |
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
-| [`awning.py`](awning.py) | the awning frame and its sockets in the decks |
+| [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |

@@ -31,6 +31,7 @@ PARTS = (
     "main:mast=mast",
     "main:sails=sails",
     "main:awning=awning",
+    "main:canvas=awning-canvas",
     "cannon.cannon:model=gun",
     "cannon.carriage:model=carriage",
     "cannon.trunnion:model=trunnion",

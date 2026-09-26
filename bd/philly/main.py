@@ -72,6 +72,11 @@ def awning() -> Part:
     return awnings.awning_part(HULL, hull_lines.load(), AWNING, RIG)
 
 
+def canvas() -> Part:
+    """The awning's canvas, flat on the bed like the sails."""
+    return awnings.canvas(HULL, hull_lines.load(), AWNING, RIG)
+
+
 def main() -> None:
     hull = model()
     box = hull.bounding_box().size
@@ -86,6 +91,7 @@ def main() -> None:
     show_object(Pos(0.0, beside, 0.0) * mast(), name="mast")
     show_object(Pos(0.0, beside + 60.0, 0.0) * sails(), name="sails")
     show_object(Pos(0.0, beside + 140.0, 0.0) * awning(), name="awning")
+    show_object(Pos(0.0, beside + 230.0, 0.0) * canvas(), name="canvas")
 
 
 if __name__ == "__main__":

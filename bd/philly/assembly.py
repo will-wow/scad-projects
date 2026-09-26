@@ -40,8 +40,8 @@ def _hung_sails(lines, seat) -> list[Part]:
     its thickness along z. Rotating 90 degrees about y carries x down to -z and
     z round to x, so the height stands up, the width stays athwartships, and the
     plate ends up facing fore and aft -- which is how a square sail hangs. It
-    also turns the sail top for bottom, which nothing can see: the corner eyes
-    are the same at both ends.
+    also carries the sail's +x end -- its foot -- to the bottom, which is where
+    a tapered topsail wants its wider edge.
 
     The canvas goes on the bow side. A square sail's yard is slung forward of
     the mast so the sail does not chafe against it, so the whole sail shifts
@@ -56,11 +56,11 @@ def _hung_sails(lines, seat) -> list[Part]:
     offset = rigging.stand_off(HULL, lines, RIG)
 
     hung = []
-    for (width, height), pair in zip(
-        rigging.sail_sizes(RIG), (RIG.course, RIG.topsail), strict=True
+    for (foot, head, height), pair in zip(
+        rigging.sail_sizes(HULL, lines, RIG), (RIG.course, RIG.topsail), strict=True
     ):
         middle = seat.floor + 0.5 * (pair[0] + pair[1]) * RIG.mast_length
-        flat = rigging.sail(RIG, width, height, radius, offset)
+        flat = rigging.sail(RIG, foot, head, height, radius, offset)
         hung.append(Pos(seat.station - offset, 0.0, middle) * (Rot(0.0, 90.0, 0.0) * flat))
     return hung
 
@@ -79,6 +79,7 @@ def parts() -> dict[str, Part]:
         # Standing in its sockets rather than laid down to print, which is the
         # only way to see whether it clears the mast and its sails.
         "awning": awnings.upright_frame(HULL, lines, AWNING, RIG),
+        "canvas": awnings.rigged_canvas(HULL, lines, AWNING, RIG),
     }
 
 

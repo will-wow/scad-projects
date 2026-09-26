@@ -1,10 +1,10 @@
-"""The awning frame, and the sockets it drops into.
+"""The awning frame, its canvas, and the sockets it drops into.
 
-Two things here are worth more than the rest. The frame has to clip the topsail,
-which is a dimension owned by rig.py -- so that is checked against the sail
-rather than against a number copied out of it. And a socket bored into a deck
-is bored into the bottom of the hull, which would leak a boat that floats
-perfectly well in every other respect.
+Two things here are worth more than the rest. The canvas has to clip onto the
+frame's necks, which are a dimension owned by rig.py -- so that is checked
+against the canvas's own eyes rather than against a number copied out of it.
+And a socket bored into a deck is bored into the bottom of the hull, which
+would leak a boat that floats perfectly well in every other respect.
 """
 
 from __future__ import annotations
@@ -73,38 +73,91 @@ class TestFrame:
         """There would be nothing to bore a socket into."""
         spec = HullSpec(stations=8, decks=(Deck(0.0, 0.30, 0.5),), bulge=HULL.bulge)
         with pytest.raises(ValueError, match="open bilge"):
-            frame(spec, lines, Awning(span=(0.35, 0.90), legs=(0.40, 0.80)), RIG)
+            frame(spec, lines, Awning(legs=(0.40, 0.80)), RIG)
 
-    def test_legs_outside_the_span_are_refused(self):
-        with pytest.raises(ValueError, match="outside the awning"):
-            Awning(span=(0.5, 0.9), legs=(0.40, 0.80))
+    def test_legs_out_of_order_are_refused(self):
+        with pytest.raises(ValueError, match="not in order"):
+            Awning(legs=(0.60, 0.40))
+
+    def test_the_frame_ends_at_its_legs(self, shape):
+        """So both ends are closed by a crossbar standing on something, rather
+        than rails running on past the last legs with nothing across them."""
+        stations = [foot.station for foot in shape.feet]
+        assert [n[0] for n in shape.nodes] == stations
+        assert list(shape.bars) == stations
+
+    def test_there_is_a_crossbar_over_every_pair_of_legs(self, lines, shape):
+        upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
+        for foot in shape.feet:
+            at = Vector(foot.station, 0.0, shape.roof)
+            assert upright.is_inside(at), f"no crossbar over the legs at {foot.station:.0f}mm"
+
+    def test_the_corners_are_filled_to_the_roof(self, lines, shape):
+        """The rails and crossbars stop at the leg's centre; the leg has to run
+        up to their tops, or each end corner prints with a notch in the roof."""
+        upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
+        top = shape.roof + BAR / 2.0 - 0.1
+        for foot in (shape.feet[0], shape.feet[-1]):
+            outward = -1.0 if foot is shape.feet[0] else 1.0
+            corner = Vector(foot.station + outward * BAR / 4.0, foot.half + BAR / 4.0, top)
+            assert upright.is_inside(corner), f"the corner at {foot.station:.0f}mm is notched"
 
 
-class TestTheTopsailFits:
-    """The whole reason the crossbars are pitched the way they are."""
+class TestCanvas:
+    """The awning's own canvas, clipped to the end crossbars."""
 
-    def test_some_pair_of_crossbars_spans_the_topsail(self, shape):
-        """Pitched at half the sail's height, so any two-apart pair fits.
+    @pytest.fixture(scope="class")
+    def flat(self, lines):
+        return awnings.canvas(HULL, lines, AWNING, RIG)
 
-        Computed from `rig.sail_sizes` at both ends rather than from a number
-        written down here, so the awning cannot drift away from the rig.
-        """
-        _, height = rigging.sail_sizes(RIG)[1]
-        clips = [float(b) for b in shape.bars if shape.half_at(float(b)) >= shape.clip + BAR]
-        pairs = [(a, b) for a in clips for b in clips if b - a == pytest.approx(height, abs=0.01)]
-        assert pairs, f"no pair of necked crossbars is {height:.2f}mm apart"
+    @pytest.fixture(scope="class")
+    def rigged(self, lines):
+        return awnings.rigged_canvas(HULL, lines, AWNING, RIG)
 
-    def test_a_clipping_crossbar_reaches_past_its_necks(self, shape):
+    def test_it_is_one_thin_solid_lying_flat(self, flat):
+        assert flat.is_valid
+        assert len(flat.solids()) == 1
+        assert pytest.approx(0.0, abs=1e-6) == flat.bounding_box().min.Z
+
+    def test_its_eyes_sit_on_the_end_crossbars_necks(self, rigged, shape):
+        """Each eye's bore is where a neck is: hollow on the neck's axis, with
+        the eye's ring around it."""
+        for station, clip in zip((shape.bars[0], shape.bars[-1]), shape.clips, strict=True):
+            for side in (-1.0, 1.0):
+                axis = Vector(station, side * clip, shape.roof)
+                ring = Vector(station, side * clip, shape.roof + shape.neck + 0.8)
+                assert not rigged.is_inside(axis), "the bore is not over the neck"
+                assert rigged.is_inside(ring), f"no eye at {station:.0f}mm"
+
+    def test_only_the_end_crossbars_are_necked(self, lines, shape):
+        """Just under the square bar's top face: air over a neck, bar elsewhere.
+
+        The middle bars are probed at the aft neck's offset, which is the
+        narrowest and so lies on every bar."""
+        upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
+        just_under = shape.roof + shape.neck + 0.2
+        ends = {shape.bars[0]: shape.clips[0], shape.bars[-1]: shape.clips[1]}
         for station in shape.bars:
-            half = shape.half_at(float(station))
-            if half >= shape.clip + BAR:
-                assert half > shape.clip, "the neck is off the end of the bar"
+            necked = station in ends
+            at = Vector(station, ends.get(station, shape.clips[1]), just_under)
+            assert upright.is_inside(at) != necked, f"the bar at {station:.0f}mm"
 
-    def test_the_necks_are_what_the_sails_were_cut_for(self, shape, lines):
+    def test_a_neck_stays_inside_its_rail(self, shape):
+        """A square shoulder between the neck and the rail, so the canvas cannot
+        slide along into the corner."""
+        for foot, clip in zip((shape.feet[0], shape.feet[-1]), shape.clips, strict=True):
+            assert clip + shape.clip_length / 2.0 < foot.half - BAR / 2.0
+
+    def test_the_plate_clears_the_bars(self, rigged, shape):
+        assert shape.roof + BAR / 2.0 + RIG.sail_thickness < rigged.bounding_box().max.Z
+        middle = Vector(0.5 * (shape.bars[0] + shape.bars[-1]), 0.0, shape.roof + BAR / 2.0)
+        assert not rigged.is_inside(middle), "the plate is sitting in the bars"
+
+    def test_the_necks_are_what_the_eyes_were_cut_for(self, shape, lines):
         """Taken from rig.neck_radius, not copied."""
         assert shape.neck == pytest.approx(rigging.neck_radius(HULL, lines, RIG), abs=1e-9)
 
-    def test_a_sail_eye_clips_over_a_neck_and_holds(self, shape):
+    def test_an_eye_clips_over_a_neck_and_holds(self, shape):
         bore = shape.neck + rigging.TOLERANCE
         assert bore > shape.neck, "the eye would not go over the neck"
         assert RIG.mouth * 2.0 * shape.neck < 2.0 * shape.neck, "the eye would slip off"

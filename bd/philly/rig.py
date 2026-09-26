@@ -28,7 +28,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Axis, Box, Cylinder, Part, Pos, RegularPolygon, Rot, extrude, fillet
+from build123d import (
+    Axis,
+    Box,
+    Cylinder,
+    Part,
+    Polygon,
+    Pos,
+    RegularPolygon,
+    Rot,
+    extrude,
+    fillet,
+)
 
 from hull import HullSpec, as_part, inner_half_width, open_stretches
 from lines import HullLines
@@ -64,8 +75,20 @@ class Rig:
     """the lower sail's yards, as fractions of the mast's length from its foot"""
     topsail: tuple[float, float] = (0.58, 0.88)
     """the upper sail's yards, likewise"""
-    course_span: tuple[float, float] = (0.36, 0.26)
-    """yard lengths for the course and the topsail, as fractions of mast length"""
+    yard_beam: float = 1.10
+    """the course's yards, as a multiple of the hull's beam
+
+    Nothing in the record gives the yards, only the 36ft mast. Models of the
+    boat show the course's yard reaching past the rail on both sides, so it is
+    set against the beam rather than the mast: move the hull and the yard
+    follows.
+    """
+    topsail_taper: float = 0.72
+    """the topsail's head yard, as a fraction of its foot
+
+    The topsail's foot yard is as long as the course's, so the two sails meet
+    edge to edge, and the topsail narrows toward its head.
+    """
     clip_inset: float = 0.08
     """how far in from a yard's tip a sail clips on, as a fraction of its half-length"""
     clip_length: float = 2.5
@@ -212,19 +235,27 @@ def fit_mast(hull: Part, spec: HullSpec, lines: HullLines, rig: Rig | None = Non
     return as_part(as_part(hull + bar + tube, "fitting the mast bar") - bore, "boring the mast")
 
 
-def yards(rig: Rig) -> list[tuple[float, float]]:
+def course_yard(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
+    """The course's yards end to end: a little wider than the boat."""
+    return rig.yard_beam * lines.beam * (spec.length / lines.length)
+
+
+def yards(spec: HullSpec, lines: HullLines, rig: Rig) -> list[tuple[float, float]]:
     """Each yard as (height up the mast, half its length), in millimetres.
 
     Height is measured from the mast's foot, so an assembled view has to add
     wherever the foot ends up -- the bottom of the bore, since that is what the
     mast stands on.
+
+    Bottom to top: the course's foot and head, then the topsail's foot, which
+    is as long as the course's, and its shorter head.
     """
-    course_span, topsail_span = rig.course_span
+    half = course_yard(spec, lines, rig) / 2.0
     return [
-        (rig.course[0] * rig.mast_length, course_span * rig.mast_length / 2.0),
-        (rig.course[1] * rig.mast_length, course_span * rig.mast_length / 2.0),
-        (rig.topsail[0] * rig.mast_length, topsail_span * rig.mast_length / 2.0),
-        (rig.topsail[1] * rig.mast_length, topsail_span * rig.mast_length / 2.0),
+        (rig.course[0] * rig.mast_length, half),
+        (rig.course[1] * rig.mast_length, half),
+        (rig.topsail[0] * rig.mast_length, half),
+        (rig.topsail[1] * rig.mast_length, rig.topsail_taper * half),
     ]
 
 
@@ -273,7 +304,7 @@ def upright_mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Pa
     hexagon = RegularPolygon(width / np.sqrt(3.0), 6, rotation=30.0)
     shaft += Pos(0.0, 0.0, base) * extrude(hexagon, amount=rig.mast_length - base)
 
-    for height, half in yards(rig):
+    for height, half in yards(spec, lines, rig):
         shaft += Pos(0.0, 0.0, height) * _yard(rig, width, half)
 
     return as_part(shaft, "the mast")
@@ -312,29 +343,32 @@ def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
     return corners + rig.sail_thickness + rig.mast_clearance
 
 
-def sail_sizes(rig: Rig) -> list[tuple[float, float]]:
-    """Each sail as (width between the yards' clip necks, height between the yards)."""
-    course_span, topsail_span = rig.course_span
+def sail_sizes(spec: HullSpec, lines: HullLines, rig: Rig) -> list[tuple[float, float, float]]:
+    """Each sail as (foot width, head width, height), course first.
+
+    The widths are between the clip necks on the yards the sail's corners go
+    to, and the height is between those yards.
+    """
+    course_foot, course_head, topsail_foot, topsail_head = yards(spec, lines, rig)
     sizes = []
-    for (low, high), span in (
-        (rig.course, course_span),
-        (rig.topsail, topsail_span),
-    ):
-        half = span * rig.mast_length / 2.0
+    for (low, foot), (high, head) in ((course_foot, course_head), (topsail_foot, topsail_head)):
         sizes.append(
             (
-                2.0 * half * (1.0 - rig.clip_inset),
-                (high - low) * rig.mast_length,
+                2.0 * foot * (1.0 - rig.clip_inset),
+                2.0 * head * (1.0 - rig.clip_inset),
+                high - low,
             )
         )
     return sizes
 
 
-def sail(rig: Rig, width: float, height: float, radius: float, offset: float) -> Part:
+def sail(rig: Rig, foot: float, head: float, height: float, radius: float, offset: float) -> Part:
     """One sail, lying flat: the plate in the XY plane, corner eyes along Y.
 
-    Public so an assembled view can hang one on the yards; `sails()` lays both
-    out side by side for printing instead.
+    The head is at -x and the foot at +x, `head` and `foot` wide between the
+    eyes -- a trapezoid, since a topsail narrows toward its head. Public so an
+    assembled view can hang one on the yards; `sails()` lays both out side by
+    side for printing instead. The awning's canvas is one of these too.
 
     The corners cannot simply be holes. The bore has to be wider than the yard,
     and the yard is several times thicker than the plate, so a hole through the
@@ -350,13 +384,21 @@ def sail(rig: Rig, width: float, height: float, radius: float, offset: float) ->
     """
     bore = radius + TOLERANCE
     outer = bore + rig.loop_wall
-    plate = Pos(0.0, 0.0, rig.sail_thickness / 2.0) * Box(height, width, rig.sail_thickness)
+    # Anticlockwise, so the face points up and the extrusion goes up with it.
+    outline = Polygon(
+        (-height / 2.0, -head / 2.0),
+        (height / 2.0, -foot / 2.0),
+        (height / 2.0, foot / 2.0),
+        (-height / 2.0, head / 2.0),
+        align=None,
+    )
+    plate = extrude(outline, amount=rig.sail_thickness)
 
     eye_length = rig.clip_length - 2.0 * TOLERANCE
     mouth = rig.mouth * 2.0 * radius
     lengthwise = Rot(-90.0, 0.0, 0.0)
     sail = plate
-    for along in (-height / 2.0, height / 2.0):
+    for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
         for across in (-width / 2.0, width / 2.0):
             corner = Pos(along, across, 0.0)
             sail += corner * Pos(0.0, 0.0, offset / 2.0) * Box(2.0 * outer, eye_length, offset)
@@ -379,9 +421,12 @@ def sails(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     gap = 5.0
     built = []
     across = 0.0
-    for width, height in sail_sizes(rig):
-        built.append(Pos(0.0, across + width / 2.0, 0.0) * sail(rig, width, height, radius, offset))
-        across += width + gap
+    for foot, head, height in sail_sizes(spec, lines, rig):
+        widest = max(foot, head)
+        built.append(
+            Pos(0.0, across + widest / 2.0, 0.0) * sail(rig, foot, head, height, radius, offset)
+        )
+        across += widest + gap
     together = built[0]
     for extra in built[1:]:
         together += extra
