@@ -54,9 +54,9 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-awning-canvas.3mf` | 124.7 x 61.3 x 5.7mm | as exported, flat | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
-`gun-9` and `carriage-9` for the 9-pounders, `trunnion` and `cap-square` for
-all three -- each in its own print orientation; the README's section on the
-guns covers how they print and how many of each.
+`gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` pin for each of
+the three -- each in its own print orientation; the README's section on the guns
+covers how they print and how many of each.
 
 The carriages print standing on the bed as exported. Their clamps are arms a
 millimetre wide with a hooked jaw at each end, and the jaws are what clip onto
@@ -64,6 +64,12 @@ the slide, so they need to come out true: turn on elephant's-foot compensation,
 since a jaw squashed out at the first layer will bind on the slide. If a
 carriage is too stiff to clip on, ease the jaws' lead-ins rather than the
 slide, which is part of the hull.
+
+The clips that take the gun are at the top of the same part: two lips either side
+of each trunnion bed, 0.7mm thick, with a 0.5mm slot behind each. Both want at
+least two perimeters and no over-extrusion, or the slot closes up and the lip
+stops being a spring. The pin they hold is the smallest part in the box and
+prints standing on end; print a spare.
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the

@@ -1,4 +1,4 @@
-"""The three printed parts, put together: gun, carriage and two trunnion pegs.
+"""The three printed parts, put together: gun, carriage and the trunnion pin.
 
 Nothing here is printed -- it is where the fits are checked, by eye in the
 viewer and by the tests, which assert that no two parts share any volume.
@@ -17,14 +17,11 @@ from build123d import (
     Compound,
     Part,
     Plane,
-    Pos,
     RevoluteJoint,
     RigidJoint,
-    Rot,
 )
 
 from cannon.cannon import cannon, trunnion_height
-from cannon.cap_square import CapSquareSpec, cap_square
 from cannon.carriage import CarriageSpec, carriage
 from cannon.trunnion import trunnion
 
@@ -50,15 +47,11 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     RevoluteJoint(
         "elevation", truck, axis=Axis((0, 0, axis_height), (0, 1, 0)), angular_range=(-10, 10)
     )
-    for side in (1, -1):
-        RigidJoint(
-            f"trunnion{side:+d}",
-            truck,
-            Plane(
-                origin=(0, side * (spec.gap / 2 - pegs.stand_off - pegs.into_barrel), axis_height),
-                z_dir=(0, side, 0),
-            ).location,
-        )
+    RigidJoint(
+        "trunnion",
+        truck,
+        Plane(origin=(0, -pegs.length / 2, axis_height), z_dir=(0, 1, 0)).location,
+    )
 
     gun = cannon(spec.gun)
     gun.color = IRON
@@ -70,33 +63,13 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     )
     truck.joints["elevation"].connect_to(gun.joints["trunnions"], angle=elevation)
 
-    parts: list[Part] = [truck, gun]
-    straps = CapSquareSpec(carriage=spec)
-    rail_top = spec.rail_top
-    for side in (1, -1):
-        peg = trunnion(pegs)
-        peg.color = BRASS
-        peg.label = f"trunnion{side:+d}"
-        RigidJoint("seat", peg, Plane(origin=(0, 0, 0)).location)
-        truck.joints[f"trunnion{side:+d}"].connect_to(peg.joints["seat"])
-        parts.append(peg)
+    pin = trunnion(pegs)
+    pin.color = BRASS
+    pin.label = "trunnion"
+    RigidJoint("seat", pin, Plane(origin=(0, 0, 0)).location)
+    truck.joints["trunnion"].connect_to(pin.joints["seat"])
 
-        # Turned back the right way up -- it prints groove-up -- and slid
-        # home: aft of the detent, against the step.
-        strap = Rot(180, 0, 0) * cap_square(straps)
-        if side < 0:
-            strap = strap.mirror(Plane.XZ)
-        strap = (
-            Pos(
-                spec.rail_end - straps.length / 2,
-                side * (spec.gap / 2 + straps.stand_off + straps.width / 2),
-                rail_top - spec.flare + straps.height,
-            )
-            * strap
-        )
-        strap.color = IRON
-        strap.label = f"cap square{side:+d}"
-        parts.append(strap)
+    parts: list[Part] = [truck, gun, pin]
 
     return Compound(children=parts)
 
