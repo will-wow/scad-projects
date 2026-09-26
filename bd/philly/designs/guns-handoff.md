@@ -9,9 +9,9 @@ Three printed parts per gun, all in the default `just build`:
 
 | part | module | size at 1:55 |
 |---|---|---|
-| barrel | `cannon/cannon.py` | 7.0 x 7.0 x 48.4mm |
-| carriage | `cannon/carriage.py` | 30.0 x 12.1 x 16.1mm |
-| trunnion pin | `cannon/trunnion.py` | 2.6 x 2.6 x 10.5mm |
+| barrel | `cannon/cannon.py` | 8.3 x 8.3 x 52.6mm |
+| carriage | `cannon/carriage.py` | 30.0 x 13.3 x 15.9mm |
+| trunnion pin | `cannon/trunnion.py` | 2.6 x 2.6 x 11.7mm |
 
 `cannon/assembly.py` puts them together for looking at -- a `RevoluteJoint` on
 the trunnion axis, so `elevation` swings the gun -- and is not printed. The
@@ -22,6 +22,14 @@ The barrel is a solid of revolution with its parts named as a gunfounder would
 proportioned in calibres, so the bow 12-pounder and the broadside 9-pounders
 are one `CannonSpec` at two calibres. It is bored only three calibres deep so
 the trunnion pin bears on solid metal.
+
+Every one of those proportions is measured off the Smithsonian's scan rather
+than assumed. The first printed gun felt thin in the hand, and it was: the
+piece runs 2.27 calibres at the neck to 3.70 at the breech, where the model had
+2.1 to 2.8, and is 22.6 calibres long where the model had 20.8. Measured
+end-on and independently, the starboard 9-pounder comes to 2.23 and 3.37 over
+21.7 calibres, so the two pieces agree. `designs/measure_scan.py` prints the
+numbers for both.
 
 The pin goes right through the piece and reaches the outside of both brackets.
 The top of each bracket is a **clip**: a round bed with a way in above it,

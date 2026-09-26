@@ -42,9 +42,13 @@ PRINTED_LENGTH = 300.0
 # X, which facing the bow is port for +X.
 NINE_POUNDERS = ((0.48, +1), (0.607, -1))
 
-# The 12-pounder's length, and where its trunnions are: 3/7 of the length
-# forward of the breech, the founders' rule cannon/cannon.py uses too.
-TWELVE_POUNDER_LENGTH = 2438.0
+# Where a gun's trunnions sit: 3/7 of its length forward of the breech, the
+# founders' rule cannon/cannon.py uses too. The length itself is measured.
+# Bore diameters, for reading the girths as calibres. The bow gun's muzzle face
+# scans as a 112mm hole, which is a 12-pounder's 4.62in bore with a couple of
+# centuries of concretion in it; the 9-pounder's is the nominal 4.2in.
+TWELVE_POUNDER_CALIBRE = 117.0
+NINE_POUNDER_CALIBRE = 107.0
 TRUNNIONS_FROM_BREECH = 3.0 / 7.0
 
 # How thick a section is sliced to fit a circle through, and how good a fit has
@@ -52,6 +56,8 @@ TRUNNIONS_FROM_BREECH = 3.0 / 7.0
 # catches (a carriage, a rope) fits badly.
 SLICE = 25.0
 FIT = 10.0
+# How far round from straight up a point may be and still count as the crown.
+CROWN = 0.55
 BARREL_RADIUS = (80.0, 180.0)
 
 
@@ -164,6 +170,65 @@ def fitted(sections: list[tuple[float, float, float, float, float]]):
     return good, float(slope), float(intercept)
 
 
+def frame(boat: Boat, origin: np.ndarray, direction: np.ndarray):
+    """Every deck vertex in a gun's own coordinates.
+
+    Returns how far along the axis it lies, how far off it, and how far round
+    from the top -- 1 straight up, 0 out to the side. A gun is a solid of
+    revolution, so `radius` alone would be all that is needed if the gun stood
+    alone; it does not, and the carriage, the deck and the rail all sit below
+    it, so anything measured here is measured off its crown.
+    """
+    rel = boat.deck - origin
+    along = rel @ direction
+    off = rel - np.outer(along, direction)
+    radius = np.linalg.norm(off, axis=1)
+    return along, radius, off[:, 1] / np.maximum(radius, 1e-9)
+
+
+def crown(measured, at: float, half: float = 25.0) -> float:
+    """The piece's radius at `at`: the median of what the scan has over its top."""
+    along, radius, up = measured
+    band = (np.abs(along - at) < half) & (radius < 400.0) & (up > CROWN)
+    return float(np.median(radius[band])) if band.sum() >= 3 else float("nan")
+
+
+def piece(boat: Boat, measured, calibre: float, reach: float) -> tuple[float, float]:
+    """A gun's length and girth, printed in calibres of its own bore.
+
+    The muzzle face is where the mesh begins; the base ring is taken as the
+    last section still within a sixth of the piece's widest, since aft of that
+    the cascabel falls away to a third of it. Both are good to about 25mm.
+
+    Returns the two of them, since where the trunnions sit is reckoned off the
+    length.
+    """
+    along, radius, _ = measured
+    stations = np.arange(-200.0, reach, 25.0)
+    widths = np.array([crown(measured, float(a)) for a in stations])
+    face = float(stations[np.argmax(~np.isnan(widths))])
+    widest = float(np.nanmax(widths))
+    ring = float(stations[np.max(np.nonzero(widths > 0.85 * widest)[0])])
+    length = ring - face
+    print(
+        f"  muzzle face to base ring {length:.0f} = {length / calibre:.1f} calibres"
+        f" ({boat.printed(length):.1f}mm printed)"
+    )
+    for name, at in (
+        ("swell of the muzzle", face + 70.0),
+        ("neck", face + 190.0),
+        ("at the trunnions", face + 0.57 * length),
+        ("breech", ring - 120.0),
+        ("base ring", ring - 30.0),
+    ):
+        r = crown(measured, at)
+        if np.isnan(r):
+            print(f"  {name:20s} nothing scanned there")
+        else:
+            print(f"  {name:20s} {2 * r / calibre:.2f} calibres ({r:.0f}mm radius)")
+    return face, length
+
+
 def bow_gun(boat: Boat) -> None:
     sections = []
     for back in np.arange(0.0, 1300.0, 50.0):
@@ -181,24 +246,30 @@ def bow_gun(boat: Boat) -> None:
         print("12-pounder: no clean barrel sections found\n")
         return
     good, slope, at_stem = result
+    drift, at_centre = np.polyfit([s[0] for s in good], [s[1] for s in good], 1)
+    origin = np.array([at_centre, at_stem + boat.keel, boat.bow])
+    axis = np.array([drift, slope, -1.0])
+    measured = frame(boat, origin, axis / np.linalg.norm(axis))
     muzzle = boat.deck[
         (np.abs(boat.deck[:, 0] - boat.centre) < 300.0) & (boat.deck[:, 1] - boat.keel > 1300.0)
     ][:, 2].max()
     rail, _ = boat.rail(boat.bow - 300.0)
-    trunnions = (boat.bow - muzzle) + (1.0 - TRUNNIONS_FROM_BREECH) * TWELVE_POUNDER_LENGTH
-    at_trunnions = at_stem + slope * trunnions
-    stand = boat.surface(boat.bow - trunnions, below=at_trunnions - 300.0) or float("nan")
     print("12-pounder, on the centreline in the bow:")
     print(f"  muzzle {muzzle - boat.bow:+.0f} past the stem")
-    print(f"  largest barrel section radius {max(s[3] for s in good):.0f}")
     print(f"  elevation {np.degrees(np.arctan(-slope)):.1f} deg (from {len(good)} sections)")
+    _, length = piece(boat, measured, TWELVE_POUNDER_CALIBRE, 3200.0)
+    trunnions = (boat.bow - muzzle) + (1.0 - TRUNNIONS_FROM_BREECH) * length
+    at_trunnions = at_stem + slope * trunnions
+    # Read forward of the carriage: under the trunnions themselves the commonest
+    # height in the strip is the carriage's own bed, not the planking.
+    stand = boat.surface(boat.z(0.06), below=at_trunnions - 300.0) or float("nan")
     print(f"  axis at the stem {at_stem:.0f} above the keel; rail there {rail:.0f}")
     print(
         f"  trunnions {trunnions:.0f} aft of the stem ({boat.fraction(boat.bow - trunnions):.3f}),"
         f" axis {at_trunnions:.0f} above the keel"
     )
     print(
-        f"  deck under them {stand:.0f}; axis {at_trunnions - stand:.0f} above it"
+        f"  forecastle {stand:.0f}; axis {at_trunnions - stand:.0f} above it"
         f" = {boat.printed(at_trunnions - stand):.1f}mm printed\n"
     )
 
@@ -227,6 +298,19 @@ def nine_pounders(boat: Boat) -> None:
             print(f"  inboard of the rail at {half:.0f}, so it is scanned run in\n")
             continue
         good, slope, intercept = result
+        sweep, at_centre = np.polyfit([s[0] for s in good], [s[1] for s in good], 1)
+        # Inboard from beyond the muzzle, so that -- as on the bow gun -- the
+        # axis runs from the muzzle face toward the breech.
+        far = 3000.0
+        origin = np.array(
+            [
+                boat.centre + side * far,
+                intercept + slope * far + boat.keel,
+                at_centre + sweep * far,
+            ]
+        )
+        axis = np.array([-float(side), -slope, -sweep])
+        measured = frame(boat, origin, axis / np.linalg.norm(axis))
         at_rail = intercept + slope * half
         radius = max(s[3] for s in good)
         deck = boat.surface(z, below=rail) or float("nan")
@@ -237,7 +321,7 @@ def nine_pounders(boat: Boat) -> None:
         )
         print(f"  elevation {np.degrees(np.arctan(slope)):.1f} deg (from {len(good)} sections)")
         print(f"  barrel traced out to {reach:.0f} from the centreline; the rail is at {half:.0f}")
-        print(f"  muzzle radius {radius:.0f}")
+        piece(boat, measured, NINE_POUNDER_CALIBRE, 2900.0)
         print(f"  axis at the rail line {at_rail:.0f} above the keel, rail {rail:.0f}")
         print(f"  so the barrel's underside clears the rail by {at_rail - radius - rail:.0f}")
         print(f"  deck under it {deck:.0f}; axis {at_rail - deck:.0f} above it at the rail line")

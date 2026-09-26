@@ -76,16 +76,21 @@ class Ring:
 
 @dataclass(frozen=True)
 class CannonSpec:
-    length: float = 2438  # 8ft for the 12 lb cannon, muzzle face to base ring
+    # Muzzle face to base ring, measured off the scan: 22.6 calibres, near
+    # enough eight and a half feet of gun.
+    length: float = 2650
     calibre: float = 117  # bore diameter: 4.62in for a 12-pounder
     # Printed size over real size. The hull's default prints the 16.4m boat at
     # 300mm, about 1:55; match that so the gun sits on the deck at scale.
     scale: float = 1 / 55
 
-    # Diameters, in calibres.
-    swell: float = 2.4  # the swell of the muzzle, at the muzzle face
-    neck: float = 2.1
-    breech: float = 2.8  # the barrel at the base ring; it tapers to `neck` from here
+    # Diameters, in calibres, all measured off the scan. The piece is a long
+    # cone: the first version ran 2.1 to 2.8, which printed as a pipe with a
+    # knob on the end, and a base ring near four calibres is ordinary on a
+    # period iron gun.
+    swell: float = 2.56  # the swell of the muzzle, at the muzzle face
+    neck: float = 2.27
+    breech: float = 3.70  # the barrel at the base ring; it tapers to `neck` from here
 
     # Along the axis, in calibres.
     lip: float = 0.2  # the straight band at the muzzle face, before the swell curves in
@@ -99,7 +104,7 @@ class CannonSpec:
 
     # The cascabel, as diameters in calibres.
     cascabel_neck_diameter: float = 0.7
-    button: float = 1.2
+    button: float = 1.35
 
     # Rings along the chase and reinforces. Positions follow the founders'
     # rule of a first reinforce 2/7 of the length and a second 1/7 plus a
@@ -109,7 +114,7 @@ class CannonSpec:
         Ring(at=0.52, proud=0.2),  # second reinforce ring
         Ring(at=0.71, proud=0.2),  # first reinforce ring
     )
-    base_ring: float = 0.25  # proud, calibres; it sits at the very end of the barrel
+    base_ring: float = 0.1  # proud, calibres; it sits at the very end of the barrel
 
     # The hole for the trunnion pin, and where its axis crosses the piece:
     # the founders' rule puts it 3/7 of the length forward of the breech.
@@ -314,10 +319,13 @@ def cannon(spec: CannonSpec) -> Part:
     return gun.part
 
 
-# The broadside guns. The scan gives a muzzle swell of 128mm, 2.4 calibres of a
-# 107mm bore, which is a 9-pounder; nothing gives the length, so it is the
-# 12-pounder's scaled by calibre.
-NINE_POUNDER = replace(CannonSpec(), calibre=107, length=2230)
+# The broadside guns. Measured off the scan's starboard gun, the one scanned
+# run out: a muzzle swell of 2.64 calibres of a 107mm bore -- a 9-pounder --
+# and 2325mm, 21.7 calibres, from its muzzle face to its base ring. Its neck
+# and breech come to 2.23 and 3.37 calibres against the bow gun's 2.27 and
+# 3.70, so the two pieces agree on the shape to within a few percent, measured
+# independently and end-on to each other.
+NINE_POUNDER = replace(CannonSpec(), calibre=107, length=2325)
 
 
 def model() -> Part:

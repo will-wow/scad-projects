@@ -55,9 +55,10 @@ def test_nothing_of_the_gun_is_in_the_hull(solved, hull, side, recoil):
 
 
 def test_the_bow_gun_stands_at_the_scans_height(solved):
+    """Where the scan's own gun axis crosses this station, over the forecastle."""
     m = solved[0]
     pin = _pieces(m)["trunnion"].bounding_box().center()
-    assert pin.Z - m.deck == pytest.approx(14.1, abs=0.1)
+    assert pin.Z - m.deck == pytest.approx(13.9, abs=0.1)
 
 
 def test_the_broadside_guns_cross_the_rail_at_the_scans_height(solved):

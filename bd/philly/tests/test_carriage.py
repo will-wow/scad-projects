@@ -157,8 +157,11 @@ class TestCarriage:
             assert spec.relief > 2 * spec.pegs.snap
 
     def test_the_brackets_clear_the_widest_part_of_the_gun(self):
-        """The base ring passes between them on the way in; it is the widest thing there."""
-        assert SPEC.gap / 2 > base_ring_radius(SPEC.gun)
+        """The base ring swings between them; it is the widest thing there, and the
+        gap is set by the barrel at the trunnions, so nothing makes room for it on
+        purpose. Measuring the guns off the scan took this from 0.9mm to 0.3."""
+        for spec in (SPEC, BROADSIDE):
+            assert spec.gap / 2 - base_ring_radius(spec.gun) > 0.2
 
     def test_the_quoin_stands_on_the_bed(self, truck):
         top = SPEC.quoin_top

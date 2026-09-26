@@ -78,9 +78,13 @@ STEPS = (
 @dataclass(frozen=True)
 class CarriageSpec:
     gun: CannonSpec = field(default_factory=CannonSpec)
-    # The trunnion axis above the deck. The default is the bow gun's, 14.1mm
-    # above the forecastle off the scan: high enough to fire over the stem.
-    axis_height: float = 14.1
+    # The trunnion axis above the deck: the bow gun's, off the scan, which is
+    # what lets it fire over the stem. The scan puts that axis 1621mm above the
+    # keel and its own forecastle planking at 838; the model rounds that deck
+    # to 0.48 of the hull's depth, which is 865, so the axis stands 13.9mm over
+    # the deck the carriage actually sits on rather than the 14.4 the scan
+    # reads over its own.
+    axis_height: float = 13.9
     elevation: float = 4.1  # degrees the quoin holds the muzzle up; the bow gun's, off the scan
     slide: Slide = field(default_factory=Slide)
 

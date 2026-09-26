@@ -164,6 +164,14 @@ astragal, reinforce rings, base ring, base of the breech, cascabel and button
 the 12-pounder in the bow and the 9-pounders on the sides are one `CannonSpec`
 at two calibres.
 
+Every one of those proportions is measured off the scan by
+[`designs/measure_scan.py`](designs/measure_scan.py), not taken from a founder's
+table. The first gun printed thin, and it was: the real piece runs 2.27 calibres
+at the neck to 3.70 at the breech over 22.6 calibres of length, where the model
+had 2.1 to 2.8 over 20.8. It is the taper that was wrong more than the size --
+the muzzle was within a couple of percent, the breech a third too narrow -- and
+correcting it put 60% more metal in the barrel.
+
 ```sh
 just watch cannon/cannon.py     # preview the gun on its own
 just test tests/test_cannon.py
