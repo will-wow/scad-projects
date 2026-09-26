@@ -39,7 +39,8 @@ def test_it_is_the_right_size(gun):
 
 
 def test_the_bore_opens_onto_the_muzzle_face_and_stops_short_of_the_trunnions(gun):
-    """The trunnions must bear on solid metal, so the bore is a muzzle detail only."""
+    """The trunnion pin is bored right through the piece, so it must find solid metal
+    there: the bore is a muzzle detail only."""
     bore = SPEC.calibre * SPEC.scale
     wall = (SPEC.neck - 1) / 2 * bore
     assert not gun.is_inside(Vector(0, 0, 0.01)), "the bore should be open at the muzzle"
@@ -47,12 +48,15 @@ def test_the_bore_opens_onto_the_muzzle_face_and_stops_short_of_the_trunnions(gu
     top = SPEC.bore_length * bore
     assert not gun.is_inside(Vector(0, 0, top - bore)), "the bore runs its stated length"
     assert gun.is_inside(Vector(0, 0, top + 0.1)), "and is closed above that"
-    assert gun.is_inside(Vector(0, 0, trunnion_height(SPEC))), "solid at the trunnions"
+    pin = SPEC.trunnions
+    assert pin is not None
+    below = trunnion_height(SPEC) - pin.socket / 2 - 0.2
+    assert gun.is_inside(Vector(0, 0, below)), "solid between the bore and the pin's hole"
 
 
 @pytest.mark.parametrize("overhang", [45.0, 35.0])
 def test_nothing_overhangs_more_than_allowed(overhang):
-    """The rings, the button and the roof of each trunnion socket, all as printed."""
+    """The rings, the button and the roof of the trunnion hole, all as printed."""
     gun = cannon(CannonSpec(max_overhang=overhang))
     assert steepest_overhang(gun) <= math.sin(math.radians(overhang)) + 1e-6
 

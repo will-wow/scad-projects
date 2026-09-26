@@ -677,7 +677,7 @@ The side rails are a polyline through the leg tops.
 
 [`guns.py`](guns.py) puts three guns in the boat: the 12-pounder in the bow,
 firing over the stem, and a 9-pounder either side amidships, staggered and
-firing over the rail. The barrel, carriage, trunnion pegs and cap squares are in
+firing over the rail. The barrel, the carriage and the trunnion pin are in
 [`cannon/`](cannon); this is what stands them on the decks.
 
 ### Why the carriage clips on rather than slides in
@@ -776,13 +776,33 @@ normal.** The port clamp's jaw extruded backwards, off the end of the carriage,
 as a second solid. `Slide.jaw_profile` returns its corners anticlockwise on
 either side.
 
-### The cap square was never held aft
+### The first gun came off the bed in pieces that would not go together
 
-The gun is held in its beds by the cap squares, and each one used to be stopped
-only by a detent forward. The bracket steps *down* aft of the rail, so nothing
-stopped the strap sliding on aft and off, and the gun could lift out. Each
-bracket now carries a **hinge** block at the rail's end, where the real strap is
-pinned, which the strap comes to rest against.
+The gun was held by two separate trunnion pegs, each pressed 1.2mm into a blind
+socket in the barrel, with a small grooved **cap square** sliding aft over each
+one along a hooked rail. Printed, it failed twice over. The pegs fell straight
+back out of the barrel while the gun was being offered up to the carriage -- 1.2mm
+of printed hole grips nothing, and there was no way to hold the peg in while
+lining the other one up. And the cap squares, 6.1 x 2.5 x 1.6mm, were too small
+for their own geometry: a 0.55mm wall grooved to catch a 0.5mm hook leaves
+nothing that survives a nozzle.
+
+Both go away if the trunnion is **one pin bored right through the piece**. It
+cannot fall out of a hole it passes through, it needs no press fit to stay put,
+and it turns both jobs -- locating the gun and pivoting it -- into one round part
+that is the easiest thing in the box to print. What is left is holding the pin
+down, and that is now a **clip** in the top of each bracket rather than a
+separate strap: a bed with a detent over it, and the two lips either side of the
+way in cut free of the bracket by a slot apiece.
+
+The slot is what makes the clip work at this scale. Without it the lip is part of
+the bracket, and a bracket asked to give a quarter of a millimetre cracks: that
+was the 6.5%-strain calculation that killed the first design. With it the lip is
+a beam of known length -- 0.7mm thick on a 3.9mm arm, strained 0.8% by the pin
+going past -- and the slot doubles as the lip's stop, since it closes after half
+a millimetre, four times what the detent asks for. A child cannot bend a lip far
+enough to break it, and `CarriageSpec.lip_strain` is asserted under one percent
+so the geometry cannot drift there quietly.
 
 ## Making your own hull
 
@@ -820,7 +840,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
 | [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
 | [`guns.py`](guns.py) | where each gun stands, how far it runs out, and its slide in the deck |
-| [`cannon/`](cannon) | the barrel, carriage, trunnion pegs, cap squares and slide |
+| [`cannon/`](cannon) | the barrel, carriage, trunnion pin and slide |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |

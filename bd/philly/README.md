@@ -173,48 +173,51 @@ It is built in print orientation: muzzle face down on the bed, bore up. Every
 ring and the cascabel's button is a half-round with its underside cut off as a
 chamfer at `max_overhang`, and the bore ends in a point at the same angle, so
 the gun prints standing on its muzzle with a brim and no support. The bore only
-goes a few calibres in, so the trunnion sockets bear on solid metal.
+goes a few calibres in, so the trunnion pin bears on solid metal.
 
 ### Carriage and trunnions
 
-Four printed parts per gun: the barrel, two **trunnion** pegs, a **carriage**
+Three printed parts per gun: the barrel, one **trunnion** pin, and a **carriage**
 -- two **brackets** on a **bed**, with a **quoin**, the wedge that holds the
-breech up -- and two **cap squares**, the straps that hold the trunnions down.
+breech up.
 
-A peg's shank presses into a socket bored in the barrel; its **rimbase**, the
-collar a real trunnion has where it meets the piece, bears against the bracket
-and is too wide to follow the journal into the bed, which is what keeps the peg
-from working out. The gun drops into the two open beds and a cap square slides
-aft along each bracket's rail, over the trunnion, clicking past a detent, and
-comes to rest against the **hinge** block at the rail's end.
+The pin is bored right through the piece and stands out far enough each side to
+reach the outside of both brackets. The top of each bracket is opened into a
+**clip**: a round **trunnion bed** with a way in above it, pinched by a
+**detent**. Push the gun down and it clicks in; pull it up firmly and it comes
+out. It turns on the pin in the beds, so the gun still elevates.
 
-Nothing holding the gun is a spring. The first version held the gun by spreading the brackets
-over a key on each peg, which is how it broke: at this scale a bracket only has
-about 3mm of height above the trunnion, so an entry slot at the overhang limit
-leaves a strap 2.8mm long and 0.9mm thick -- and the geometry ties those
-together, thickness being length less 1.85mm, so a taller bracket does not
-help. That works out around 6.5% surface strain and 22N to clip in, against the
-2% PLA takes. A sliding cap square asks nothing of the material.
+That replaces two earlier schemes, both of which failed on the print bed. First
+came separate pegs pressed into blind sockets in the barrel with a sliding cap
+square over each: the pegs fell out while the gun was going in, because 1.2mm of
+printed hole is not a press fit, and the cap squares were 2.5mm blocks that had
+to be grooved to a hooked rail -- neither the groove nor the hook came out of the
+printer as anything that worked. Before that, the brackets themselves were the
+spring, which wanted 6.5% surface strain against the 2% PLA takes.
 
-The rail is hooked outboard and chamfered inboard: the strap's outer leg
-catches under the hook, and its inner lip rides the chamfer, so lifting the
-strap only drives it further under the hook. Only the hook is an undercut, and
-its underside sits at `max_overhang`, so it prints as its own roof.
+What springs now is a **lip**: the two either side of each way in are cut free of
+the bracket by a slot apiece, so each is a beam 0.7mm thick on a 3.9mm arm, and
+the pin going past the detent strains it 0.8%. It cannot be strained much
+further, either -- a lip meets the bracket again after half a millimetre, four
+times the give the detent asks for -- so there is no way to bend one far enough
+to break it. `main()` prints the figure, and a test fails if the geometry drifts
+past one percent.
 
-`cannon/trunnion.py` holds the fits, and the barrel, the carriage and the cap
-square all cut their own geometry from that one `TrunnionSpec`. Its numbers are
-in printed millimetres rather than calibres: a clearance does not scale. The
-running fit is 0.15mm per side, looser than it looks on paper -- the mast in
-`rig.py` uses 0.3 -- because a 2.6mm journal that seizes is no pivot at all.
+The detent's flanks both sit at `max_overhang`, the roof over each bed is the
+inner flank, and the pin's hole through the barrel is a teardrop with its apex
+toward the breech. So all of it prints as modelled, with no support anywhere.
+
+`cannon/trunnion.py` holds the fits, and the barrel and the carriage both cut
+their own geometry from that one `TrunnionSpec`. Its numbers are in printed
+millimetres rather than calibres: a clearance does not scale. The bed is 0.15mm
+per side over the pin, looser than it looks on paper -- the mast in `rig.py`
+uses 0.3 -- because a 2.6mm journal that seizes is no pivot at all.
 
 ```sh
-just watch cannon/assembly.py   # the four parts together
+just watch cannon/assembly.py   # the three parts together
 just watch cannon/carriage.py
 just build                      # all of them, with the hull and the rig
 ```
-
-The cap square prints groove-up, which is upside down from how it is fitted.
-Everything else prints as modelled.
 
 ### In the boat
 
@@ -239,11 +242,10 @@ To arm the boat, print:
 | 12-pounder carriage | `philadelphia-carriage.3mf` | 1 |
 | 9-pounder barrel | `philadelphia-gun-9.3mf` | 2 |
 | 9-pounder carriage | `philadelphia-carriage-9.3mf` | 2 |
-| trunnion peg | `philadelphia-trunnion.3mf` | 6 |
-| cap square | `philadelphia-cap-square.3mf` | 6 |
+| trunnion pin | `philadelphia-trunnion.3mf` | 3 |
 
-Put the carriage on its slide first, then the pegs in the barrel, the barrel in
-the carriage, and the cap squares on from the front.
+Put the carriage on its slide first, then the pin through the barrel, and press
+the barrel down into the carriage until both clips click.
 
 `cannon/assembly.py` is not printed. It hangs the gun off a `RevoluteJoint` on
 the trunnion axis -- positive `elevation` raises the muzzle -- and the tests

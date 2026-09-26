@@ -111,7 +111,7 @@ class CannonSpec:
     )
     base_ring: float = 0.25  # proud, calibres; it sits at the very end of the barrel
 
-    # Sockets for the trunnion pegs, and where their axis crosses the piece:
+    # The hole for the trunnion pin, and where its axis crosses the piece:
     # the founders' rule puts it 3/7 of the length forward of the breech.
     trunnions: TrunnionSpec | None = TrunnionSpec()
     trunnions_at: float = 0.57
@@ -197,16 +197,18 @@ def outline(spec: CannonSpec, s: float) -> float:
     return radius
 
 
-def _sockets(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
-    """The two blind sockets for the trunnion pegs, as a solid to subtract.
+def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
+    """The hole the trunnion pin goes through, as a solid to subtract.
 
-    Teardrops rather than round holes: the gun prints muzzle-down, so these are
-    horizontal holes, and the apex points toward the breech -- up, as printed --
-    to carry the roof of each one.
+    A teardrop rather than a round hole: the gun prints muzzle-down, so this is
+    a horizontal hole, and the apex points toward the breech -- up, as printed --
+    to carry its own roof. It goes right through, which is what holds the pin;
+    the blind sockets this replaced let the pegs fall out while the gun was being
+    clipped in.
 
-    In printed millimetres, like the pegs they take, and so cut after the gun
-    has been scaled: scaling a cut this fine afterwards shrinks the sliver where
-    the apex pierces the barrel below what OCCT will mesh into a closed surface.
+    In printed millimetres, like the pin it takes, and so cut after the gun has
+    been scaled: scaling a cut this fine afterwards shrinks the sliver where the
+    apex pierces the barrel below what OCCT will mesh into a closed surface.
 
     Returns a part to subtract rather than cutting the caller's, because a
     builder only nests into its parent when both are opened in the same Python
@@ -215,22 +217,21 @@ def _sockets(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
     lean = math.radians(spec.max_overhang)
     height = trunnion_height(spec)
     radius = pegs.socket / 2
-    surface = barrel_radius(spec, spec.trunnions_at)
+    reach = barrel_radius(spec, spec.trunnions_at) + 1
     shoulder = (radius * math.cos(lean), height + radius * math.sin(lean))
     apex = (0, height + radius / math.sin(lean))
     with BuildPart() as cutter:
-        for side in (1, -1):
-            with BuildSketch(Plane.XZ.offset(-side * (surface + 1))):
-                with BuildLine():
-                    CenterArc(
-                        (0, height),
-                        radius,
-                        start_angle=180 - spec.max_overhang,
-                        arc_size=180 + 2 * spec.max_overhang,
-                    )
-                    Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
-                make_face()
-            extrude(amount=side * (pegs.socket_depth + 1))
+        with BuildSketch(Plane.XZ.offset(-reach)):
+            with BuildLine():
+                CenterArc(
+                    (0, height),
+                    radius,
+                    start_angle=180 - spec.max_overhang,
+                    arc_size=180 + 2 * spec.max_overhang,
+                )
+                Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
+            make_face()
+        extrude(amount=2 * reach)
 
     assert cutter.part is not None
     return cutter.part
@@ -305,9 +306,9 @@ def cannon(spec: CannonSpec) -> Part:
         # Down to toy size. Everything above is real-world millimetres.
         scale(by=spec.scale)
 
-        # The sockets are in printed millimetres, so they come after the scale.
+        # The hole is in printed millimetres, so it comes after the scale.
         if spec.trunnions is not None:
-            add(_sockets(spec, spec.trunnions), mode=Mode.SUBTRACT)
+            add(_socket(spec, spec.trunnions), mode=Mode.SUBTRACT)
 
     assert gun.part is not None, "BuildPart always holds a part once revolve() has run"
     return gun.part
