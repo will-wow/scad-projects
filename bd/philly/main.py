@@ -25,13 +25,14 @@ HULL = HullSpec(
     stations=12 if preview_mode() else 48,
     # The real boat is decked in three stretches -- forecastle, a middle
     # platform, and the quarterdeck aft -- each at its own height, with the
-    # bilge open between them. Lengthwise fractions measured off the scan;
-    # heights as fractions of the hull's depth, and the platforms step down
-    # from bow to stern.
+    # bilge open between them. All measured off the Smithsonian scan (see
+    # designs/measure_scan.py): lengths as fractions from the bow, heights as
+    # fractions of the hull's depth. The scan puts the decks 850, 612 and 537mm
+    # above the keel, stepping down from bow to stern.
     decks=(
-        Deck(0.0, 7 / 24, 0.50),
-        Deck(9 / 24, 15 / 24, 0.40),
-        Deck(17 / 24, 1.0, 0.20),
+        Deck(0.0, 0.31, 0.48),
+        Deck(0.39, 0.655, 0.34),
+        Deck(0.71, 1.0, 0.30),
     ),
     # How far the sides bow out between chine and rail, as a fraction of the
     # side's slant height. The lines plan gives straight panels; the scan's

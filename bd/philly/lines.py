@@ -1,7 +1,9 @@
 """Read the hull lines plan out of the DXF and turn it into sampled 3D edges.
 
 The DXF (`designs/philadelphia_hull_lines.dxf`) holds two 2D views of the same
-hull, both with X = distance aft of the bow, in real millimetres:
+hull, in real millimetres. It is drawn transom-first: its X runs forward from
+the stern. `load()` turns it round, so everywhere else X is the distance aft of
+the bow.
 
 - Plan view, near Y = 0 and up: half-width from the centreline. `FAIR_TOP` is
   the sheer (rail) and `FAIR_BOTTOM` the chine, where the flat bottom meets the
@@ -15,10 +17,10 @@ All four are the hand-faired curves and supersede the raw `SHEER_TOP`,
 `CHINE_BOTTOM`, `SHEER_PROFILE` and `BASE_PROFILE` entities, which are the
 original scan output and still carry its artefacts.
 
-The faired bottom is deliberately flat -- one constant height from just abaft
-the forefoot all the way to the transom, with the stem sweeping up over the
-first 240mm. There is no rocker to interpolate, which is both true to the scow
-form and what makes the toy sit flat on a printer bed.
+The faired bottom is deliberately flat -- one constant height between the two
+ends, which curve up to the rail over the last few hundred millimetres. There is
+no rocker to interpolate, which is both true to the scow form and what makes the
+toy sit flat on a printer bed.
 """
 
 from __future__ import annotations
@@ -55,8 +57,8 @@ class Curve:
         np.interp does that itself: `left` and `right` default to the first and
         last values of `y`, so it clamps unless told otherwise. That is the
         behaviour this wants, and it is worth not "fixing". The plan and profile
-        curves cover slightly different spans, so stations near the bow and
-        stern do fall off the end of one curve or another, and a linear
+        curves cover slightly different spans, so stations near either end
+        do fall off the end of one curve or another, and a linear
         extrapolation off a sheer that is rising steeply would run away. Pass
         left=right=np.nan if you ever want to find those stations instead.
         """
@@ -76,7 +78,7 @@ def _sorted_unique(points: list[tuple[float, float]]) -> Curve:
 
     The faired layers are drawn as several entities that meet end to end, so
     joints appear twice and the pieces arrive in no particular order. Every
-    curve here is single-valued in X (they run bow to stern), so sorting is
+    curve here is single-valued in X (they run end to end), so sorting is
     enough to chain them -- no need to match endpoints.
     """
     ordered = sorted(points)
@@ -105,11 +107,11 @@ def read_layer(layer: str, *, y_offset: float = 0.0) -> Curve:
         if kind == "LINE":
             start, end = entity.dxf.start, entity.dxf.end
             if abs(float(start[0]) - float(end[0])) < 1e-6:
-                # A segment with no run in X is a closing line across the stem or
-                # the transom, drawn to shut the half-outline against the
-                # centreline. It is not part of the fore-and-aft curve, and
-                # keeping it would leave two values at one station -- which reads
-                # as the stern tapering to a point instead of ending in a transom.
+                # A segment with no run in X is a closing line across one end,
+                # drawn to shut the half-outline against the centreline. It is
+                # not part of the fore-and-aft curve, and keeping it would leave
+                # two values at one station -- which reads as that end tapering
+                # to a point instead of ending with some width.
                 continue
             points += [
                 (float(start[0]), float(start[1]) - y_offset),
@@ -150,13 +152,25 @@ class HullLines:
         return float(self.sheer_height.y.max())
 
 
+def _turned(curve: Curve, pivot: float) -> Curve:
+    """`curve` mirrored end for end about `pivot`, still sorted by X."""
+    return Curve(pivot - curve.x[::-1], curve.y[::-1])
+
+
 def load() -> HullLines:
-    """Read the DXF and return the faired lines plan, as drawn."""
+    """Read the DXF and return the faired lines plan, bow at X = 0.
+
+    The drawing runs from the transom, so each curve is mirrored. All four turn
+    about the same point -- the ends of the sheer -- so they stay aligned with
+    one another.
+    """
+    sheer = read_layer("FAIR_TOP")
+    pivot = sum(sheer.span)
     return HullLines(
-        sheer_half_width=read_layer("FAIR_TOP"),
-        chine_half_width=read_layer("FAIR_BOTTOM"),
-        sheer_height=read_layer("FAIR_SHEER_PROFILE", y_offset=PROFILE_OFFSET),
-        chine_height=read_layer("FAIR_BASE_PROFILE", y_offset=PROFILE_OFFSET),
+        sheer_half_width=_turned(sheer, pivot),
+        chine_half_width=_turned(read_layer("FAIR_BOTTOM"), pivot),
+        sheer_height=_turned(read_layer("FAIR_SHEER_PROFILE", y_offset=PROFILE_OFFSET), pivot),
+        chine_height=_turned(read_layer("FAIR_BASE_PROFILE", y_offset=PROFILE_OFFSET), pivot),
     )
 
 

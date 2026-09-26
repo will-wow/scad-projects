@@ -80,9 +80,12 @@ plan view, `FAIR_SHEER_PROFILE` and `FAIR_BASE_PROFILE` in the profile view.
 The raw `SHEER_TOP` / `CHINE_BOTTOM` / `SHEER_PROFILE` / `BASE_PROFILE` entities
 are the original scan output, still carrying its artefacts, and are not read.
 
-The faired bottom is flat -- one height from just abaft the forefoot to the
-transom, with the stem sweeping up over the first 240mm. No rocker to
-interpolate, and the toy sits flat on a printer bed.
+The DXF is drawn transom-first, with X increasing toward the bow; `lines.py`
+mirrors it on load, so everywhere in the model X is the distance aft of the
+bow.
+
+The faired bottom is flat -- one height between the two ends, which curve up
+to the rail. No rocker to interpolate, and the toy sits flat on a printer bed.
 
 ## Looking at it headlessly
 

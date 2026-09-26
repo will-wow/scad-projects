@@ -77,6 +77,13 @@ The profile view is drawn below the plan view so the two don't overlap on the
 page, so reading it subtracts a fixed offset to recover true heights
 (`PROFILE_OFFSET`). That's a drafting convention, not geometry.
 
+The drawing also runs from the transom: its X increases going forward. The
+model wants X to be the distance aft of the bow, so [`load`](lines.py) mirrors
+all four curves about the same point -- the two ends of the sheer -- which
+keeps them aligned with one another. A test pins the result against the scan:
+two metres from the bow the hull is wider and lower than two metres from the
+transom.
+
 ### Curves that clamp rather than extrapolate
 
 [`Curve`](lines.py#L46) is deliberately dumb — sorted samples and
@@ -94,8 +101,8 @@ and last values of `y`, so anything off either end comes back as the end value.
 Those parameters exist to *override* that, not to switch it on.
 
 That happens to be exactly what a lines plan wants. The four curves don't span
-quite the same range — hand-drawn curves never do — so stations near the bow
-and stern genuinely do fall off the end of one curve or another, and a linear
+quite the same range — hand-drawn curves never do — so stations near either
+end genuinely do fall off the end of one curve or another, and a linear
 extrapolation off a sheer that is rising steeply runs away fast. Holding the
 end value costs a fraction of a millimetre at the very tip and cannot explode.
 
@@ -105,7 +112,7 @@ than quietly clamp them, pass `left=np.nan, right=np.nan` and they become
 visible.
 
 **If you're drawing your own DXF**, the one rule that bit hardest: a line with
-no run in X (a vertical closing line across the stem or transom) is not part of
+no run in X (a vertical closing line across either end) is not part of
 a fore-and-aft curve, and including it gives you two different half-widths at
 one station. [`read_layer`](lines.py#L95) drops those explicitly.
 
@@ -141,8 +148,8 @@ Four things to notice:
    The outline runs up one side, straight across where the deck will be, and
    down the other. Opening it up is a later step, and doing it by subtraction
    rather than by construction is much easier to get right.
-4. **Returning `None` is normal.** At the very bow the half-width goes to zero
-   and there is no outline to build. The caller filters those out rather than
+4. **Returning `None` is normal.** At the very ends the hull narrows to almost
+   nothing and there is no outline to build. The caller filters those out rather than
    treating it as an error.
 
 ### Where the side isn't straight
@@ -179,7 +186,7 @@ stay exactly where the lines plan puts them, and only the middle moves. It's a
 useful trick for any "bulge this edge" parameter.
 
 `amount` is a **fraction of the side's own slant height**, not a millimetre
-count. Near the bow the sections are small, and a fixed offset there would
+count. Near the ends the sections are small, and a fixed offset there would
 swamp them; a fraction tapers automatically.
 
 Two non-obvious constraints, both of which cost real debugging time:
@@ -215,7 +222,7 @@ def _station_positions(x0: float, x1: float, count: int) -> np.ndarray:
     return x0 + (x1 - x0) * (1.0 - np.cos(t * np.pi)) / 2.0
 ```
 
-Hull curvature is concentrated at the bow and stern; amidships the shape barely
+Hull curvature is concentrated at the two ends; amidships the shape barely
 changes over long stretches. Cosine spacing puts samples where the shape is
 doing something. It's the same reasoning behind Chebyshev nodes, and it applies
 to almost any swept shape with busy ends.
@@ -274,16 +281,17 @@ section's closed top edge and leave an open boat.
 
 The real boat isn't one continuous open cavity: it carries three platforms — a
 forecastle, a middle platform and the quarterdeck — at three different heights,
-with the bilge open between them.
+with the bilge open between them. All three are measured off the Smithsonian's
+scan of the surviving boat.
 
 That's described declaratively in [`main.py`](main.py):
 
 ```python
 decks = (
     (
-        Deck(0.0, 7 / 24, 0.50),
-        Deck(9 / 24, 15 / 24, 0.40),
-        Deck(17 / 24, 1.0, 0.20),
+        Deck(0.0, 0.31, 0.48),
+        Deck(0.39, 0.655, 0.34),
+        Deck(0.71, 1.0, 0.30),
     ),
 )
 ```
@@ -291,7 +299,7 @@ decks = (
 `start` and `end` are fractions of the overall length; `height` is a fraction
 of the hull's depth, measured up from the bottom. Anything no deck covers is
 hollowed right down to the inside of the bottom, so the gaps don't need
-declaring — [`_open`](hull.py) computes the complement.
+declaring — [`open_stretches`](hull.py) computes the complement.
 
 The trick that makes decks cheap: a **deck is just a cavity with a raised
 floor**. Put the cavity's bottom part-way up and the material below it is the
@@ -299,7 +307,7 @@ platform, while the hull's own sides carry on past it as bulwarks — for free.
 No separate deck surface, no lids, no extra booleans.
 
 ```python
-for stretch in _open(ordered):
+for stretch in open_stretches(ordered):
     hollowed = _cut(..., lambda x: lines.chine_height.value(x) + wall)
 
 for deck in ordered:
@@ -343,11 +351,11 @@ if hull.is_inside(Vector(x, 0.0, z)):
 *inside the band the deck skin would occupy* — a probe lower down finds air
 whether or not the deck was removed, which is a test that always passes.
 
-**Solve for geometry rather than sampling it.** Near the stem the hull is
+**Solve for geometry rather than sampling it.** Near each end the hull is
 narrower than two walls, so the cavity has to stop and leave the ends solid.
 Letting that happen wherever the stations land makes the solid plugs an
-artefact of the station count — the bow plug varied from 812mm to 1566mm purely
-with `stations`, quietly changing print weight. [`_cavity_span`](hull.py#L341)
+artefact of the station count — a plug's length moves by the better part of a
+metre (full size) purely with `stations`, quietly changing print weight. [`_cavity_span`](hull.py#L341)
 bisects for the true boundary instead:
 
 ```python
@@ -387,11 +395,11 @@ conversion happens **once, at the very end**:
 ```python
 factor = spec.length / lines.length
 ...
-return _as_part(scale(hull, factor), "scaling")
+return as_part(scale(hull, factor), "scaling")
 ```
 
 Everything upstream works in source units, and anything expressed in finished
-millimetres (`wall`, `bulwark`, `OpenSpan.floor`) is divided by `factor` on the
+millimetres (`wall`) is divided by `factor` on the
 way in. Mixing the two is a rich source of bugs — a wall that's 55× too thick
 produces a completely solid hull that looks fine until you weigh it.
 
@@ -473,7 +481,7 @@ floor. A bore one millimetre longer is a hole in the boat.
 
 **The tube runs all the way down**, which does two jobs. It steps the mast, and
 it plants a pillar under the middle of the bar. Without it the bar is a single
-73mm unsupported span to bridge, printed bottom-up; with it, two of 31.6mm.
+78mm unsupported span to bridge, printed bottom-up; with it, two of 34.4mm.
 
 ### Why the mast is hexagonal
 
@@ -611,28 +619,28 @@ inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.b
 ```
 
 The side flares outward going up, so the inside is narrowest down at the deck —
-by 5mm on the quarterdeck. Measuring at the rail would put the feet through the
-planking. It also means legs too far aft pinch the frame to a point, which is
-why they stop at 0.86 rather than running to the transom.
+by about 3.5mm on the quarterdeck. Measuring at the rail would put the feet
+through the planking. The hull also closes in fast toward the transom, so legs
+too far aft pinch the frame to a point, which is why they stop at 0.82 and the
+frame at 0.86 rather than running to the transom.
 
-### A boss keeps the socket out of the water
+### A boss keeps the socket out of the bottom
 
-The obvious thing is to bore the socket straight into the deck. On the
-quarterdeck that nearly sinks the boat: the deck is at z 6.6 and the hull's
-outside at 1.54, so there is about 5mm of solid, and she floats at 3.5mm. A
-socket deep enough to hold a leg would bottom out **below the waterline** with a
-millimetre of hull under it.
+The obvious thing is to bore the socket straight into the deck. But a deck is
+modelled solid from the bottom up, so the floor of that socket is the boat's
+bottom, below the waterline. On the quarterdeck there is 8.3mm of solid; a 5mm
+socket would take most of it.
 
-So each leg steps on a 3mm boss and the socket is bored into that, leaving 3mm
-of floor. `fit_awning` refuses to build a frame whose sockets come within 2mm of
-the outside, and a test checks the same thing from the other end.
+So each leg steps on a 3mm boss and the socket is bored into that, leaving over
+6mm of floor. `fit_awning` refuses to build a frame whose sockets come within
+2mm of the outside, and a test checks the same thing from the other end.
 
 ### The roof is planar on purpose
 
-The sheer rises about 5mm under the awning and the roof does not follow it — the
-legs absorb it instead. That is what lets the part print **roof down**, with the
+The sheer rises about 3.5mm toward the transom under the awning and the roof
+does not follow it — the legs absorb it instead. That is what lets the part print **roof down**, with the
 roof as one flat connected first layer and the legs rising off it as plain
-columns. Following the sheer would leave the ends of the roof standing up to 5mm
+columns. Following the sheer would leave the ends of the roof standing 3.5mm
 off the bed with the first crossbars hanging in air.
 
 The side rails are a polyline through the leg tops, carried past the end legs on
@@ -645,12 +653,12 @@ deck, so asking it would kink the rail outward at each end.
 If you want to do this for a different boat:
 
 1. **Draw four curves** in DXF over your reference — sheer and chine, each in
-   half-breadth and profile. Keep them single-valued in X. Put stem and transom
+   half-breadth and profile. Keep them single-valued in X. Put the ends'
    closing lines on their own layer or omit them.
 2. **Point [`lines.py`](lines.py) at your layer names** and set `PROFILE_OFFSET`
    to however far apart you drew the two views.
 3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `decks`,
-   `bulwark`, `bulge`.
+   `bulge`.
 4. **Run `just watch`** and tune by eye.
 
 If your boat has a *rounded* bilge rather than a hard chine, `_side_profile` is

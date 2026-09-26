@@ -187,7 +187,7 @@ def fit_mast(hull: Part, spec: HullSpec, lines: HullLines, rig: Rig | None = Non
     The tube runs all the way down to the bottom, which is doing two jobs. It
     steps the mast, and it plants a pillar under the middle of the bar -- the
     bar spans the whole well, and without something under it that is a single
-    unsupported span of about 73mm to bridge. Halved, it is printable.
+    unsupported span of about 78mm to bridge. Halved, it is printable.
     """
     rig = rig or Rig()
     seat = step(spec, lines, rig)

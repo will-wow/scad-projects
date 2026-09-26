@@ -8,39 +8,48 @@ Yes, comfortably, and at any infill you would plausibly choose. PLA is denser
 than water (1.24 g/cm³), so a solid lump of it sinks; this hull floats because
 it encloses far more air than it contains plastic.
 
-At 300mm LOA with the current spec, the modelled solid is **164.6 cm³** inside
-an external envelope of **408.3 cm³**. Everything follows from that ratio.
+At 300mm LOA with the current spec, the modelled solid is **176.3 cm³** inside
+an external envelope of **408.4 cm³**. Everything follows from that ratio.
+
+Draft is measured up from the bottom of the print, and freeboard up from the
+waterline to the lowest point of the rail, amidships, which stands 21.7mm
+above the bottom.
 
 | Infill | Mass | Draft | Freeboard |
 | -----: | ---: | ----: | --------: |
-| 10% | 20.4 g | 2.9 mm | 29.9 mm |
-| 15% | 30.6 g | 3.5 mm | 29.2 mm |
-| 25% | 51.0 g | 4.8 mm | 28.0 mm |
-| 40% | 81.6 g | 6.7 mm | 26.1 mm |
-| 100% (solid) | 204.1 g | 13.7 mm | 19.1 mm |
+| 10% | 21.9 g | 1.4 mm | 20.3 mm |
+| 15% | 32.8 g | 2.1 mm | 19.6 mm |
+| 25% | 54.6 g | 3.5 mm | 18.2 mm |
+| 40% | 87.4 g | 5.5 mm | 16.2 mm |
+| 100% (solid) | 218.6 g | 12.9 mm | 8.8 mm |
 
 Two worth noting:
 
-- **Even solid PLA floats**, with well over half the hull's depth above water.
+- **Even solid PLA floats**, with 8.8mm of freeboard at the lowest point of
+  the rail.
 - **Even a waterlogged print floats.** If every infill void fills with water
-  (170.5 g at 15% infill) it settles to 11.8mm and stays there.
+  (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
-The fittings barely register: mast, sails and awning together are 24.3 cm³, so
-at 15% infill they add 4.5 g and about a third of a millimetre of draft.
+The fittings barely register: mast, sails and awning together are 23.3 cm³, so
+at 15% infill they add 4.3 g and about a quarter of a millimetre of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
-## The four parts
+## The parts
 
 `just build` writes one file per part, because each wants a different
-orientation and a different profile:
+orientation and a different profile. The rig and the hull:
 
 | File | Size | Orientation | Notes |
 | --- | --- | --- | --- |
 | `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
 | `philadelphia-mast.3mf` | 200.8 x 72.3 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
-| `philadelphia-sails.3mf` | 69 x 121 x 6.6mm | as exported, flat | two separate sails in one file |
-| `philadelphia-awning.3mf` | 159.6 x 73.6 x 36.1mm | as exported, **roof down** | legs point up; do not flip it |
+| `philadelphia-sails.3mf` | 69 x 121.4 x 6.6mm | as exported, flat | two separate sails in one file |
+| `philadelphia-awning.3mf` | 143.1 x 72.7 x 33.4mm | as exported, **roof down** | legs point up; do not flip it |
+
+It also writes the four gun parts -- `gun`, `carriage`, `trunnion` and
+`cap-square` -- each in its own print orientation; the README's section on the
+guns covers how they print.
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the
@@ -64,13 +73,13 @@ layer -- one connected grid, well stuck to the bed -- and the eight legs rise
 off it as plain columns with nothing to bridge. Flipped the other way up, the
 legs print first as thin towers and the entire roof has to span between them.
 
-The legs are the thing to watch: 3.4mm square and up to 30mm tall, eight of them
+The legs are the thing to watch: 3.4mm square and up to 28mm tall, eight of them
 standing free. Slow the outer walls down, and if the tops ring or lean, print
 them with a bit more cooling rather than adding supports.
 
-The bar across the forward well **bridges about 31.6mm on each side of the
+The bar across the forward well **bridges about 34.4mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would
-otherwise be a single 73mm span. If the underside sags badly enough to bother
+otherwise be a single 78mm span. If the underside sags badly enough to bother
 you, it is inside the hull and out of sight; the fix would be a small gusset
 where the bar meets the tube.
 
@@ -96,13 +105,13 @@ Do not use vase mode — it would discard the decks, the bulwarks and the wall.
 
 ## Ballast and the waterline
 
-The opposite problem to sinking: at 15% infill she draws 3.9mm on a 31.2mm
+The opposite problem to sinking: at 15% infill she draws 2.1mm on a 31.2mm
 hull and rides like a leaf.
 
 | Target draft | Total mass needed |
 | -----------: | ----------------: |
-| 8 mm | 103.9 g |
-| 11 mm | 156.2 g |
+| 8 mm | 130.3 g |
+| 11 mm | 183.6 g |
 
 If the real boat drew about two feet, that is roughly 11mm at 1:55 — worth
 checking against a source, but the order of magnitude is right.
@@ -114,16 +123,15 @@ the same job and is easier to tune by feel.
 
 ## One thing about the layout
 
-The open spans hollow to the bottom, so their floors sit about 2mm above the
-hull's bottom — **below the external waterline**. That is normal for a boat,
+The open wells hollow to the bottom, so their floors sit 2mm above the hull's
+bottom — **at or below the external waterline** at any usual infill. That is normal for a boat,
 but it means a hull leak floods the boat directly rather than merely wetting
 the infill. Worth a sink test before painting.
 
 ## Recomputing these numbers
 
-They come from the model, so they move when the spec does. Displacement is the
-integral of submerged section area along the length, using the same
-`sheer_half_width` / `chine_half_width` / heights that [`hull.py`](hull.py)
-lofts, plus the swell from [`Bulge`](hull.py#L55); mass is the part volume
-times infill fraction times 1.24 g/cm³. The envelope figure is
-`build(replace(spec, wall=0.0)).volume` — the outer loft with no cavity.
+They come from the model, so they move when the spec does. The envelope is
+`build(replace(spec, wall=0.0))` — the outer loft with no cavity — and
+displacement at a draft is the volume of its intersection with a box that deep
+from the bottom up; bisect on the draft until that matches the mass. Mass is
+the part volume times infill fraction times 1.24 g/cm³.

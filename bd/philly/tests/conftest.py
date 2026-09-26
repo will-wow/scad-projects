@@ -46,9 +46,9 @@ STATIONS = 12
 # The model's own layout: a forecastle, a middle platform and a quarterdeck,
 # stepping down from bow to stern, with the bilge open between them.
 DECKS = (
-    Deck(0.0, 7 / 24, 0.50),
-    Deck(9 / 24, 15 / 24, 0.40),
-    Deck(17 / 24, 1.0, 0.20),
+    Deck(0.0, 0.31, 0.48),
+    Deck(0.39, 0.655, 0.34),
+    Deck(0.71, 1.0, 0.30),
 )
 
 

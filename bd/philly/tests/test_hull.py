@@ -60,8 +60,8 @@ def test_hollowing_actually_removes_material(open_hull, solid_hull):
 
 
 def test_the_deck_is_open_where_it_should_be(open_hull, lines):
-    """The wrong face was once opened -- the stem instead of the deck -- which
-    leaves a lid on and a hole in the bow, watertight and plausible."""
+    """The wrong face was once opened -- an end instead of the deck -- which
+    leaves a lid on and a hole in the end, watertight and plausible."""
     factor = HullSpec().length / lines.length
     for fraction in (0.35, 0.5, 0.65):
         x = HullSpec().length * fraction
@@ -92,7 +92,7 @@ def test_cavity_ends_do_not_move_with_the_station_count(lines):
     """Sections should buy smoothness and nothing else.
 
     When the cavity stopped at whichever station happened to fall nearest, the
-    solid bow plug ranged over 800mm and the volume swung 11% -- print weight
+    solid end plugs ranged over most of a metre and the volume swung 11% -- print weight
     moving with a setting that is supposed to be cosmetic."""
     spec = HullSpec()
     wall = spec.wall / (spec.length / lines.length)

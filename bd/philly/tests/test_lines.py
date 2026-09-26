@@ -34,14 +34,27 @@ def test_curves_run_bow_to_stern(lines):
 
 
 def test_closing_lines_are_not_read_as_hull_lines(lines):
-    """The stem and transom verticals close the outline; they are not the curve.
+    """The verticals across each end close the outline; they are not the curve.
 
-    Reading them leaves two half-widths at one station, which came out as the
-    stern tapering to a point instead of ending in a transom.
+    Reading one leaves two half-widths at its station, and sorting then puts the
+    zero first, so that end tapers to a point instead of keeping its width.
     """
     sheer = lines.sheer_half_width
-    assert sheer.y[-1] > 50.0, "the stern should end in a transom, not a point"
-    assert sheer.y[0] > 0.0, "the bow should end in a stem of some width"
+    assert sheer.y[0] > 50.0, "the bow should keep its width, not come to a point"
+    assert sheer.y[-1] > 0.0, "the transom should keep some width"
+
+
+def test_the_bow_is_at_x_zero(lines):
+    """The fuller, lower end is forward -- which is where the scan has the mast
+    and the bow gun. The DXF is drawn from the other end, so this is what
+    catches `load()` forgetting to turn it round.
+
+    The scan gives half-breadths of 1645 two metres aft of the bow and 1474 two
+    metres forward of the transom.
+    """
+    bow, stern = 2000.0, lines.length - 2000.0
+    assert lines.sheer_half_width.value(bow) > lines.sheer_half_width.value(stern)
+    assert lines.sheer_height.value(bow) < lines.sheer_height.value(stern)
 
 
 def test_sheer_is_above_the_chine_everywhere(lines):
@@ -56,7 +69,7 @@ def test_sampling_clamps_rather_than_extrapolating(lines):
     """Off the end of a curve, hold the end value.
 
     The curves cover slightly different spans, and a sheer rising steeply at
-    the stern would run away if its last segment were extended.
+    the transom would run away if its last segment were extended.
     """
     curve = lines.sheer_height
     low, high = curve.span

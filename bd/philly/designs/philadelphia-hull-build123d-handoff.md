@@ -56,11 +56,10 @@ plan**), and `SHEER_PROFILE` and `BASE_PROFILE` (height vs. length — a
 centerline for full beam.
 
 Because it's a raw scan of a damaged, 250-year-old wreck (plus surviving
-fittings like a swivel-gun mount near the bow), the extracted curves have
-noise: a couple of dips in the chine/plan curve (around the bow region), and
-a likely bad final point or two in both profile curves near the stern
-(probably the transom confusing the "local top" search rather than real
-hull shape). **These have been manually faired out in LibreCAD** — see
+fittings like a swivel-gun mount), the extracted curves have noise: a
+couple of dips in the chine/plan curve (in the after half), and a likely bad
+final point or two in both profile curves near the bow (probably the stem
+confusing the "local top" search rather than real hull shape). **These have been manually faired out in LibreCAD** — see
 Current Status below.
 
 ## File manifest
@@ -70,15 +69,17 @@ Current Status below.
   later.
 - `philadelphia_hull_lines.dxf` — the working lines-plan file, contains:
   - **Plan view** (drawn near Y = 0 to Y ≈ 2500 in the DXF): layers
-    `SHEER_TOP`, `CHINE_BOTTOM` (raw curves, LWPOLYLINE, X = length from bow,
+    `SHEER_TOP`, `CHINE_BOTTOM` (raw curves, LWPOLYLINE, X = length from transom,
     Y = half-width from centerline), `CENTERLINE` (reference line, dashed).
   - **Profile view** (offset below the plan view by **Y = −3200mm** so the
     two views don't overlap): layers `SHEER_PROFILE`, `BASE_PROFILE` (raw
-    curves, X = length from bow, Y = height-above-keel + (−3200) offset —
+    curves, X = length from transom, Y = height-above-keel + (−3200) offset —
     **subtract the −3200 offset to recover true height above baseline**),
     `BASELINE` (reference line at the offset height, dashed).
   - `NOTES` layer — text annotations, not geometry.
-  - All units mm, bow = X:0 in both views.
+  - All units mm, transom = X:0 in both views: the drawing runs stern-first,
+    and X increases toward the bow. `lines.py` mirrors it on load, so the
+    model's X is the distance aft of the bow.
 - Any LibreCAD-faired curves will be added by the user as new layers in this
   same file named `FAIR_BOTTOM` / `FAIR_TOP` / `FAIR_SHEER_PROFILE` / `FAIR_BASE_PROFILE`
 
@@ -165,13 +166,13 @@ Current Status below.
 ## Known data-quality caveats to double check against the fair curves
 
 - Chine/plan curve: noticeable dips in the raw data around two stations in
-  the forward half of the hull (scan gaps, not real hull features) — confirm
+  the after half of the hull (scan gaps, not real hull features) — confirm
   these were faired out.
-- Profile curves (both sheer and base): the last 1–2 stations near the stern
+- Profile curves (both sheer and base): the last 1–2 stations near the bow
   looked like scan/data artifacts rather than true hull shape (an abrupt
   height change inconsistent with the surrounding curve) — confirm the faired
   version smooths through this rather than following it literally.
-- Base profile near the very bow read as near-zero height for the first
+- Base profile near the transom read as near-zero height for the first
   couple of stations, which may be a scan gap rather than the bottom truly
   meeting the baseline that early — worth a sanity check against the plan
-  view's bow taper.
+  view's taper there.

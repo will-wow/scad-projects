@@ -368,8 +368,9 @@ def _cavity_span(lines: HullLines, wall: float, x0: float, x1: float) -> tuple[f
     Near the stem and the transom the hull is narrower than two walls, so the
     cavity has to stop and leave those ends solid. Letting that happen wherever
     the stations happen to land makes the solid plugs an artefact of sampling:
-    the bow plug measured anywhere from 812mm to 1566mm depending only on the
-    station count, which silently changed print weight along with it. Solving
+    a plug's length would move by the better part of a metre (full size)
+    depending only on the station count, silently changing the print weight
+    along with it. Solving
     for the boundary instead pins the plugs to the geometry, so `stations`
     controls smoothness and nothing else.
     """

@@ -2,8 +2,8 @@
 
 Two things here are worth more than the rest. The frame has to clip the topsail,
 which is a dimension owned by rig.py -- so that is checked against the sail
-rather than against a number copied out of it. And a socket bored into the
-quarterdeck can reach below the waterline, which would sink a boat that floats
+rather than against a number copied out of it. And a socket bored into a deck
+is bored into the bottom of the hull, which would leak a boat that floats
 perfectly well in every other respect.
 """
 
@@ -46,7 +46,7 @@ class TestFrame:
     def test_the_roof_is_planar(self, shape, lines):
         """Which is what lets it print roof-down with nothing to support.
 
-        The sheer rises about 5mm under the awning; the legs absorb that instead
+        The sheer rises toward the transom under the awning; the legs absorb that instead
         of the roof following it.
         """
         upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
@@ -116,9 +116,8 @@ class TestSockets:
         return awnings.fit_awning(build(HULL, lines), HULL, lines, AWNING, RIG)
 
     def test_no_socket_comes_near_the_outside_of_the_hull(self, shape):
-        """The quarterdeck leaves about 5mm of solid above the hull's outside and
-        the boat floats at 3.5mm, so a socket bored straight into it would bottom
-        out under water. The bosses exist to keep the hole out of trouble."""
+        """A deck is solid down to the outside of the hull, so a socket's floor
+        is the boat's bottom. The bosses exist to keep the hole out of it."""
         for foot in shape.feet:
             left = foot.socket_floor - foot.bottom
             assert left >= FLOOR, (

@@ -37,9 +37,9 @@ BOSS = 7.0
 BOSS_HEIGHT = 3.0
 SOCKET_DEPTH = 5.0
 
-# Material that must be left under a socket. The quarterdeck is only about 5mm
-# of solid above the outside of the hull, and the boat floats at 3.5mm, so a
-# socket bored straight into it would bottom out below the waterline.
+# Material that must be left under a socket. A deck is solid from the bottom of
+# the hull up, so a socket's floor is also the hull's bottom, and anything
+# thinner than a wall there is a leak waiting to happen.
 FLOOR = 2.0
 
 
@@ -47,15 +47,15 @@ FLOOR = 2.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    span: tuple[float, float] = (0.375, 0.90)
-    """fore and aft extent: from the front of the middle platform to near the transom"""
-    legs: tuple[float, ...] = (0.42, 0.58, 0.74, 0.86)
+    span: tuple[float, float] = (0.39, 0.86)
+    """fore and aft extent: from the front of the middle platform to short of the transom"""
+    legs: tuple[float, ...] = (0.42, 0.58, 0.74, 0.82)
     """where the pairs of uprights stand
 
-    Kept off the last tenth of the boat. An upright stands on its deck, and the
-    quarterdeck is low, where the hull is much narrower than it is at the rail
-    -- 15mm of half-width at 0.92 against 21mm a bulwark higher. Legs that far
-    aft pinch the frame to a point.
+    Kept well forward of the transom, where the hull closes in fast: an upright
+    stands on the quarterdeck, and the inside there narrows from 27mm of
+    half-width at 0.80 to 15mm at 0.90. Legs that far aft pinch the frame to a
+    point.
     """
     rise: float = 0.40
     """roof clearance above the highest rail it spans, as a fraction of the hull's depth"""
@@ -284,11 +284,10 @@ def fit_awning(
 ) -> Part:
     """Add the bosses to the decks and bore the sockets.
 
-    The bosses exist so the sockets do not have to be bored into the decks
-    themselves. The quarterdeck leaves only about 5mm of solid above the outside
-    of the hull and the boat floats at 3.5mm, so a socket deep enough to hold a
-    leg would bottom out under water with a millimetre of hull beneath it.
-    Standing the socket up in a boss keeps the hole out of trouble.
+    The bosses stand the sockets up off the decks. A deck is solid down to the
+    outside of the hull, so a socket bored straight into it would take most of
+    its depth out of the bottom; in a boss, most of the hole is above the deck
+    and the hull under it keeps its thickness.
     """
     shape = frame(spec, lines, awning, rig)
     bore = BAR + 2.0 * TOLERANCE
