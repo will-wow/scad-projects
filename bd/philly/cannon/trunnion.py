@@ -33,7 +33,7 @@ class TrunnionSpec:
     # Right through the gun and both brackets. One length serves both carriages:
     # the 9-pounder's brackets are closer together, so on that gun the ends
     # stand a couple of tenths proud, which reads as the flat end of a trunnion.
-    length: float = 10.5
+    length: float = 11.7
     press: float = 0.0  # diameter fit in the barrel; a printed hole's undersize is the grip
     running: float = 0.3  # diameter clearance in the carriage's clips, so the gun turns
 

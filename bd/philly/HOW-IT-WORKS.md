@@ -754,7 +754,7 @@ inside the 2% PLA takes. `Slide.strain` does the sum and a test holds it under
 ### Height comes from what the gun has to clear
 
 `CarriageSpec.axis_height` is the trunnion axis above the deck, taken from the
-scan: 14.1mm above the forecastle for the bow gun, and for the 9-pounders
+scan: 13.9mm above the forecastle for the bow gun, and for the 9-pounders
 whatever puts the axis 15.6mm above the platform where the barrel crosses the
 rail. Everything else follows. The bed is as high as it can be while the base
 ring clears it at the quoin's elevation (`breech_drop`); the bracket steps hang
@@ -786,8 +786,15 @@ recoiling draws thicker, lower barrel over the rail for as long as the muzzle is
 still outboard of it. The barrel's radius comes from `cannon.outline`, a
 deliberately generous envelope, with the swell's radius all the way back to the
 neck and every ring at full height. `mounts` refuses any gun under `MARGIN`. At
-the scan's heights the bow gun clears by 1.08mm and the broadside guns by 0.86
-and 0.78, which is why the real boat needed no gunports.
+the scan's heights the bow gun clears by 0.50mm and the broadside guns by 0.52
+and 0.44, which is why the real boat needed no gunports.
+
+Those were a millimetre apiece until the barrels were measured off the scan
+rather than proportioned from a founder's table: the true piece is half a
+calibre fatter at the breech, and the fat end is what passes over the rail. The
+tightest point is the rail's inboard edge with the gun run out, and 0.44mm is
+about an inch at full size -- which is roughly what the scan itself shows under
+the starboard 9-pounder. There is no slack left to spend on a thicker rail.
 
 `fit_guns` lays the slides after `build`, like every other fitting, and then
 probes the fitted hull: deck under each corner of the carriage and open air

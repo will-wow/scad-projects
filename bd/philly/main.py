@@ -48,8 +48,10 @@ RIG = rigging.Rig()
 
 AWNING = awnings.Awning()
 
-# The 12-pounder in the bow: the scan puts its axis 14.1mm above the forecastle
-# at 4.1 degrees, which is CarriageSpec's default.
+# The 12-pounder in the bow: the scan puts its axis 13.9mm above the forecastle
+# at 4.1 degrees, which is CarriageSpec's default. Its station is where the
+# trunnions fall when the muzzle is where the scan has it, just past the stem --
+# so it moved aft when the barrel was measured and came out longer.
 BOW_CHASER = CarriageSpec()
 
 # The 9-pounders. The scan measured the starboard gun's axis 15.6mm above the
@@ -58,7 +60,7 @@ BOW_CHASER = CarriageSpec()
 BROADSIDE = CarriageSpec(gun=NINE_POUNDER, axis_height=14.64, elevation=4.0)
 
 GUNS = (
-    ordnance.Gun(station=0.083, side=0, carriage=BOW_CHASER),
+    ordnance.Gun(station=0.0895, side=0, carriage=BOW_CHASER),
     ordnance.Gun(station=0.483, side=-1, carriage=BROADSIDE),
     ordnance.Gun(station=0.606, side=1, carriage=BROADSIDE),
 )
