@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.py[cod]
+*.3mf
+*.stl
+*.step
+dist/
+.claude/worktrees
+preview/
+designs/scan/*.glb

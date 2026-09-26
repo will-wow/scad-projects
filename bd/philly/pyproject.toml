@@ -1,0 +1,52 @@
+[project]
+name = "philly"
+version = "0.1.0"
+description = "3D-printable model of the 1776 gunboat USS Philadelphia"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "build123d",
+    "ocp-vscode",
+]
+
+[dependency-groups]
+dev = [
+    "pyright>=1.1.414",
+    "pytest>=9.1.1",
+    "ruff>=0.16.8",
+    "watchfiles>=1.2.0",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "SIM117", # build123d's BuildPart/BuildSketch/BuildLine nesting is idiomatic, not incidental
+]
+
+[tool.pyright]
+include = ["."]
+# Standalone: run with its own dependencies, which the project does not carry.
+exclude = ["designs/measure_scan.py", ".venv"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.14"
+typeCheckingMode = "standard"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    # lib3mf's ctypes structures trip a 3.19 deprecation; not ours to fix.
+    "ignore:Due to '_pack_':DeprecationWarning",
+]

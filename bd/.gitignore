@@ -1,0 +1,5 @@
+__pycache__
+*.dxf~
+**/#*.dxf
+.venv
+.ruff_cache
