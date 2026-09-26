@@ -11,8 +11,11 @@ from build123d import Part, Pos
 from ocp_vscode import show_object
 
 import awning as awnings
+import guns as ordnance
 import lines as hull_lines
 import rig as rigging
+from cannon.cannon import NINE_POUNDER
+from cannon.carriage import CarriageSpec, carriage
 from hull import Bulge, Deck, HullSpec, build
 from preview import preview_mode
 
@@ -45,16 +48,35 @@ RIG = rigging.Rig()
 
 AWNING = awnings.Awning()
 
+# The 12-pounder in the bow: the scan puts its axis 14.1mm above the forecastle
+# at 4.1 degrees, which is CarriageSpec's default.
+BOW_CHASER = CarriageSpec()
 
-def model() -> Part:
-    """The hull, with the mast's step and the awning's sockets fitted.
+# The 9-pounders. The scan measured the starboard gun's axis 15.6mm above the
+# platform where it crosses the rail, at 4.0 degrees; run out, that is 14.64 at
+# the trunnions. The port gun was scanned run in, so it takes the same carriage.
+BROADSIDE = CarriageSpec(gun=NINE_POUNDER, axis_height=14.64, elevation=4.0)
 
-    Both fittings run after `build`, which is not optional: the cavity
+GUNS = (
+    ordnance.Gun(station=0.083, side=0, carriage=BOW_CHASER),
+    ordnance.Gun(station=0.483, side=-1, carriage=BROADSIDE),
+    ordnance.Gun(station=0.606, side=1, carriage=BROADSIDE),
+)
+
+
+def fitted(lines: hull_lines.HullLines) -> Part:
+    """The hull with the mast's step, the awning's sockets and the guns' slides.
+
+    Every fitting runs after `build`, which is not optional: the cavity
     subtraction would carve away anything added before it.
     """
-    lines = hull_lines.load()
     hull = rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
-    return awnings.fit_awning(hull, HULL, lines, AWNING, RIG)
+    hull = awnings.fit_awning(hull, HULL, lines, AWNING, RIG)
+    return ordnance.fit_guns(hull, HULL, lines, GUNS)
+
+
+def model() -> Part:
+    return fitted(hull_lines.load())
 
 
 def mast() -> Part:
@@ -75,6 +97,11 @@ def awning() -> Part:
 def canvas() -> Part:
     """The awning's canvas, flat on the bed like the sails."""
     return awnings.canvas(HULL, hull_lines.load(), AWNING, RIG)
+
+
+def broadside_carriage() -> Part:
+    """The 9-pounders' carriage; print two. The bow gun's is `cannon.carriage:model`."""
+    return carriage(BROADSIDE)
 
 
 def main() -> None:

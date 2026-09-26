@@ -34,6 +34,8 @@ PARTS = (
     "main:canvas=awning-canvas",
     "cannon.cannon:model=gun",
     "cannon.carriage:model=carriage",
+    "cannon.cannon:nine_pounder=gun-9",
+    "main:broadside_carriage=carriage-9",
     "cannon.trunnion:model=trunnion",
     "cannon.cap_square:model=cap-square",
 )

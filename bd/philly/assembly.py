@@ -22,10 +22,10 @@ from build123d import Compound, Part, Pos, Rot
 from ocp_vscode import show_object
 
 import awning as awnings
+import guns as ordnance
 import lines as hull_lines
 import rig as rigging
-from hull import build
-from main import AWNING, HULL, RIG
+from main import AWNING, GUNS, HULL, RIG, fitted
 
 
 def _stepped_mast(lines, seat) -> Part:
@@ -65,14 +65,17 @@ def _hung_sails(lines, seat) -> list[Part]:
     return hung
 
 
-def parts() -> dict[str, Part]:
+def parts() -> dict[str, Part | Compound]:
     """Every piece, named and in its assembled place."""
     lines = hull_lines.load()
     seat = rigging.step(HULL, lines, RIG)
     sails = _hung_sails(lines, seat)
-    hull = rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
+    guns = {
+        f"gun at {m.gun.station:.3f}": ordnance.placed(m)
+        for m in ordnance.mounts(HULL, lines, GUNS)
+    }
     return {
-        "hull": awnings.fit_awning(hull, HULL, lines, AWNING, RIG),
+        "hull": fitted(lines),
         "mast": _stepped_mast(lines, seat),
         "course": sails[0],
         "topsail": sails[1],
@@ -80,6 +83,8 @@ def parts() -> dict[str, Part]:
         # only way to see whether it clears the mast and its sails.
         "awning": awnings.upright_frame(HULL, lines, AWNING, RIG),
         "canvas": awnings.rigged_canvas(HULL, lines, AWNING, RIG),
+        # Run out, each resting on its quoin.
+        **guns,
     }
 
 

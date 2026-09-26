@@ -1,5 +1,18 @@
 # Fitting the guns to the hull
 
+> **Built.** What follows is the plan as written; the build departs from it in
+> three places, all explained in HOW-IT-WORKS.md Part 12:
+>
+> - **A slide on the deck, not a channel in it.** The drawer-and-detent could
+>   not survive the boat being turned over: the foot's headroom over the ridge
+>   is exactly what lets it slide out upside down. The carriage now clips onto
+>   a raised rail from above with two springy clamps, and chocks at the rail's
+>   ends stop it run out and recoiled.
+> - **No 1.8mm seat under the bow gun.** It stands on the forecastle with its
+>   axis 14.1mm above it, which is the same height.
+> - **A hinge block on each bracket.** The cap squares could slide aft off
+>   their rails, which nothing in this plan covered.
+
 The plan for the next piece of work. The guns themselves are built -- barrel,
 carriage, trunnion pegs and cap squares, in `cannon/` (see
 [`guns-handoff.md`](guns-handoff.md)) -- but nothing yet puts them in the boat.

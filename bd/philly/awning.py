@@ -45,13 +45,13 @@ FLOOR = 2.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    legs: tuple[float, ...] = (0.42, 0.58, 0.74, 0.82)
+    legs: tuple[float, ...] = (0.42, 0.55, 0.74, 0.82)
     """where the pairs of uprights stand, which is also where the frame ends
 
     Kept well forward of the transom, where the hull closes in fast: an upright
     stands on the quarterdeck, and the inside there narrows from 27mm of
     half-width at 0.80 to 15mm at 0.90. Legs that far aft pinch the frame to a
-    point.
+    point. The second pair stands between the two 9-pounders' carriages.
     """
     rise: float = 0.40
     """roof clearance above the highest rail under it, as a fraction of the hull's depth"""

@@ -673,6 +673,117 @@ the bed with its crossbar hanging in air.
 
 The side rails are a polyline through the leg tops.
 
+## Part 12: the guns
+
+[`guns.py`](guns.py) puts three guns in the boat: the 12-pounder in the bow,
+firing over the stem, and a 9-pounder either side amidships, staggered and
+firing over the rail. The barrel, carriage, trunnion pegs and cap squares are in
+[`cannon/`](cannon); this is what stands them on the decks.
+
+### Why the carriage clips on rather than slides in
+
+The first plan was a drawer: a dovetail foot under the carriage, sliding in a
+channel cut into the deck, with a small ridge near the open end for the foot to
+click over. It fails the one test that matters for a toy: turn the boat over.
+The foot needs headroom above it to ride over the ridge, so upside down it
+hangs in that headroom, clear of the ridge, and slides straight out. No rigid
+shape fixes that -- any path in by sliding is a path out by sliding -- so
+something has to spring.
+
+The spring goes in the carriage, not the hull, for two reasons. A broken
+carriage is a twenty-minute reprint and a broken deck is a day. And a carriage
+prints small, so its spring can be laid out to bend **in the plane of the bed**:
+the strain then runs along the extruded lines rather than across the layers,
+which is where PLA is weakest.
+
+### The slide and the clamps
+
+[`cannon/slide.py`](cannon/slide.py) holds the interface, in printed
+millimetres like `TrunnionSpec`, and both sides are cut from it. The deck gets a
+**slide**, a low rail whose **head** is wider than its **neck**, so it has a lip
+down each side, and a **chock** across each end. The lip's underside is at 45
+degrees, so the rail prints with the hull.
+
+The carriage's bed is raised over a tunnel the slide runs through, with a gable
+roof at 45 degrees rather than a flat span. In the tunnel are two **clamps**:
+arms running the carriage's full length, fixed to the brackets at their middles,
+each with a hooked **jaw** at both ends. Press the carriage down onto the slide
+and the jaws ride down the head's chamfered top edges, spread, and snap under
+the lip. Clipped on, the carriage cannot lift off whichever way up the boat is,
+and it can only slide as far as the chocks, which stop it run out at one end and
+recoiled at the other. The jaws span the whole carriage, so the chocks sit just
+clear of its ends.
+
+A jaw is the rail's profile grown by the fit, and the one number to remember is
+that growing a 45-degree face by `fit` square to itself leaves `fit * sqrt 2` of
+room *vertically*. That is the carriage's play upward, and a test pins it.
+
+Each clamp arm is 13.5mm long and bends 0.45mm clipping on: 0.37% strain, well
+inside the 2% PLA takes. `Slide.strain` does the sum and a test holds it under
+1%.
+
+### Height comes from what the gun has to clear
+
+`CarriageSpec.axis_height` is the trunnion axis above the deck, taken from the
+scan: 14.1mm above the forecastle for the bow gun, and for the 9-pounders
+whatever puts the axis 15.6mm above the platform where the barrel crosses the
+rail. Everything else follows. The bed is as high as it can be while the base
+ring clears it at the quoin's elevation (`breech_drop`); the bracket steps hang
+off the rail's top; the quoin is sized to catch the breech at `elevation`, and
+ends short of the base ring.
+
+That last one was a fixed number until the 9-pounder showed why it cannot be.
+A shorter barrel puts its base ring over the old quoin, so the breech sat on the
+ring and the gun was a hair into the wedge. A test asks the physical question
+-- the gun at its elevation is clear of the carriage, half a degree more and it
+is in the quoin -- and `quoin_to` is now derived from where the ring starts.
+
+The gun rests on the quoin because it is breech-heavy, by a third of a
+millimetre. That is worth a test too: the other way round it would tip
+muzzle-down onto the rail.
+
+### Running out as far as the hull allows
+
+`mount` solves each gun against the lines. A broadside gun runs out until its
+carriage stands `CLEARANCE` off the planking, measured **at the deck**, since
+the side flares and is narrowest there, or until its outer chock would come
+within `SKIN` of the outside, whichever is nearer. The bow gun's run-out is the
+scan's -- its muzzle ends up 0.5mm past the stem, against the scan's 0.7 -- and
+is only checked.
+
+Then `Mount.clearance` walks the whole recoil and asks how far the barrel's
+underside stands over the rail. It has to be the whole run, not just the ends:
+recoiling draws thicker, lower barrel over the rail for as long as the muzzle is
+still outboard of it. The barrel's radius comes from `cannon.outline`, a
+deliberately generous envelope, with the swell's radius all the way back to the
+neck and every ring at full height. `mounts` refuses any gun under `MARGIN`. At
+the scan's heights the bow gun clears by 1.08mm and the broadside guns by 0.86
+and 0.78, which is why the real boat needed no gunports.
+
+`fit_guns` lays the slides after `build`, like every other fitting, and then
+probes the fitted hull: deck under each corner of the carriage and open air
+above it, at both ends of its run.
+
+### Two build123d surprises
+
+**`location * compound` moves the compound, not its children.** The first
+assembled boat reported every gun two cubic centimetres into the hull, because
+the children were still sitting at the origin -- in the bow's solid plug.
+`guns.placed` moves each piece.
+
+**Mirroring a profile reverses its winding, and `extrude` follows the face's
+normal.** The port clamp's jaw extruded backwards, off the end of the carriage,
+as a second solid. `Slide.jaw_profile` returns its corners anticlockwise on
+either side.
+
+### The cap square was never held aft
+
+The gun is held in its beds by the cap squares, and each one used to be stopped
+only by a detent forward. The bracket steps *down* aft of the rail, so nothing
+stopped the strap sliding on aft and off, and the gun could lift out. Each
+bracket now carries a **hinge** block at the rail's end, where the real strap is
+pinned, which the strap comes to rest against.
+
 ## Making your own hull
 
 If you want to do this for a different boat:
@@ -708,6 +819,8 @@ stations. `_side_profile` stays the only thing that changes.
 | [`watch.py`](watch.py) | warm-process live reload |
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
 | [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
+| [`guns.py`](guns.py) | where each gun stands, how far it runs out, and its slide in the deck |
+| [`cannon/`](cannon) | the barrel, carriage, trunnion pegs, cap squares and slide |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |

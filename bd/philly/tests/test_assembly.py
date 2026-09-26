@@ -26,16 +26,31 @@ def assembled():
     return assembly.parts()
 
 
+def _boxes_meet(first, second) -> bool:
+    """Most pairs are nowhere near each other, and a boolean between them is slow."""
+    one, other = first.bounding_box(), second.bounding_box()
+    return all(
+        low <= high and other_low <= other_high
+        for low, other_high, other_low, high in zip(
+            tuple(one.min), tuple(other.max), tuple(other.min), tuple(one.max), strict=True
+        )
+    )
+
+
 def test_nothing_occupies_the_same_space_as_anything_else(assembled):
     """Parts that overlap in the model are parts that will not go together.
 
     The sails failed this when they were first hung: each had 130 cubic
     millimetres of itself inside the mast, because a flat plate spanning the
-    whole yard passes straight through whatever is in the middle of it.
+    whole yard passes straight through whatever is in the middle of it. The
+    guns are here too, run out, which is what says the awning's legs, the mast
+    and the sails all stand clear of them.
     """
     names = list(assembled)
     for i, first in enumerate(names):
         for second in names[i + 1 :]:
+            if not _boxes_meet(assembled[first], assembled[second]):
+                continue
             shared = (assembled[first] & assembled[second]).volume
             assert shared == pytest.approx(0.0, abs=1e-6), (
                 f"{first} and {second} share {shared:.3f} mm3"

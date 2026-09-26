@@ -185,9 +185,10 @@ A peg's shank presses into a socket bored in the barrel; its **rimbase**, the
 collar a real trunnion has where it meets the piece, bears against the bracket
 and is too wide to follow the journal into the bed, which is what keeps the peg
 from working out. The gun drops into the two open beds and a cap square slides
-aft along each bracket's rail, over the trunnion, clicking past a detent.
+aft along each bracket's rail, over the trunnion, clicking past a detent, and
+comes to rest against the **hinge** block at the rail's end.
 
-Nothing is a spring. The first version held the gun by spreading the brackets
+Nothing holding the gun is a spring. The first version held the gun by spreading the brackets
 over a key on each peg, which is how it broke: at this scale a bracket only has
 about 3mm of height above the trunnion, so an entry slot at the overhang limit
 leaves a strap 2.8mm long and 0.9mm thick -- and the geometry ties those
@@ -214,6 +215,35 @@ just build                      # all of them, with the hull and the rig
 
 The cap square prints groove-up, which is upside down from how it is fitted.
 Everything else prints as modelled.
+
+### In the boat
+
+Each gun runs on a **slide** printed into its deck, a rail with a lip down each
+side and a **chock** across each end (`cannon/slide.py`). The carriage clips
+onto it from above: two springy **clamps** in a tunnel under its bed snap their
+jaws under the lip. Clipped on, it cannot come off whichever way up the boat
+is, and it runs between the chocks: out until the muzzle is over the side, and
+8mm back in recoil. Pull it straight up, firmly, to take it off.
+
+`guns.py` places them from the scan -- the 12-pounder on the forecastle firing
+over the stem, a 9-pounder each side of the middle platform -- runs each out as
+far as the hull allows, and checks the barrel clears the rail over its whole
+run. No gunports: at the scan's heights none are needed. HOW-IT-WORKS.md Part
+12 has the reasoning.
+
+To arm the boat, print:
+
+| Part | File | Count |
+| --- | --- | --- |
+| 12-pounder barrel | `philadelphia-gun.3mf` | 1 |
+| 12-pounder carriage | `philadelphia-carriage.3mf` | 1 |
+| 9-pounder barrel | `philadelphia-gun-9.3mf` | 2 |
+| 9-pounder carriage | `philadelphia-carriage-9.3mf` | 2 |
+| trunnion peg | `philadelphia-trunnion.3mf` | 6 |
+| cap square | `philadelphia-cap-square.3mf` | 6 |
+
+Put the carriage on its slide first, then the pegs in the barrel, the barrel in
+the carriage, and the cap squares on from the front.
 
 `cannon/assembly.py` is not printed. It hangs the gun off a `RevoluteJoint` on
 the trunnion axis -- positive `elevation` raises the muzzle -- and the tests

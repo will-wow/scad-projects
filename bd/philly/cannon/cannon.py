@@ -36,7 +36,7 @@ origin, bore along +Z. Nothing on the outside overhangs more than
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from build123d import (
     Align,
@@ -177,6 +177,26 @@ def base_ring_radius(spec: CannonSpec) -> float:
     return (spec.breech / 2 + spec.base_ring) * spec.calibre * spec.scale
 
 
+def outline(spec: CannonSpec, s: float) -> float:
+    """The most the gun stands off its axis, `s` printed mm back from the muzzle face.
+
+    An envelope rather than the exact profile: the swell's radius all the way
+    back to the neck, and each ring's full height over twice its width. Good for
+    asking whether the gun clears something, which is all it is for.
+    """
+    cal = spec.calibre * spec.scale
+    length = spec.length * spec.scale
+    if s <= spec.muzzle * cal:
+        return spec.swell * cal / 2
+    if s >= length - 3 * spec.base_ring * cal:
+        return base_ring_radius(spec)
+    radius = barrel_radius(spec, s / length)
+    for ring in spec.rings:
+        if abs(s - ring.at * length) <= 2 * ring.proud * cal:
+            radius += ring.proud * cal
+    return radius
+
+
 def _sockets(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
     """The two blind sockets for the trunnion pegs, as a solid to subtract.
 
@@ -293,9 +313,19 @@ def cannon(spec: CannonSpec) -> Part:
     return gun.part
 
 
+# The broadside guns. The scan gives a muzzle swell of 128mm, 2.4 calibres of a
+# 107mm bore, which is a 9-pounder; nothing gives the length, so it is the
+# 12-pounder's scaled by calibre.
+NINE_POUNDER = replace(CannonSpec(), calibre=107, length=2230)
+
+
 def model() -> Part:
     """The thing to render: `just preview --model cannon.cannon:model` looks for this."""
     return cannon(CannonSpec())
+
+
+def nine_pounder() -> Part:
+    return cannon(NINE_POUNDER)
 
 
 def main() -> None:

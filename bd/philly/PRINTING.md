@@ -9,7 +9,9 @@ than water (1.24 g/cm³), so a solid lump of it sinks; this hull floats because
 it encloses far more air than it contains plastic.
 
 At 300mm LOA with the current spec, the modelled solid is **176.3 cm³** inside
-an external envelope of **408.4 cm³**. Everything follows from that ratio.
+an external envelope of **408.4 cm³**. Everything follows from that ratio. (The
+guns' slides have since added 0.9 cm³ to the hull, which moves the table below
+by less than its rounding.)
 
 Draft is measured up from the bottom of the print, and freeboard up from the
 waterline to the lowest point of the rail, amidships, which stands 21.7mm
@@ -32,7 +34,9 @@ Two worth noting:
 
 The fittings barely register: mast, sails, awning and its canvas together are
 29.7 cm³, so at 15% infill they add 5.5 g and about a third of a millimetre of
-draft.
+draft. The guns weigh more than their size suggests, because parts that small
+print as nearly all wall: three barrels, three carriages and their pegs and cap
+squares are 10.8 cm³, about 13 g, and another 0.9mm of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
@@ -49,9 +53,17 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-awning.3mf` | 123.4 x 72.1 x 32.2mm | as exported, **roof down** | legs point up; do not flip it |
 | `philadelphia-awning-canvas.3mf` | 124.7 x 61.3 x 4.7mm | as exported, flat | print it with the sails' settings |
 
-It also writes the four gun parts -- `gun`, `carriage`, `trunnion` and
-`cap-square` -- each in its own print orientation; the README's section on the
-guns covers how they print.
+It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
+`gun-9` and `carriage-9` for the 9-pounders, `trunnion` and `cap-square` for
+all three -- each in its own print orientation; the README's section on the
+guns covers how they print and how many of each.
+
+The carriages print standing on the bed as exported. Their clamps are arms a
+millimetre wide with a hooked jaw at each end, and the jaws are what clip onto
+the slide, so they need to come out true: turn on elephant's-foot compensation,
+since a jaw squashed out at the first layer will bind on the slide. If a
+carriage is too stiff to clip on, ease the jaws' lead-ins rather than the
+slide, which is part of the hull.
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the

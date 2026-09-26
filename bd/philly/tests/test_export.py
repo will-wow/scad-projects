@@ -50,7 +50,7 @@ def test_a_box_exports_as_a_manifold_3mf(tmp_path):
     assert mesh.GetTriangleCount() == 12
 
 
-@pytest.mark.parametrize("part", ["cannon", "carriage", "trunnion", "cap_square"])
+@pytest.mark.parametrize("part", ["cannon", "carriage", "trunnion", "cap_square", "slide"])
 def test_every_printed_part_of_a_gun_exports_as_a_manifold_3mf(part, tmp_path):
     """The trunnion sockets, cut before the gun was scaled down, used to tessellate
     into a mesh no slicer would take: the sliver where a socket's apex pierces the

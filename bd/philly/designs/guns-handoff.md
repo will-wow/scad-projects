@@ -40,9 +40,10 @@ nests builders opened in the same Python frame; and fine cuts must be made
 after the final `scale()`, or the slivers they leave shrink below what OCCT
 will mesh and the 3MF comes out non-manifold.
 
-## Still to do
+## Fitted to the hull
 
-Fitting the guns to the hull: the slide each carriage rides on, and the height
-each gun has to sit at to fire over its rail. Both are planned in
-[`guns-integration-plan.md`](guns-integration-plan.md), against measurements
-taken off the Smithsonian's scan.
+Done: the guns stand in the boat on slides printed into the decks, at the
+scan's heights, and fire over the rail. See `guns.py`, `cannon/slide.py`, and
+HOW-IT-WORKS.md Part 12. The plan they came from is
+[`guns-integration-plan.md`](guns-integration-plan.md); where the build departs
+from it is noted at its top.

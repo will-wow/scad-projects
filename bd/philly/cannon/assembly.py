@@ -33,11 +33,16 @@ WOOD = Color(0.52, 0.37, 0.24)
 BRASS = Color(0.72, 0.58, 0.28)
 
 
-def assembly(spec: CarriageSpec | None = None, elevation: float = 0.0) -> Compound:
-    """The gun in its carriage. Positive `elevation` raises the muzzle."""
+def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -> Compound:
+    """The gun in its carriage, standing on the deck at z = 0 with its muzzle to -x.
+
+    Positive `elevation` raises the muzzle; left out, the breech rests on the
+    quoin, which is where the gun sits when nobody is holding it.
+    """
     spec = spec or CarriageSpec()
+    elevation = spec.elevation if elevation is None else elevation
     pegs = spec.pegs
-    axis_height = spec.bed + spec.axis_height
+    axis_height = spec.axis_height
 
     truck = carriage(spec)
     truck.color = WOOD
@@ -67,7 +72,7 @@ def assembly(spec: CarriageSpec | None = None, elevation: float = 0.0) -> Compou
 
     parts: list[Part] = [truck, gun]
     straps = CapSquareSpec(carriage=spec)
-    rail_top = spec.bed + spec.top
+    rail_top = spec.rail_top
     for side in (1, -1):
         peg = trunnion(pegs)
         peg.color = BRASS
