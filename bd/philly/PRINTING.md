@@ -33,7 +33,7 @@ Two worth noting:
   (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
 The fittings barely register: mast, sails, awning and its canvas together are
-29.7 cm³, so at 15% infill they add 5.5 g and about a third of a millimetre of
+30.8 cm³, so at 15% infill they add 5.7 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their pegs and cap
 squares are 10.8 cm³, about 13 g, and another 0.9mm of draft.
@@ -51,7 +51,7 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-mast.3mf` | 200.8 x 93.0 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
 | `philadelphia-sails.3mf` | 69 x 178 x 6.6mm | as exported, flat | two separate sails in one file |
 | `philadelphia-awning.3mf` | 123.4 x 72.1 x 32.2mm | as exported, **roof down** | legs point up; do not flip it |
-| `philadelphia-awning-canvas.3mf` | 124.7 x 61.3 x 4.7mm | as exported, flat | print it with the sails' settings |
+| `philadelphia-awning-canvas.3mf` | 124.7 x 61.3 x 5.7mm | as exported, flat | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
 `gun-9` and `carriage-9` for the 9-pounders, `trunnion` and `cap-square` for
@@ -76,11 +76,17 @@ with nothing underneath. Square and mast-width, they lie on it. The only thing l
 off the bed is the short necked section at each tip where a sail clips on, and
 that is a 2.5mm bridge with a square shoulder holding each end.
 
-The sails and the awning's canvas are 0.6mm thick -- three layers at 0.2mm.
+The sails and the awning's canvas are 0.6mm thick -- three layers at 0.2mm --
+with a 1.2mm bolt rope round the edges and 1.6mm patches at the corners.
 They want the *opposite* of the hull's profile: no extra walls, no solid infill,
 and no brim that would weld the corner loops to the bed. They should stay
 slightly flexible, since clipping one on means springing each eye over its
 neck.
+
+If you have PETG, print the sails and canvas in it. They get pulled off and
+clipped back on far more than anything else on the boat, and PETG takes
+repeated bending much better than PLA, which whitens at the fold and then
+snaps.
 
 The awning frame is exported **roof down**, which is the whole reason its roof
 is a flat plane rather than following the sheer. That way the roof is the first

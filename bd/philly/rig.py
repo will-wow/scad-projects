@@ -32,14 +32,17 @@ from build123d import (
     Axis,
     Box,
     Cylinder,
+    Kind,
     Part,
     Polygon,
     Pos,
     RegularPolygon,
     Rot,
+    Vector,
     extrude,
     fillet,
 )
+from build123d import offset as offset2d
 
 from hull import HullSpec, as_part, inner_half_width, open_stretches
 from lines import HullLines
@@ -97,6 +100,23 @@ class Rig:
     """three layers at 0.2mm: thin enough to look like canvas, thick enough to survive"""
     loop_wall: float = 0.8
     """material around a sail's corner bore"""
+    rope_width: float = 1.5
+    """the bolt rope's width: a raised edge round the whole sail, tying its corners together"""
+    rope_thickness: float = 1.2
+    """the bolt rope's thickness, plate included
+
+    The rope crosses the mast at the head and foot, so it has to stay under the
+    mast's corners, which come to within `sail_thickness + mast_clearance` of the bed.
+    """
+    patch: float = 9.0
+    """how far a corner patch runs along each edge from its corner"""
+    patch_thickness: float = 1.6
+    """a corner patch's thickness, plate included
+
+    Thick because the corner is where the eye's post meets the plate, and a
+    0.6mm plate folds right there when a sail is pulled off. The patches are
+    far from the mast, so it is only the yard's underside they have to clear.
+    """
     mast_clearance: float = 1.0
     """how far a sail must stay clear of the mast it hangs in front of"""
     mouth: float = 0.9
@@ -381,18 +401,35 @@ def sail(rig: Rig, foot: float, head: float, height: float, radius: float, offse
     bed, and so, once the sail is rigged, square to the sail, which is what lets
     it press onto both its yards at once. A mouth facing up on one yard and down
     on the other would need the sail to stretch to reach both.
+
+    The post stands on the corner itself, so most of it hangs off the plate. A
+    real sail is sewn double at its corners and roped round its edges for the
+    same reason, and so is this one: a thick patch at each corner, and a bolt
+    rope round the whole edge, both on the side away from the bed.
     """
     bore = radius + TOLERANCE
     outer = bore + rig.loop_wall
     # Anticlockwise, so the face points up and the extrusion goes up with it.
-    outline = Polygon(
-        (-height / 2.0, -head / 2.0),
-        (height / 2.0, -foot / 2.0),
-        (height / 2.0, foot / 2.0),
-        (-height / 2.0, head / 2.0),
-        align=None,
-    )
+    points = [
+        Vector(-height / 2.0, -head / 2.0),
+        Vector(height / 2.0, -foot / 2.0),
+        Vector(height / 2.0, foot / 2.0),
+        Vector(-height / 2.0, head / 2.0),
+    ]
+    outline = Polygon(*points, align=None)
     plate = extrude(outline, amount=rig.sail_thickness)
+
+    rope = outline - offset2d(outline, -rig.rope_width, kind=Kind.INTERSECTION)
+    plate += extrude(rope, amount=rig.rope_thickness)
+    for i, corner in enumerate(points):
+        after, before = points[(i + 1) % 4] - corner, points[i - 1] - corner
+        patch = Polygon(
+            corner,
+            corner + after.normalized() * rig.patch,
+            corner + before.normalized() * rig.patch,
+            align=None,
+        )
+        plate += extrude(patch, amount=rig.patch_thickness)
 
     eye_length = rig.clip_length - 2.0 * TOLERANCE
     mouth = rig.mouth * 2.0 * radius

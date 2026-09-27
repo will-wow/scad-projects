@@ -571,6 +571,27 @@ bed while printing, and square to the sail once rigged, so it presses onto both
 yards at once. Mouths facing up on one yard and down on the other would need the
 sail to stretch to reach both.
 
+### Patches and a bolt rope, because the posts snapped
+
+The post stands centred on the plate's corner, so three quarters of it hangs off
+the sail, held by a 0.6mm plate under one quarter of its base. In play that
+plate folded right where it met the post whenever a sail was pulled off, and
+PLA does not take much of that before it whitens and snaps.
+
+A real sail is sewn double at its corners and roped round its edges for the same
+reason, so this one is too. Each corner gets a triangular **patch**,
+`patch_thickness` (1.6mm) thick and running `patch` (9mm) down both edges, and a
+**bolt rope** `rope_width` (1.5mm) wide and `rope_thickness` (1.2mm) thick runs
+round the whole edge, tying the four posts together. Both are on the side away
+from the bed, so they print as plain raised walls.
+
+How thick they can be is set by what is above them once the sail is rigged. A
+patch lies under the yard's square shoulder next to the neck, which comes to
+within `stand_off - mast_width / 2` (2.0mm) of the bed. The rope also crosses in
+front of the mast at the head and foot, and the mast's corners come to within
+`sail_thickness + mast_clearance` (1.6mm). Each has to leave `TOLERANCE` clear,
+and the tests check both.
+
 `sails()` is the one builder here that deliberately does *not* go through
 `as_part`: two sails really are two solids, so "more than one piece" is the
 answer rather than the failure it would be anywhere else.
@@ -635,7 +656,9 @@ It prints flat and eyes up, like the sails, and is rigged the other way up:
 `rigged_canvas` gives it a half turn about y, which puts the plate on top, the
 eyes' mouths facing down onto the necks, and the wider foot forward. Its plate
 stands off its eyes only far enough to clear the bars' tops (`canvas_offset`);
-the sails stand off further, but that is to clear the mast.
+the sails stand off further, but that is to clear the mast. Rigged that way up,
+the patches and bolt rope hang under the plate, so it is the patches'
+thickness, not the plate's, that has to clear the bars.
 
 ### Measure the hull where the leg actually is
 
