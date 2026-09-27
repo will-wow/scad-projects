@@ -236,6 +236,35 @@ class TestSails:
         assert neck + TOLERANCE > neck, "the bore does not clear the neck"
         assert RIG.mouth * 2.0 * neck < 2.0 * neck, "the mouth would slip off the neck"
 
+    def test_the_bolt_rope_clears_the_mast(self, lines):
+        """The rope crosses the mast at the head and the foot, and the mast can
+        be turned in its socket, so it is measured across the mast's corners."""
+        corners = mast_width(SPEC, lines) / np.sqrt(3.0)
+        assert RIG.rope_thickness + TOLERANCE <= stand_off(SPEC, lines, RIG) - corners
+
+    def test_the_corner_patches_clear_the_yards(self, lines):
+        """A patch lies under its yard, right beside the neck."""
+        underside = stand_off(SPEC, lines, RIG) - mast_width(SPEC, lines) / 2.0
+        assert RIG.patch_thickness + TOLERANCE <= underside
+
+    def test_the_corners_are_patched_and_the_edges_roped(self, lines):
+        """Thick at the corners, thinner round the edges, canvas in between."""
+        foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
+        radius = RIG.neck_width * mast_width(SPEC, lines) / 2.0
+        one = rigging.sail(RIG, foot, head, height, radius, stand_off(SPEC, lines, RIG))
+
+        patch = (RIG.rope_thickness + RIG.patch_thickness) / 2.0
+        rope = (RIG.sail_thickness + RIG.rope_thickness) / 2.0
+        for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
+            inward = -np.sign(along)
+            for across in (-width / 2.0, width / 2.0):
+                into = Vector(along + inward * 3.0, across - np.sign(across) * 3.0, patch)
+                assert one.is_inside(into), f"no patch at corner {(along, across)}"
+            edge = Vector(along + inward * RIG.rope_width / 2.0, width / 4.0, rope)
+            assert one.is_inside(edge), "no bolt rope along the edge"
+            assert not one.is_inside(edge + Vector(0.0, 0.0, patch - rope)), "rope too thick"
+        assert not one.is_inside(Vector(0.0, 0.0, rope)), "the middle is not thin canvas"
+
     def test_a_corner_eye_is_open_at_the_top(self, lines):
         """Open upward: away from the bed when printing, and square to the sail
         once it is rigged, so it presses onto both yards at once.

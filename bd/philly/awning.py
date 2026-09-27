@@ -269,9 +269,12 @@ def canvas_offset(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> f
     Far enough that, rigged plate-up, it clears the tops of the crossbars the
     eyes hang from. The sails stand off further, but that is to clear the mast;
     the canvas only has the bars to clear.
+
+    Its patches and bolt rope hang under the plate once it is rigged, so it is
+    the thickest of those, not the plate, that has to clear them.
     """
     rig = rig or Rig()
-    return BAR / 2.0 + rig.sail_thickness + TOLERANCE
+    return BAR / 2.0 + max(rig.patch_thickness, rig.rope_thickness) + TOLERANCE
 
 
 def canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Part:
