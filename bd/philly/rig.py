@@ -36,6 +36,7 @@ from build123d import (
     Part,
     Polygon,
     Pos,
+    Rectangle,
     RegularPolygon,
     Rot,
     Vector,
@@ -108,8 +109,8 @@ class Rig:
     The rope crosses the mast at the head and foot, so it has to stay under the
     mast's corners, which come to within `sail_thickness + mast_clearance` of the bed.
     """
-    patch: float = 9.0
-    """how far a corner patch runs along each edge from its corner"""
+    patch: float = 10.0
+    """how far a corner patch reaches from its eye, straight along the yard or down the sail"""
     patch_thickness: float = 1.6
     """a corner patch's thickness, plate included
 
@@ -366,8 +367,9 @@ def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
 def sail_sizes(spec: HullSpec, lines: HullLines, rig: Rig) -> list[tuple[float, float, float]]:
     """Each sail as (foot width, head width, height), course first.
 
-    The widths are between the clip necks on the yards the sail's corners go
-    to, and the height is between those yards.
+    Measured between the eyes: the widths are between the clip necks on the
+    yards the sail's corners go to, and the height is between those yards. The
+    plate itself runs a little past them, out to the posts' outer faces.
     """
     course_foot, course_head, topsail_foot, topsail_head = yards(spec, lines, rig)
     sizes = []
@@ -380,6 +382,21 @@ def sail_sizes(spec: HullSpec, lines: HullLines, rig: Rig) -> list[tuple[float, 
             )
         )
     return sizes
+
+
+def _hull(points: list[Vector]) -> list[Vector]:
+    """The convex hull of some points in the XY plane, anticlockwise."""
+    ordered = sorted(points, key=lambda p: (p.X, p.Y))
+
+    def half(run: list[Vector]) -> list[Vector]:
+        kept: list[Vector] = []
+        for p in run:
+            while len(kept) >= 2 and (kept[-1] - kept[-2]).cross(p - kept[-2]).Z <= 1e-9:
+                kept.pop()
+            kept.append(p)
+        return kept[:-1]
+
+    return half(ordered) + half(ordered[::-1])
 
 
 def sail(rig: Rig, foot: float, head: float, height: float, radius: float, offset: float) -> Part:
@@ -402,51 +419,50 @@ def sail(rig: Rig, foot: float, head: float, height: float, radius: float, offse
     it press onto both its yards at once. A mouth facing up on one yard and down
     on the other would need the sail to stretch to reach both.
 
-    The post stands on the corner itself, so most of it hangs off the plate. A
-    real sail is sewn double at its corners and roped round its edges for the
-    same reason, and so is this one: a thick patch at each corner, and a bolt
-    rope round the whole edge, both on the side away from the bed.
+    The plate is grown out to the posts' outer faces, so each post stands wholly
+    on the sail rather than centred on its corner with most of it hanging off. A
+    real sail is sewn double at its corners and roped round its edges too, and
+    so is this one: a thick patch round each eye, and a bolt rope round the
+    whole edge, both on the side away from the bed.
     """
     bore = radius + TOLERANCE
     outer = bore + rig.loop_wall
-    # Anticlockwise, so the face points up and the extrusion goes up with it.
-    points = [
-        Vector(-height / 2.0, -head / 2.0),
-        Vector(height / 2.0, -foot / 2.0),
-        Vector(height / 2.0, foot / 2.0),
-        Vector(-height / 2.0, head / 2.0),
+    eye_length = rig.clip_length - 2.0 * TOLERANCE
+    eyes = [
+        Vector(along, across)
+        for along, width in ((-height / 2.0, head), (height / 2.0, foot))
+        for across in (-width / 2.0, width / 2.0)
     ]
-    outline = Polygon(*points, align=None)
+    posts = [
+        eye + Vector(dx, dy)
+        for eye in eyes
+        for dx in (-outer, outer)
+        for dy in (-eye_length / 2.0, eye_length / 2.0)
+    ]
+    outline = Polygon(*_hull(posts), align=None)
     plate = extrude(outline, amount=rig.sail_thickness)
 
     rope = outline - offset2d(outline, -rig.rope_width, kind=Kind.INTERSECTION)
     plate += extrude(rope, amount=rig.rope_thickness)
-    for i, corner in enumerate(points):
-        after, before = points[(i + 1) % 4] - corner, points[i - 1] - corner
-        patch = Polygon(
-            corner,
-            corner + after.normalized() * rig.patch,
-            corner + before.normalized() * rig.patch,
-            align=None,
-        )
-        plate += extrude(patch, amount=rig.patch_thickness)
+    side = rig.patch * np.sqrt(2.0)
+    for eye in eyes:
+        diamond = Pos(eye) * Rot(0.0, 0.0, 45.0) * Rectangle(side, side)
+        plate += extrude(outline & diamond, amount=rig.patch_thickness)
 
-    eye_length = rig.clip_length - 2.0 * TOLERANCE
     mouth = rig.mouth * 2.0 * radius
     lengthwise = Rot(-90.0, 0.0, 0.0)
     sail = plate
-    for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
-        for across in (-width / 2.0, width / 2.0):
-            corner = Pos(along, across, 0.0)
-            sail += corner * Pos(0.0, 0.0, offset / 2.0) * Box(2.0 * outer, eye_length, offset)
-            sail += corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(outer, eye_length))
-            sail -= corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(bore, eye_length + 2.0))
-            # The slot, from the bore's centre straight up and out.
-            sail -= (
-                corner
-                * Pos(0.0, 0.0, offset + outer / 2.0 + 0.5)
-                * Box(mouth, eye_length + 2.0, outer + 1.0)
-            )
+    for eye in eyes:
+        corner = Pos(eye)
+        sail += corner * Pos(0.0, 0.0, offset / 2.0) * Box(2.0 * outer, eye_length, offset)
+        sail += corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(outer, eye_length))
+        sail -= corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(bore, eye_length + 2.0))
+        # The slot, from the bore's centre straight up and out.
+        sail -= (
+            corner
+            * Pos(0.0, 0.0, offset + outer / 2.0 + 0.5)
+            * Box(mouth, eye_length + 2.0, outer + 1.0)
+        )
     return as_part(sail, "a sail")
 
 

@@ -33,7 +33,7 @@ Two worth noting:
   (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
 The fittings barely register: mast, sails, awning and its canvas together are
-30.8 cm³, so at 15% infill they add 5.7 g and about a third of a millimetre of
+32.1 cm³, so at 15% infill they add 5.9 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their pegs and cap
 squares are 10.8 cm³, about 13 g, and another 0.9mm of draft.
