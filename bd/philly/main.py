@@ -7,6 +7,8 @@
 Adjust HULL below and save to see it change.
 """
 
+from dataclasses import replace
+
 from build123d import Part, Pos
 from ocp_vscode import show_object
 
@@ -104,6 +106,17 @@ def canvas() -> Part:
 def broadside_carriage() -> Part:
     """The 9-pounders' carriage; print two. The bow gun's is `cannon.carriage:model`."""
     return carriage(BROADSIDE)
+
+
+def tabbed_carriage() -> Part:
+    """The bow gun's carriage with a sacrificial pad at each corner, for a bed that
+    will not hold the plain one. Snap them off before it goes in the boat."""
+    return carriage(replace(BOW_CHASER, tabs=5.0))
+
+
+def tabbed_broadside_carriage() -> Part:
+    """The same, for the 9-pounders."""
+    return carriage(replace(BROADSIDE, tabs=5.0))
 
 
 def main() -> None:

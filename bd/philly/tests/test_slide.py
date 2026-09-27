@@ -10,7 +10,7 @@ from __future__ import annotations
 import math
 
 import pytest
-from build123d import Pos, Vector
+from build123d import Plane, Pos, Vector, section
 from conftest import steepest_overhang
 
 from cannon.cannon import NINE_POUNDER
@@ -138,3 +138,38 @@ class TestProofPiece:
                     assert pad.is_inside(under), f"deck under ({x + recoil:.1f}, {y:.1f})"
                     over = Vector(x + recoil, y, deck + RIG.height + 0.5)
                     assert not pad.is_inside(over), "and nothing over it"
+
+
+class TestFeet:
+    """What holds the first layer down. The carriage stands on two strips 30mm
+    long, and at 1.4mm wide they peeled off a clean bed three times running."""
+
+    def test_the_feet_spread_the_first_layer(self):
+        bare = section(carriage(CarriageSpec(foot=0.0)), Plane.XY.offset(0.05))
+        shod = section(carriage(SPEC), Plane.XY.offset(0.05))
+        assert sum(f.area for f in shod.faces()) > 1.3 * sum(f.area for f in bare.faces())
+
+    def test_the_feet_stop_short_of_the_trucks_and_the_clamps(self):
+        """Outboard they may reach the line the trucks already set, since that is
+        what has to clear the hull; inboard they must leave a clamp room to swing."""
+        assert SPEC.foot <= SPEC.half_width - SPEC.gap / 2 - SPEC.bracket
+        assert SPEC.gap / 2 - SPEC.foot > RIG.reach + RIG.snap
+
+    def test_a_foot_that_would_foul_is_refused(self):
+        with pytest.raises(ValueError, match="wider than the trucks"):
+            carriage(CarriageSpec(foot=1.0))
+
+    def test_nothing_about_the_feet_overhangs(self):
+        """They spread going down, so every layer is narrower than the one below."""
+        assert steepest_overhang(carriage(SPEC)) <= LIMIT
+
+    def test_the_carriage_still_runs_on_its_slide(self, rail):
+        """The feet spread inboard as well, into the tunnel the slide passes through."""
+        assert (carriage(SPEC) & rail).volume < 1e-9
+
+    def test_tabs_are_off_unless_asked_for(self, truck):
+        """Nothing in the boat is built with them -- they would foul the hull."""
+        assert SPEC.tabs == 0.0
+        tabbed = carriage(CarriageSpec(tabs=5.0))
+        assert tabbed.bounding_box().max.Y > truck.bounding_box().max.Y
+        assert len(tabbed.solids()) == 1, "each pad is merged into a bracket, not loose"
