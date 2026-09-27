@@ -876,7 +876,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
 | [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
 | [`guns.py`](guns.py) | where each gun stands, how far it runs out, and its slide in the deck |
-| [`cannon/`](cannon) | the barrel, carriage, trunnion pin and slide |
+| [`cannon/`](cannon) | the barrel, carriage, trunnion pin, slide and its proof piece |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |
