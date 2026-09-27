@@ -236,6 +236,20 @@ jaws under the lip. Clipped on, it cannot come off whichever way up the boat
 is, and it runs between the chocks: out until the muzzle is over the side, and
 8mm back in recoil. Pull it straight up, firmly, to take it off.
 
+Before printing a hull to find out whether the carriage runs, print the rail on
+its own: `cannon/proof.py` is a 46 x 17 x 4.6mm patch of deck with the slide sunk
+into it, chocks and all, off the bed in a few minutes.
+
+```sh
+just build --model cannon.proof:model=proof-12 --model cannon.proof:nine=proof-9
+```
+
+The rail is the same for both guns -- the carriages are the same length, run the
+same distance, and clip to the same `Slide` -- so the two pieces differ only in
+how wide the deck around it is. The 12-pounder's is the wider and takes either
+carriage; a test asserts the rail on the pad is the rail the hull gets, since
+otherwise the print proves nothing.
+
 `guns.py` places them from the scan -- the 12-pounder on the forecastle firing
 over the stem, a 9-pounder each side of the middle platform -- runs each out as
 far as the hull allows, and checks the barrel clears the rail over its whole

@@ -65,6 +65,11 @@ since a jaw squashed out at the first layer will bind on the slide. If a
 carriage is too stiff to clip on, ease the jaws' lead-ins rather than the
 slide, which is part of the hull.
 
+If a carriage binds on its slide or will not clip on, the thing to print next is
+not another hull: `just build --model cannon.proof:model=proof-12` writes a patch
+of deck with the same rail sunk into it, two grams and a few minutes, and the
+same carriage clips to it.
+
 The clips that take the gun are at the top of the same part: two lips either side
 of each trunnion bed, 0.7mm thick, with a 0.5mm slot behind each. Both want at
 least two perimeters and no over-extrusion, or the slot closes up and the lip

@@ -13,7 +13,9 @@ import pytest
 from build123d import Pos, Vector
 from conftest import steepest_overhang
 
+from cannon.cannon import NINE_POUNDER
 from cannon.carriage import CarriageSpec, carriage
+from cannon.proof import ProofSpec, proof
 from cannon.slide import Slide, slide
 
 SPEC = CarriageSpec()
@@ -89,3 +91,50 @@ def test_the_chocks_stop_the_carriage_at_both_ends(truck, rail):
     recoiled = Pos(RIG.travel, 0, 0) * truck
     assert (recoiled & rail).volume < 1e-9
     assert (Pos(RIG.travel + 0.1, 0, 0) * truck & rail).volume > 1e-4, "recoiled"
+
+
+class TestProofPiece:
+    """The test print: a patch of deck with a rail on it, to try a carriage against.
+
+    It is only worth printing if it behaves like the hull, so what is checked is
+    that the rail on it is the hull's rail exactly and that there is deck under
+    the carriage wherever the carriage can get to.
+    """
+
+    @pytest.fixture(scope="class")
+    def pad(self):
+        return proof(ProofSpec())
+
+    def test_it_is_one_valid_solid(self, pad):
+        assert pad.is_valid
+        assert len(pad.solids()) == 1
+
+    def test_it_prints_deck_down(self, pad):
+        assert abs(pad.bounding_box().min.Z) < 1e-6
+        assert steepest_overhang(pad) <= LIMIT
+
+    def test_the_rail_on_it_is_the_one_the_hull_gets(self, pad, rail):
+        """Otherwise the print proves nothing about the boat."""
+        on_deck = Pos(0, 0, ProofSpec().deck) * rail
+        assert (on_deck - pad).volume < 1e-6
+
+    def test_both_guns_get_the_same_rail(self):
+        """The carriages are the same length and run the same distance, so only the
+        deck around the rail differs -- the 12-pounder's trucks stand wider."""
+        nine = CarriageSpec(gun=NINE_POUNDER, axis_height=14.64)
+        assert (SPEC.fore, SPEC.aft, SPEC.slide) == (nine.fore, nine.aft, nine.slide)
+        assert proof(ProofSpec(carriage=nine)).bounding_box().size.Y < (
+            proof(ProofSpec()).bounding_box().size.Y
+        )
+
+    def test_there_is_deck_under_the_carriage_all_along_its_run(self, pad):
+        """The check `guns.fit_guns` makes against the hull, made against the pad:
+        deck under each corner of the carriage, and open air over it."""
+        deck = ProofSpec().deck
+        for recoil in (0.0, RIG.travel):
+            for x in (SPEC.fore, SPEC.aft):
+                for y in (-SPEC.half_width, SPEC.half_width):
+                    under = Vector(x + recoil, y, deck - 0.3)
+                    assert pad.is_inside(under), f"deck under ({x + recoil:.1f}, {y:.1f})"
+                    over = Vector(x + recoil, y, deck + RIG.height + 0.5)
+                    assert not pad.is_inside(over), "and nothing over it"
