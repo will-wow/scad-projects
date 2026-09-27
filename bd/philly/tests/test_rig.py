@@ -247,23 +247,47 @@ class TestSails:
         underside = stand_off(SPEC, lines, RIG) - mast_width(SPEC, lines) / 2.0
         assert RIG.patch_thickness + TOLERANCE <= underside
 
-    def test_the_corners_are_patched_and_the_edges_roped(self, lines):
-        """Thick at the corners, thinner round the edges, canvas in between."""
+    @pytest.fixture(scope="class")
+    def topsail(self, lines):
+        """One tapered sail on its own, centred, so its corners are where the
+        sizes say rather than shifted sideways for printing."""
         foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
         radius = RIG.neck_width * mast_width(SPEC, lines) / 2.0
-        one = rigging.sail(RIG, foot, head, height, radius, stand_off(SPEC, lines, RIG))
+        return rigging.sail(RIG, foot, head, height, radius, stand_off(SPEC, lines, RIG))
 
+    def _corners(self, lines):
+        """Each eye, and which way is out from the sail along x and along y."""
+        foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
+        for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
+            for across in (-width / 2.0, width / 2.0):
+                yield along, across, np.sign(along), np.sign(across)
+
+    def test_each_post_stands_flush_with_both_edges(self, topsail, lines):
+        """The plate reaches the posts' outer faces, so a post stands wholly on
+        the sail rather than centred on its corner with most of it hanging off.
+        Probed on the plate just beside each post, at the line of its outer
+        face, which is air if the edge still runs through the eye."""
+        outer = RIG.neck_width * mast_width(SPEC, lines) / 2.0 + TOLERANCE + RIG.loop_wall
+        half = (RIG.clip_length - 2.0 * TOLERANCE) / 2.0
+        low = RIG.sail_thickness / 2.0
+        for along, across, out_x, out_y in self._corners(lines):
+            beside = Vector(along - out_x * (outer + 0.5), across + out_y * (half - 0.3), low)
+            below = Vector(along + out_x * (outer - 0.3), across - out_y * (half + 0.5), low)
+            assert topsail.is_inside(beside), f"the side edge misses the post at {along, across}"
+            assert topsail.is_inside(below), f"the head or foot misses the post at {along, across}"
+
+    def test_the_corners_are_patched_and_the_edges_roped(self, topsail, lines):
+        """Thick at the corners, thinner round the edges, canvas in between."""
+        outer = RIG.neck_width * mast_width(SPEC, lines) / 2.0 + TOLERANCE + RIG.loop_wall
         patch = (RIG.rope_thickness + RIG.patch_thickness) / 2.0
         rope = (RIG.sail_thickness + RIG.rope_thickness) / 2.0
-        for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
-            inward = -np.sign(along)
-            for across in (-width / 2.0, width / 2.0):
-                into = Vector(along + inward * 3.0, across - np.sign(across) * 3.0, patch)
-                assert one.is_inside(into), f"no patch at corner {(along, across)}"
-            edge = Vector(along + inward * RIG.rope_width / 2.0, width / 4.0, rope)
-            assert one.is_inside(edge), "no bolt rope along the edge"
-            assert not one.is_inside(edge + Vector(0.0, 0.0, patch - rope)), "rope too thick"
-        assert not one.is_inside(Vector(0.0, 0.0, rope)), "the middle is not thin canvas"
+        for along, across, out_x, out_y in self._corners(lines):
+            into = Vector(along - out_x * 4.0, across - out_y * 4.0, patch)
+            assert topsail.is_inside(into), f"no patch at corner {(along, across)}"
+            edge = Vector(along + out_x * (outer - RIG.rope_width / 2.0), across / 2.0, rope)
+            assert topsail.is_inside(edge), "no bolt rope along the edge"
+            assert not topsail.is_inside(edge + Vector(0.0, 0.0, patch - rope)), "rope too thick"
+        assert not topsail.is_inside(Vector(0.0, 0.0, rope)), "the middle is not thin canvas"
 
     def test_a_corner_eye_is_open_at_the_top(self, lines):
         """Open upward: away from the bed when printing, and square to the sail

@@ -571,19 +571,25 @@ bed while printing, and square to the sail once rigged, so it presses onto both
 yards at once. Mouths facing up on one yard and down on the other would need the
 sail to stretch to reach both.
 
-### Patches and a bolt rope, because the posts snapped
+### Flush posts, patches and a bolt rope, because the posts snapped
 
-The post stands centred on the plate's corner, so three quarters of it hangs off
-the sail, held by a 0.6mm plate under one quarter of its base. In play that
-plate folded right where it met the post whenever a sail was pulled off, and
-PLA does not take much of that before it whitens and snaps.
+The sail's size is measured between its eyes, and the plate used to be exactly
+that shape, so each post stood centred on the plate's corner: three quarters of
+it hung off the sail, held by a 0.6mm plate under one quarter of its base. In
+play that plate folded right where it met the post whenever a sail was pulled
+off, and PLA does not take much of that before it whitens and snaps.
 
-A real sail is sewn double at its corners and roped round its edges for the same
-reason, so this one is too. Each corner gets a triangular **patch**,
-`patch_thickness` (1.6mm) thick and running `patch` (9mm) down both edges, and a
-**bolt rope** `rope_width` (1.5mm) wide and `rope_thickness` (1.2mm) thick runs
-round the whole edge, tying the four posts together. Both are on the side away
-from the bed, so they print as plain raised walls.
+Nothing needed the plate to stop at the eyes; only the eyes have to be on the
+necks. So the plate is now the convex hull of the four posts (`_hull`), which
+puts every post flush with both edges and wholly on the sail, and the sail's
+head lies level with the top of its yard, where a real sail is laced on.
+
+A real sail is also sewn double at its corners and roped round its edges, so
+this one is too. Each eye gets a **patch** `patch_thickness` (1.6mm) thick, a
+diamond `patch` (10mm) across from the eye, cut to the plate. A **bolt rope**
+`rope_width` (1.5mm) wide and `rope_thickness` (1.2mm) thick runs round the
+whole edge, tying the four posts together. Both are on the side away from the
+bed, so they print as plain raised walls.
 
 How thick they can be is set by what is above them once the sail is rigged. A
 patch lies under the yard's square shoulder next to the neck, which comes to
