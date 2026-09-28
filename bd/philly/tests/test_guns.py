@@ -20,7 +20,6 @@ from build123d import Box, Part, Pos
 os.environ.setdefault("PREVIEW", "1")
 
 import guns  # noqa: E402
-from details import stem_head  # noqa: E402
 from main import BROADSIDE, GUNS, HULL  # noqa: E402
 
 
@@ -122,18 +121,14 @@ def test_recoil_draws_the_muzzle_inboard(solved):
         assert moved == pytest.approx(m.travel, abs=1e-6)
 
 
-def test_the_fitted_hull_is_one_solid_no_wider_than_the_bare_one(hull, built_hull, lines):
-    """The slides are laid on the decks; none of them may reach the outside.
-
-    Only the stem stands forward of the bare hull, and only by its own depth.
-    """
+def test_the_fitted_hull_is_one_solid_no_wider_than_the_bare_one(hull, built_hull):
+    """The slides are laid on the decks; none of them may reach the outside."""
     assert hull.is_valid
     assert len(hull.solids()) == 1
     bare = built_hull.bounding_box()
     box = hull.bounding_box()
     assert box.min.Y >= bare.min.Y - 1e-6 and box.max.Y <= bare.max.Y + 1e-6
-    stem = stem_head(HULL, lines) + 0.02
-    assert bare.min.X - stem <= box.min.X and box.min.Z >= bare.min.Z - 1e-6
+    assert box.min.X >= bare.min.X - 1e-6 and box.min.Z >= bare.min.Z - 1e-6
 
 
 def test_a_gun_too_low_to_clear_its_rail_is_refused(lines):

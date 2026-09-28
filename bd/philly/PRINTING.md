@@ -11,8 +11,8 @@ it encloses far more air than it contains plastic.
 At 300mm LOA with the current spec, the modelled solid is **176.3 cm³** inside
 an external envelope of **408.4 cm³**. Everything follows from that ratio. (The
 guns' slides have since added 0.9 cm³ to the hull, which moves the table below
-by less than its rounding. The joinery -- knees, benches, keelson and stem, less
-the deck seams -- adds 6.2 cm³ more. It prints as nearly all wall, so call it
+by less than its rounding. The joinery -- knees, benches and keelson, less
+the deck seams -- adds 6.1 cm³ more. It prints as nearly all wall, so call it
 8 g and about half a millimetre of draft.)
 
 Draft is measured up from the bottom of the print, and freeboard up from the
@@ -49,7 +49,7 @@ orientation and a different profile. The rig and the hull:
 
 | File | Size | Orientation | Notes |
 | --- | --- | --- | --- |
-| `philadelphia-hull.3mf` | 304 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
+| `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
 | `philadelphia-mast.3mf` | 200.8 x 93.0 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
 | `philadelphia-sails.3mf` | 69 x 178 x 6.6mm | as exported, flat | two separate sails in one file |
 | `philadelphia-awning.3mf` | 148.3 x 72.1 x 34.7mm | as exported, **roof down** | legs point up; do not flip it |

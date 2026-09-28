@@ -872,7 +872,7 @@ loaded; on its side it has a real contact patch and the layers run along it.
 
 [`details.py`](details.py) adds the timbers that make the model read as the
 boat in the scan: knees on the middle platform, benches down both sides of the
-quarterdeck, the keelson along each well and the stem on the bow. The seams
+quarterdeck and the keelson along each well. The seams
 between the deck planks are cut in [`hull.py`](hull.py). Every size comes off
 the scan, and `designs/measure_scan.py` prints the numbers again.
 
@@ -892,7 +892,7 @@ a 2mm beam.
 
 All the pieces are fused in one call, `hull.fuse(*pieces)`, rather than one at a
 time. Each boolean against the hull costs about the same whatever the size of
-the piece, so seventeen of them cost 10s where one costs 4s. The end knees overlap
+the piece, so sixteen of them cost about 10s where one costs 4s. The end knees overlap
 their beams, which is why each piece is passed as its own tool: a single
 compound of overlapping solids is not a valid argument.
 
@@ -926,31 +926,11 @@ uprights just get shorter. That is also why `fit_details` runs before
 The forward legs moved too, from 0.42 and 0.55 to 0.412 and 0.57: each would
 have stood on a knee.
 
-### The keelson and the stem
+### The keelson
 
 The keelson is a 4mm bar standing 1.8mm proud of each well's floor. It runs
 into the bulkhead at each end, and the mast's tube and bore go straight through
 it.
-
-The model's bow is a plumb flat face about 3.7mm wide, where the real one is a
-raked V. So the stem is a separate wedge on that face, and follows the scan's
-curve rather than the model's:
-
-```python
-proud = STEM_PROUD - aft  # the planking meets the stem 220mm aft of its face
-```
-
-It stands 4mm proud at the rail and rakes back as it goes down, until it has
-faded into the bow about 9mm up. It never reaches the bed, so the bottom stays
-flat. The bow gun's clearance check counts the stem's head as part of the rail
-it fires over.
-
-The lines plan's own bow already carries a stand-in for the stem: the faired
-sheer runs on in a straight line to a 205mm-wide face, 134mm forward of where
-its curve ends. The stem stands in front of that, so the hull is 304mm overall
-rather than 300. Taking the stand-in out of the drawing and letting the stem
-replace it was tried. It made a stem narrower than the bow it stood on, which
-looked worse than the extra length.
 
 ### Plank seams
 
@@ -994,7 +974,7 @@ If you want to do this for a different boat:
 2. **Point [`lines.py`](lines.py) at your layer names** and set `PROFILE_OFFSET`
    to however far apart you drew the two views.
 3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `decks`,
-   `bulge`, and any joinery -- `knees`, `benches`, `keelson`, `stem`, and a
+   `bulge`, and any joinery -- `knees`, `benches`, `keelson`, and a
    plank width per deck with `seams`.
 4. **Run `just watch`** and tune by eye.
 
@@ -1020,7 +1000,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`watch.py`](watch.py) | warm-process live reload |
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
 | [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
-| [`details.py`](details.py) | knees, benches, keelson and stem, merged into the hull |
+| [`details.py`](details.py) | knees, benches and keelson, merged into the hull |
 | [`guns.py`](guns.py) | where each gun stands, how far it runs out, and its slide in the deck |
 | [`cannon/`](cannon) | the barrel, carriage, trunnion pin, slide and its proof piece |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |

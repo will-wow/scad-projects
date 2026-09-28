@@ -61,7 +61,6 @@ HULL = HullSpec(
     # them running to 0.868.
     benches=(Bench(0.71, 0.868),),
     keelson=True,
-    stem=True,
 )
 
 

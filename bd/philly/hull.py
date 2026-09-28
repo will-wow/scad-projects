@@ -204,12 +204,10 @@ class HullSpec:
     # The grooves cut into any deck that has a plank width.
     seams: Seams | None = None
     # The boat's joinery, which details.py fits once the hull is built: knees on
-    # the platforms, benches along the sides, the keelson showing in the wells
-    # and the stem standing proud of the bow.
+    # the platforms, benches along the sides and the keelson showing in the wells.
     knees: tuple[Knee, ...] = ()
     benches: tuple[Bench, ...] = ()
     keelson: bool = False
-    stem: bool = False
 
     @property
     def deck_open(self) -> bool:

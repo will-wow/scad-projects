@@ -25,7 +25,6 @@ from cannon.assembly import assembly
 from cannon.cannon import outline, trunnion_height
 from cannon.carriage import CarriageSpec
 from cannon.slide import slide
-from details import stem_head
 from hull import Deck, HullSpec, as_part, inner_half_width
 from lines import HullLines
 
@@ -176,19 +175,13 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
             raise ValueError(f"the bow gun's carriage does not fit the forecastle at {front:.1f}mm")
         if inside(chock, deck - rig.sink) < rig.reach + CLEARANCE:
             raise ValueError(f"the bow gun's chock does not fit the forecastle at {chock:.1f}mm")
-        # From the stem's head, which stands proud of the bow, back to the carriage.
-        head = x0 * factor - stem_head(spec, lines)
         return Mount(
             gun=gun,
             trunnions=(station, 0.0),
             outboard=(-1.0, 0.0),
             deck=deck,
-            rail=(
-                (station - head, sheer(x0 * factor)),
-                *(
-                    (station - float(x), sheer(float(x)))
-                    for x in np.linspace(x0 * factor, front, 40)
-                ),
+            rail=tuple(
+                (station - float(x), sheer(float(x))) for x in np.linspace(x0 * factor, front, 40)
             ),
         )
 
