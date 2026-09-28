@@ -43,7 +43,6 @@ from build123d import (
     BuildPart,
     BuildSketch,
     CenterArc,
-    Circle,
     Cone,
     Locations,
     Mode,
@@ -114,12 +113,12 @@ class CarriageSpec:
     bed: float = 1.0  # least thickness of the bed, over the top of the tunnel
     headroom: float = 0.3  # between the tunnel's roof and the clamps' tops
 
-    # For a bed that will not hold the carriage down -- it stands on two strips
-    # 30mm long and 1.4mm wide -- a sacrificial pad at each corner, which snaps
-    # off with a fingernail. Off by default: the print came out without them,
-    # and nothing in the boat is built with them.
-    tabs: float = 0.0  # diameter of each pad; 0 for none
-    tab: float = 0.25  # how thick they are: a layer or two
+    # What holds the first layer down. A carriage stands on two strips 30mm long
+    # and 1.4mm wide with 16mm of part over them, and on a clean sheet that took
+    # three goes. The brackets spread at 45 degrees where they meet the bed, into
+    # room going spare either side, which roughly doubles the first layer, costs
+    # nothing to remove and reads as a plinth under a millimetre tall.
+    foot: float = 0.6
 
     # Trucks, as (millimetres aft of the trunnion axis, radius). The fore pair
     # are the larger, as on a real carriage.
@@ -399,6 +398,10 @@ def carriage(spec: CarriageSpec) -> Part:
         raise ValueError("the way in is wider than the pin is round; it would lift out")
     if spec.lip_clears_the_pin_by <= 0.05:
         raise ValueError("the lips' undersides cut into the bed; the pin could not turn")
+    if spec.foot > spec.half_width - half - spec.bracket:
+        raise ValueError("the brackets' feet would spread wider than the trucks")
+    if half - spec.foot < slide.reach + slide.snap + 0.2:
+        raise ValueError("the brackets' feet would spread into where a clamp swings")
 
     # Built before the builder opens: inside it, a bare Polygon is taken as a
     # sketch operation on the part and refused.
@@ -428,6 +431,22 @@ def carriage(spec: CarriageSpec) -> Part:
                 Polygon(*outline, align=None)
             extrude(amount=-side * spec.bracket)
 
+            # The spreading foot. Everything about it is below the height it
+            # spreads by, so every layer is narrower than the one under it and
+            # nothing overhangs; outboard it stops at the trucks' line, which
+            # already sets what has to clear the hull, and inboard well short of
+            # where a clamp swings.
+            inner, outer = side * half, side * (half + spec.bracket)
+            with BuildSketch(Plane.YZ.offset(fore)):
+                Polygon(
+                    (inner - side * spec.foot, 0),
+                    (outer + side * spec.foot, 0),
+                    (outer, spec.foot),
+                    (inner, spec.foot),
+                    align=None,
+                )
+            extrude(amount=aft - fore)
+
         with BuildSketch(Plane.XZ):
             Polygon(
                 (spec.quoin_from, spec.bed_top),
@@ -438,14 +457,6 @@ def carriage(spec: CarriageSpec) -> Part:
         extrude(amount=spec.quoin_width / 2, both=True)
 
         add(slots, mode=Mode.SUBTRACT)
-
-        if spec.tabs:
-            with BuildSketch(Plane.XY):
-                with Locations(
-                    *((x, side * (half + spec.bracket)) for x in (fore, aft) for side in (1, -1))
-                ):
-                    Circle(spec.tabs / 2)
-            extrude(amount=spec.tab)
 
     assert truck.part is not None
     return truck.part
