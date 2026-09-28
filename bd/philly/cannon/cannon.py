@@ -107,13 +107,23 @@ class CannonSpec:
     cascabel_neck_diameter: float = 0.7
     button: float = 1.35
 
-    # Rings along the chase and reinforces. Positions follow the founders'
-    # rule of a first reinforce 2/7 of the length and a second 1/7 plus a
-    # calibre; the muzzle astragal is eyeballed from the scan.
+    # Rings along the chase and reinforces, measured off the scan rather than
+    # laid out by the founders' rule the first version used -- which put the
+    # after ring at 0.71 and left the trunnions looking off-centre between it
+    # and its neighbour. On the piece itself they come in pairs, a ring with
+    # its astragal, and the trunnion axis at 0.57 falls within a quarter of a
+    # percent of halfway between the two that flank it.
+    #
+    # The heights are the scan's, scaled together so the smallest still prints
+    # as a bead: detrended it reads 6 to 11mm proud, which at 1:55 would be a
+    # tenth of a millimetre and simply round off.
     rings: tuple[Ring, ...] = (
-        Ring(at=0.14, proud=0.15),  # muzzle astragal
-        Ring(at=0.52, proud=0.2),  # second reinforce ring
-        Ring(at=0.71, proud=0.2),  # first reinforce ring
+        Ring(at=0.14, proud=0.20),  # muzzle astragal
+        Ring(at=0.45, proud=0.13),  # the second reinforce ring and its astragal
+        Ring(at=0.51, proud=0.16),
+        Ring(at=0.625, proud=0.13),  # the first reinforce ring and its astragal
+        Ring(at=0.675, proud=0.18),
+        Ring(at=0.91, proud=0.15),  # over the vent, at the base of the breech
     )
     base_ring: float = 0.1  # proud, calibres; it sits at the very end of the barrel
 
