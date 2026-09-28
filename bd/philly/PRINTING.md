@@ -11,7 +11,9 @@ it encloses far more air than it contains plastic.
 At 300mm LOA with the current spec, the modelled solid is **176.3 cm³** inside
 an external envelope of **408.4 cm³**. Everything follows from that ratio. (The
 guns' slides have since added 0.9 cm³ to the hull, which moves the table below
-by less than its rounding.)
+by less than its rounding. The joinery -- knees, benches, keelson and stem, less
+the deck seams -- adds 6.2 cm³ more. It prints as nearly all wall, so call it
+8 g and about half a millimetre of draft.)
 
 Draft is measured up from the bottom of the print, and freeboard up from the
 waterline to the lowest point of the rail, amidships, which stands 21.7mm
@@ -47,11 +49,11 @@ orientation and a different profile. The rig and the hull:
 
 | File | Size | Orientation | Notes |
 | --- | --- | --- | --- |
-| `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
+| `philadelphia-hull.3mf` | 304 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
 | `philadelphia-mast.3mf` | 200.8 x 93.0 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
 | `philadelphia-sails.3mf` | 69 x 178 x 6.6mm | as exported, flat | two separate sails in one file |
-| `philadelphia-awning.3mf` | 123.4 x 72.1 x 32.2mm | as exported, **roof down** | legs point up; do not flip it |
-| `philadelphia-awning-canvas.3mf` | 124.7 x 61.3 x 5.7mm | as exported, flat | print it with the sails' settings |
+| `philadelphia-awning.3mf` | 125.8 x 72.2 x 30.9mm | as exported, **roof down** | legs point up; do not flip it |
+| `philadelphia-awning-canvas.3mf` | 127.1 x 61.4 x 5.7mm | as exported, flat | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
 `gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` pin for each of

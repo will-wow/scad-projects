@@ -18,7 +18,7 @@ thing that writes files.
 
 from __future__ import annotations
 
-from build123d import Compound, Part, Pos, Rot
+from build123d import Color, Compound, Part, Pos, Rot
 from ocp_vscode import show_object
 
 import awning as awnings
@@ -26,6 +26,12 @@ import guns as ordnance
 import lines as hull_lines
 import rig as rigging
 from main import AWNING, GUNS, HULL, RIG, fitted
+
+# The guns bring their own colours (cannon/assembly.py). The hull is a darker
+# brown than their carriages so they stand out on its decks.
+HULL_WOOD = Color(0.40, 0.26, 0.15)
+SPAR = Color(0.58, 0.42, 0.26)
+CANVAS = Color(0.95, 0.93, 0.87)
 
 
 def _stepped_mast(lines, seat) -> Part:
@@ -74,15 +80,20 @@ def parts() -> dict[str, Part | Compound]:
         f"gun at {m.gun.station:.3f}": ordnance.placed(m)
         for m in ordnance.mounts(HULL, lines, GUNS)
     }
-    return {
-        "hull": fitted(lines),
-        "mast": _stepped_mast(lines, seat),
-        "course": sails[0],
-        "topsail": sails[1],
+    painted = {
+        "hull": (fitted(lines), HULL_WOOD),
+        "mast": (_stepped_mast(lines, seat), SPAR),
+        "course": (sails[0], CANVAS),
+        "topsail": (sails[1], CANVAS),
         # Standing in its sockets rather than laid down to print, which is the
         # only way to see whether it clears the mast and its sails.
-        "awning": awnings.upright_frame(HULL, lines, AWNING, RIG),
-        "canvas": awnings.rigged_canvas(HULL, lines, AWNING, RIG),
+        "awning": (awnings.upright_frame(HULL, lines, AWNING, RIG), SPAR),
+        "canvas": (awnings.rigged_canvas(HULL, lines, AWNING, RIG), CANVAS),
+    }
+    for part, colour in painted.values():
+        part.color = colour
+    return {
+        **{name: part for name, (part, _) in painted.items()},
         # Run out, each resting on its quoin.
         **guns,
     }

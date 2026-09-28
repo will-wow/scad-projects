@@ -61,9 +61,8 @@ CROWN = 0.55
 BARREL_RADIUS = (80.0, 180.0)
 
 
-def vertices(path: Path) -> np.ndarray:
-    """The mesh's vertex positions. Every vertex is on the surface, which is
-    all that heights and sections need -- no faces required."""
+def mesh(path: Path) -> tuple[np.ndarray, np.ndarray]:
+    """The mesh's vertex positions and its triangles, as vertex indices."""
     if not path.exists():
         raise SystemExit(f"{path} is missing -- see {SCAN / 'README.md'}")
     data = path.read_bytes()
@@ -73,8 +72,15 @@ def vertices(path: Path) -> np.ndarray:
     primitive = gltf["meshes"][0]["primitives"][0]
     view = gltf["bufferViews"][primitive["extensions"]["KHR_draco_mesh_compression"]["bufferView"]]
     start = view.get("byteOffset", 0)
-    mesh = DracoPy.decode(binary[start : start + view["byteLength"]])
-    return np.asarray(mesh.points, dtype=float).reshape(-1, 3)
+    decoded = DracoPy.decode(binary[start : start + view["byteLength"]])
+    points = np.asarray(decoded.points, dtype=float).reshape(-1, 3)
+    return points, np.asarray(decoded.faces, dtype=int).reshape(-1, 3)
+
+
+def vertices(path: Path) -> np.ndarray:
+    """The mesh's vertex positions. Every vertex is on the surface, which is
+    all that heights and sections need -- no faces required."""
+    return mesh(path)[0]
 
 
 def circle(u: np.ndarray, v: np.ndarray) -> tuple[float, float, float, float]:
@@ -328,6 +334,171 @@ def nine_pounders(boat: Boat) -> None:
         print(f"    = {boat.printed(at_rail - deck):.1f}mm printed\n")
 
 
+# The joinery's measurements need more than vertices: a knee's arm or a seam
+# between planks is narrower than the mesh's triangles, so the surface is
+# sampled this finely instead.
+SAMPLE = 15.0
+
+# The middle platform's knees, by side, in millimetres aft of the bow: read off
+# the scan's top view, and each checked in a section.
+KNEES = {
+    +1: (6220.0, 7040.0, 8895.0, 9665.0, 10507.0),
+    -1: (6261.0, 7148.0, 7871.0, 8898.0, 10579.0),
+}
+
+# Heights up the stem at which its face is found.
+STEM_HEIGHTS = (100.0, 300.0, 500.0, 700.0, 900.0, 1100.0, 1300.0, 1400.0)
+
+# Each deck's stretch, as fractions, and its surface above the keel, which is
+# where its seams are sought.
+PLANKED = (
+    ("forecastle", 0.06, 0.28, 862.0),
+    ("middle platform", 0.40, 0.63, 612.0),
+    ("quarterdeck", 0.73, 0.86, 537.0),
+)
+
+
+def sampled(boat: Boat, points: np.ndarray, faces: np.ndarray) -> np.ndarray:
+    """Points spread `SAMPLE` apart over every triangle, in the boat's frame:
+    x across from the centreline, y above the keel, z aft of the bow."""
+    frame = np.c_[points[:, 0] - boat.centre, points[:, 1] - boat.keel, boat.bow - points[:, 2]]
+    triangles = frame[faces]
+    edges = np.linalg.norm(triangles - np.roll(triangles, 1, axis=1), axis=2).max(axis=1)
+    counts = np.clip(np.ceil(edges / SAMPLE), 1, 60).astype(int)
+    out = []
+    for n in np.unique(counts):
+        u, v = np.meshgrid(np.arange(n + 1), np.arange(n + 1))
+        keep = u + v <= n
+        u = (u[keep] / n)[None, :, None]
+        v = (v[keep] / n)[None, :, None]
+        t = triangles[counts == n]
+        corners = t[:, None, 0] * (1 - u - v) + t[:, None, 1] * u + t[:, None, 2] * v
+        out.append(corners.reshape(-1, 3))
+    return np.concatenate(out)
+
+
+def profile(points: np.ndarray, across: np.ndarray, low: float, high: float, step: float):
+    """The highest point in each `step` of `across`, NaN where there is none."""
+    bins = np.arange(low, high, step)
+    tops = np.full(len(bins), np.nan)
+    for i, b in enumerate(bins):
+        inside = (across >= b) & (across < b + step)
+        if inside.any():
+            tops[i] = points[inside, 1].max()
+    return bins, tops
+
+
+def knees(boat: Boat, deck: np.ndarray, hull: np.ndarray) -> None:
+    print("Knees on the middle platform, by section:")
+    platform = boat.surface(boat.z(0.5)) or float("nan")
+    for side, stations in KNEES.items():
+        name = "port" if side > 0 else "starboard"
+        for aft in stations:
+            s = deck[
+                (np.abs(deck[:, 2] - aft) < 25) & (side * deck[:, 0] > 800) & (deck[:, 1] < 1400)
+            ]
+            wall = hull[
+                (np.abs(hull[:, 2] - aft) < 150)
+                & (side * hull[:, 0] > 1800)
+                & (np.abs(hull[:, 1] - 700) < 25)
+            ]
+            face = float(np.percentile(side * wall[:, 0], 2))
+            bins, tops = profile(s, side * s[:, 0], 800.0, face, 20.0)
+            raised = bins[tops > platform + 50.0]
+            reach = face - float(raised.min()) if len(raised) else float("nan")
+            low = bins[(bins > face - 700.0) & (bins < face - 400.0)]
+            arm = np.nanmedian(tops[np.isin(bins, low)]) - platform
+            print(
+                f"  {name:9} {aft / boat.length:.3f}: top {s[:, 1].max() - platform:4.0f} and"
+                f" low arm {arm:3.0f} above the platform, reaching {reach:4.0f} from the side"
+            )
+    print(f"  (the platform is {platform:.0f} above the keel)\n")
+
+
+def benches(boat: Boat, deck: np.ndarray, hull: np.ndarray) -> None:
+    print("Quarterdeck benches:")
+    floor = boat.surface(boat.z(0.78)) or float("nan")
+    for fraction in np.arange(0.72, 0.87, 0.03):
+        z = boat.bow - boat.z(float(fraction))
+        row = []
+        for side in (1, -1):
+            s = deck[(np.abs(deck[:, 2] - z) < 20) & (side * deck[:, 0] > 0)]
+            seat = s[(s[:, 1] > 780) & (s[:, 1] < 1000) & (side * s[:, 0] > 500)]
+            if len(seat) < 20:
+                row.append("  no bench")
+                continue
+            front = float(np.percentile(side * seat[:, 0], 1))
+            top = float(np.median(seat[:, 1]))
+            wall = hull[
+                (np.abs(hull[:, 2] - z) < 30)
+                & (np.abs(hull[:, 1] - top) < 30)
+                & (side * hull[:, 0] > front)
+            ]
+            reach = float(np.percentile(side * wall[:, 0], 3)) - front
+            row.append(f"seat {top - floor:3.0f} above the deck, {reach:3.0f} deep")
+        print(f"  {fraction:.2f}: port {row[0]}; starboard {row[1]}")
+    print(f"  (the quarterdeck is {floor:.0f} above the keel)\n")
+
+
+def keelson(boat: Boat, deck: np.ndarray) -> None:
+    print("Keelson in the wells:")
+    for fraction in (0.30, 0.32, 0.37, 0.66, 0.68, 0.70):
+        z = boat.bow - boat.z(fraction)
+        s = deck[(np.abs(deck[:, 2] - z) < 15) & (np.abs(deck[:, 0]) < 1100) & (deck[:, 1] < 480)]
+        beside = s[(np.abs(s[:, 0]) > 350) & (s[:, 1] > 200) & (s[:, 1] < 340)]
+        floor = float(np.median(beside[:, 1]))
+        _, tops = profile(s, s[:, 0], -500.0, 500.0, 10.0)
+        top = float(np.nanmax(tops[40:60]))
+        width = 10.0 * float(np.sum(tops > 0.5 * (top + floor)))
+        print(
+            f"  {fraction:.2f}: top {top:3.0f} above the keel, {top - floor:3.0f} proud"
+            f" of the floor, {width:3.0f} wide at half height"
+        )
+    print()
+
+
+def stem(boat: Boat, hull: np.ndarray) -> None:
+    print("The stem's face, aft of its head (the bow), by height above the keel:")
+    for height in STEM_HEIGHTS:
+        s = hull[
+            (np.abs(hull[:, 1] - height) < 8) & (hull[:, 2] < 1500) & (np.abs(hull[:, 0]) < 600)
+        ]
+        front = float(s[:, 2].min())
+        width = float(np.ptp(s[np.abs(s[:, 2] - front) < 6, 0]))
+        print(f"  {height:5.0f}: {front:4.0f} aft, face {width:3.0f} wide")
+    print()
+
+
+def seams(boat: Boat, deck: np.ndarray) -> None:
+    """Seams between planks show as thin lines the scan never meshed."""
+    print("Plank seams, all running fore and aft:")
+    for name, start, end, height in PLANKED:
+        z0, z1 = boat.bow - boat.z(start), boat.bow - boat.z(end)
+        s = deck[
+            (deck[:, 2] >= z0)
+            & (deck[:, 2] < z1)
+            & (np.abs(deck[:, 1] - height) < 45)
+            & (np.abs(deck[:, 0]) < 2000)
+        ]
+        cell = 10.0
+        grid = np.zeros((int(4000 / cell), int((z1 - z0) / cell) + 1), dtype=bool)
+        grid[((s[:, 0] + 2000) // cell).astype(int), ((s[:, 2] - z0) // cell).astype(int)] = True
+        cover = grid.mean(axis=1)
+        gaps = [
+            i * cell - 2000 + cell / 2
+            for i in range(6, len(cover) - 7)
+            if cover[i] < 0.55 * max(cover[i - 6 : i - 1].max(), cover[i + 2 : i + 7].max())
+            and cover[i] == cover[i - 2 : i + 3].min()
+        ]
+        spacing = np.diff(gaps)
+        wide = spacing[spacing > 150]
+        print(
+            f"  {name}: {len(gaps)} seams, median spacing {np.median(wide):.0f}"
+            f" = {boat.printed(float(np.median(wide))):.1f}mm printed"
+        )
+    print()
+
+
 def main() -> None:
     boat = Boat(vertices(DECK), vertices(HULL))
     print(
@@ -338,6 +509,14 @@ def main() -> None:
     decks(boat)
     bow_gun(boat)
     nine_pounders(boat)
+
+    deck = sampled(boat, *mesh(DECK))
+    hull = sampled(boat, *mesh(HULL))
+    knees(boat, deck, hull)
+    benches(boat, deck, hull)
+    keelson(boat, deck)
+    stem(boat, hull)
+    seams(boat, deck)
 
 
 if __name__ == "__main__":
