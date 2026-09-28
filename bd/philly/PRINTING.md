@@ -66,18 +66,19 @@ carriage is too stiff to clip on, ease the jaws' lead-ins rather than the
 slide, which is part of the hull.
 
 A carriage is the one part here that is hard to keep on the bed. It stands on
-two strips 30mm long with a 16mm part over them, and at 1.4mm wide they peeled
-off three times running on a clean sheet. The brackets now spread at 45 degrees
-where they meet the bed, into room going spare inboard of the trucks and
-outboard of the clamps, which is worth 40% more first layer and costs nothing
-to remove -- it is under a millimetre tall and reads as a plinth. Note that
-elephant's-foot compensation eats into that spread, which is what it is there
-for; without it the compensation comes off the strips themselves.
+two strips 30mm long and 1.4mm wide with a 16mm part over them -- 155mm2 in
+all -- and on a clean sheet that took three goes. A fresh sheet held it; if
+yours will not, `CarriageSpec.tabs` puts a sacrificial pad at each corner,
+where peel starts:
 
-If a bed still will not hold one, `CarriageSpec.tabs` puts a sacrificial pad at
-each corner -- `just build --model main:tabbed_carriage=carriage-tabs` -- a
-quarter of a millimetre thick, merged into the bracket, and off with a
-fingernail. They are not in the boat's own build: they would foul the hull.
+```sh
+just build --model main:tabbed_carriage=carriage-tabs
+just build --model main:tabbed_broadside_carriage=carriage-9-tabs
+```
+
+That is 220mm2 instead of 155. The pads are a quarter of a millimetre thick and
+merged into the bracket, so they come off with a fingernail. They are not in the
+boat's own build: they would foul the hull.
 
 If a carriage binds on its slide or will not clip on, the thing to print next is
 not another hull: `just build --model cannon.proof:model=proof-12` writes a patch
