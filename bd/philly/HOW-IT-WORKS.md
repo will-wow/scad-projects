@@ -658,6 +658,13 @@ Only those two crossbars are necked, each neck just inboard of the rail with a
 square shoulder between them. The necks are `rig.neck_radius` — the same number
 the canvas's eyes were cut for, imported rather than copied.
 
+Between the ends it follows the frame. A straight run from the first crossbar
+to the last read as a triangle over a frame that bows out along its sides, so
+`rig.sail` takes extra `edge` points, and the canvas passes one at each
+crossbar in between, inset from the side rail as far as the corners are. The
+plate is the convex hull of its corners and those points. That is exact here,
+since the frame only ever narrows faster toward the stern.
+
 It prints flat and eyes up, like the sails, and is rigged the other way up:
 `rigged_canvas` gives it a half turn about y, which puts the plate on top, the
 eyes' mouths facing down onto the necks, and the wider foot forward. Its plate

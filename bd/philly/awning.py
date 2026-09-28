@@ -312,10 +312,19 @@ def canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = N
     It is a sail in all but name -- `rig.sail`, cut to the frame instead of the
     yards: its foot spans the necks on the first crossbar, its head the necks on
     the last, which is narrower because the hull closes in toward the transom.
+
+    Between them it follows the frame rather than running straight from end to
+    end, which over a frame that bows out along its sides read as a triangle.
+    At each crossbar in between, its edge stands in from the side rail as far as
+    it does at the ends, where the corner posts put it.
     """
     rig = rig or Rig()
     shape = frame(spec, lines, awning, rig)
     fore, aft = shape.clips
+    # Laid flat the foot is at +x, and rigged it is turned end for end, so a
+    # crossbar's station counts back from the middle.
+    middle = 0.5 * (shape.bars[0] + shape.bars[-1])
+    inset = BAR + TOLERANCE
     return sail(
         rig,
         foot=2.0 * fore,
@@ -323,6 +332,7 @@ def canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = N
         height=shape.bars[-1] - shape.bars[0],
         radius=shape.neck,
         offset=canvas_offset(spec, lines, rig),
+        edge=tuple((middle - foot.station, foot.half - inset) for foot in shape.feet[1:-1]),
     )
 
 
