@@ -24,7 +24,7 @@ import numpy as np
 from build123d import Axis, Box, Cylinder, Part, Pos, Rot, fillet
 
 from details import bench_top
-from hull import Deck, HullSpec, as_part, inner_half_width
+from hull import Deck, HullSpec, as_part, clear_of_seams, inner_half_width
 from lines import HullLines
 from rig import TOLERANCE, Rig, neck_radius, sail
 
@@ -36,6 +36,9 @@ BOSS = 7.0
 BOSS_HEIGHT = 3.0
 SOCKET_DEPTH = 5.0
 
+# The least an upright stands off the inside of the hull.
+SIDE_GAP = 0.3
+
 # Material that must be left under a socket. A deck is solid from the bottom of
 # the hull up, so a socket's floor is also the hull's bottom, and anything
 # thinner than a wall there is a leak waiting to happen.
@@ -46,15 +49,18 @@ FLOOR = 2.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    legs: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82)
+    legs: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82, 0.895)
     """where the pairs of uprights stand, which is also where the frame ends
 
-    Kept well forward of the transom, where the hull closes in fast: an upright
-    stands on the quarterdeck, and the inside there narrows from 27mm of
-    half-width at 0.80 to 15mm at 0.90. Legs that far aft pinch the frame to a
-    point. The first two pairs stand between the middle platform's knees, the
-    second of them between the two 9-pounders' carriages; the last two stand
-    on the quarterdeck's benches.
+    The first two pairs stand between the middle platform's knees, the second
+    of them between the two 9-pounders' carriages. The next two stand on the
+    quarterdeck's benches, and the last on the deck just aft of them, which
+    carries the frame nearly to the transom as the museum's model has it.
+    Further aft the hull closes in fast -- the inside narrows from 15mm of
+    half-width at 0.90 to 11mm at 0.92 -- and legs there pinch the frame to a
+    point. At 0.895 rather than 0.90: dodging the quarterdeck's seams moves the
+    pair 1.1mm outboard there, which the upright has room for. At 0.90 it had
+    none, and the pair was pulled 1.6mm inboard instead.
     """
     rise: float = 0.40
     """roof clearance above the highest rail under it, as a fraction of the hull's depth"""
@@ -150,11 +156,30 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
         at = source(leg)
         seat = bench_top(spec, lines, leg)
         height = deck.height * lines.depth * factor if seat is None else seat
-        inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.bulge)
+        # The tightest the inside gets along the upright's own length: toward the
+        # transom the hull closes in fast enough that its after face is nearer
+        # the side than its middle.
+        along = [at + offset / factor for offset in (-BAR / 2.0, 0.0, BAR / 2.0)]
+
+        def tightest(z: float, along: list[float] = along) -> float:
+            return factor * min(
+                inner_half_width(lines, x, spec.wall / factor, z / factor, spec.bulge)
+                for x in along
+            )
+
+        inside = tightest(height)
+        half = inside - awning.inset
+        if seat is None:
+            # On bare deck the boss must not end hard by a seam, and dodging one
+            # must not push the upright into the side where it rises off the
+            # boss -- the boss itself is meant to merge into the planking.
+            room = tightest(height + BOSS_HEIGHT) - SIDE_GAP - BAR / 2.0 - half
+            edges = (half - BOSS / 2.0, half + BOSS / 2.0)
+            half += clear_of_seams(spec, deck, edges, outboard=room)
         feet.append(
             Foot(
                 station=at * factor,
-                half=inside * factor - awning.inset,
+                half=half,
                 deck=height,
                 bottom=lines.chine_height.value(at) * factor,
             )

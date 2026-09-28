@@ -52,8 +52,8 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-hull.3mf` | 304 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
 | `philadelphia-mast.3mf` | 200.8 x 93.0 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
 | `philadelphia-sails.3mf` | 69 x 178 x 6.6mm | as exported, flat | two separate sails in one file |
-| `philadelphia-awning.3mf` | 125.8 x 72.2 x 30.9mm | as exported, **roof down** | legs point up; do not flip it |
-| `philadelphia-awning-canvas.3mf` | 127.1 x 61.4 x 5.7mm | as exported, flat | print it with the sails' settings |
+| `philadelphia-awning.3mf` | 148.3 x 72.1 x 34.7mm | as exported, **roof down** | legs point up; do not flip it |
+| `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.7mm | as exported, flat | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
 `gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` pin for each of

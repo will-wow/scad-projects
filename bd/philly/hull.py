@@ -25,6 +25,7 @@ the new chine corner is where the offset side and offset floor intersect.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -84,12 +85,47 @@ class Seams:
     depth: float = 0.2
     margin: float = 0.5
     """how far short of the inside of the hull each seam stops"""
+    clearance: float = 1.0
+    """the least anything standing on the deck may leave between its edge and a seam
+
+    Any closer and the strip of deck between them is too thin for the mesher,
+    which drops it: the export then has a hole in the deck. See `clear_of_seams`.
+    """
 
     def __post_init__(self) -> None:
         if self.width <= 0.0 or self.margin < 0.0:
             raise ValueError("a seam needs some width, and cannot run into the side")
         if not 0.0 < self.depth < 0.3:
             raise ValueError(f"a seam must be shallower than 0.3mm, got {self.depth}")
+
+
+def clear_of_seams(
+    spec: HullSpec, deck: Deck, edges: tuple[float, ...], outboard: float = math.inf
+) -> float:
+    """How far to move something standing on `deck` so none of its edges is near a seam.
+
+    `edges` are where its fore-and-aft edges stand, as distances from the
+    centreline in millimetres of the finished model. The answer is the smallest
+    move that keeps every one `Seams.clearance` from a seam, outboard first
+    unless that is further than `outboard` allows, and 0 on a deck without
+    seams.
+    """
+    if spec.seams is None or deck.plank is None:
+        return 0.0
+    plank = deck.plank
+    keep = spec.seams.width / 2.0 + spec.seams.clearance
+
+    def fouls(y: float) -> bool:
+        seam = (np.floor(y / plank - 0.5) + 0.5) * plank
+        return min(abs(y - seam), abs(y - seam - plank)) < keep
+
+    for move in np.arange(0.0, plank, 0.01):
+        for shift in (float(move), -float(move)):
+            if shift > outboard:
+                continue
+            if not any(fouls(edge + shift) for edge in edges):
+                return shift
+    raise ValueError(f"nothing with edges at {edges} fits between the seams of a {plank}mm plank")
 
 
 @dataclass(frozen=True)

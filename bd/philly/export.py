@@ -20,6 +20,10 @@ import lib3mf
 import numpy as np
 from build123d import Part, export_step, export_stl
 
+# OCP is compiled and ships no stubs, so pyright cannot see into it.
+from OCP.BRepMesh import BRepMesh_IncrementalMesh  # pyright: ignore[reportAttributeAccessIssue]
+from OCP.BRepTools import BRepTools  # pyright: ignore[reportAttributeAccessIssue]
+
 from preview import load_model
 
 # The parts a print needs, as module:callable=label. They are separate files
@@ -42,6 +46,9 @@ PARTS = (
 # Tessellation tolerance in millimetres of the finished model. Finer than a
 # printer's nozzle, so the mesh is not what limits the print.
 MESH_TOLERANCE = 0.05
+
+# And in radians, build123d's default: how far a curve may turn between facets.
+ANGULAR_TOLERANCE = 0.1
 
 
 # Vertices closer together than this are the same vertex. OCCT emits
@@ -71,9 +78,24 @@ def weld(points: np.ndarray, faces: np.ndarray) -> tuple[np.ndarray, np.ndarray]
     return welded, remapped[keep]
 
 
+def triangulate(part: Part, tolerance: float = MESH_TOLERANCE):
+    """Tessellate `part` to `tolerance` millimetres, as vertices and triangles.
+
+    build123d's own `tessellate` meshes with the tolerance *relative* to each
+    edge's size, so 0.05 on a 300mm hull is nowhere near 0.05mm. Relative
+    meshing also left holes in the deck: it dropped whole strips between the
+    plank seams wherever a fitting stood across them. Meshing first with the
+    tolerance absolute makes it mean millimetres, and closes the holes;
+    `tessellate` then uses the mesh already there.
+    """
+    BRepTools.Clean_s(part.wrapped)
+    BRepMesh_IncrementalMesh(part.wrapped, tolerance, False, ANGULAR_TOLERANCE, True)
+    return part.tessellate(tolerance, ANGULAR_TOLERANCE)
+
+
 def write_3mf(part: Part, path: Path, *, tolerance: float = MESH_TOLERANCE) -> tuple[int, int]:
     """Tessellate `part` and write it to `path`. Returns (vertices, triangles)."""
-    raw_vertices, raw_triangles = part.tessellate(tolerance)
+    raw_vertices, raw_triangles = triangulate(part, tolerance)
     points, faces = weld(
         np.array([[v.X, v.Y, v.Z] for v in raw_vertices], dtype=float),
         np.array(raw_triangles, dtype=np.int64),
