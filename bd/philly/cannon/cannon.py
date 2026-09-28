@@ -52,6 +52,7 @@ from build123d import (
     Mode,
     Part,
     Plane,
+    Polygon,
     Polyline,
     SagittaArc,
     ThreePointArc,
@@ -203,13 +204,20 @@ def outline(spec: CannonSpec, s: float) -> float:
 
 
 def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
-    """The hole the trunnion pin goes through, as a solid to subtract.
+    """The keyed hole the trunnion pin goes through, as a solid to subtract.
 
     A teardrop rather than a round hole: the gun prints muzzle-down, so this is
-    a horizontal hole, and the apex points toward the breech -- up, as printed --
-    to carry its own roof. It goes right through, which is what holds the pin;
-    the blind sockets this replaced let the pegs fall out while the gun was being
-    clipped in.
+    a horizontal hole, and the apex points toward the breech -- up, as printed
+    -- to carry its own roof. It goes right through, which is what holds the
+    pin; the blind sockets this replaced let the pegs fall out.
+
+    Below the round it is cut off flat, and that flat is what keys the pin to
+    the gun, so that turning the gun turns the pin and the bayonet in the
+    brackets can be trusted. The flat lies at `pegs.release`, the elevation at
+    which the pin's flats stand vertical and it lifts out of its slots; the pin
+    has the same flat on its other side, but a hole cannot: a flat roof 1.8mm
+    across would print as a sag, and a sagging keyway is a loose one. One flat
+    is enough to key against, and the pin can rock about three degrees on it.
 
     In printed millimetres, like the pin it takes, and so cut after the gun has
     been scaled: scaling a cut this fine afterwards shrinks the sliver where the
@@ -225,6 +233,21 @@ def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
     reach = barrel_radius(spec, spec.trunnions_at) + 1
     shoulder = (radius * math.cos(lean), height + radius * math.sin(lean))
     apex = (0, height + radius / math.sin(lean))
+
+    # The flat's own axes: `along` lies in it, `out` is its outward normal. At
+    # the release elevation `along` stands vertical, which is what lines the
+    # pin's flats up with the brackets' slots.
+    key = math.radians(pegs.release)
+    along = (math.cos(key), math.sin(key))
+    out = (-math.sin(key), math.cos(key))
+    face = tuple(
+        (
+            u * along[0] - (pegs.keyway / 2 + v) * out[0],
+            height + u * along[1] - (pegs.keyway / 2 + v) * out[1],
+        )
+        for u, v in ((5, 0), (-5, 0), (-5, 5), (5, 5))
+    )
+
     with BuildPart() as cutter:
         with BuildSketch(Plane.XZ.offset(-reach)):
             with BuildLine():
@@ -236,6 +259,7 @@ def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
                 )
                 Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
             make_face()
+            Polygon(*face, align=None, mode=Mode.SUBTRACT)
         extrude(amount=2 * reach)
 
     assert cutter.part is not None

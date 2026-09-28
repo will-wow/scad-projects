@@ -2,10 +2,11 @@
 
 Two **brackets** -- the side pieces -- standing on the deck either side of a
 **bed**, with a **quoin**, the wedge under the breech that sets the elevation.
-The top of each bracket is opened into a **clip**: a round **trunnion bed** with
-a way in above it, pinched by a **detent** that the gun's trunnion pin clicks
-past. The two **lips** either side of that way in are cut free of the bracket by
-a slot apiece, so each is a short beam that springs where the bracket cannot.
+The top of each bracket is opened into a **bed** for the trunnion pin, with a
+straight **slot** over it. The slot is narrower than the pin is round and only
+as wide as the pin is across its flats, so the pin drops in at one angle of the
+gun -- muzzle down by `TrunnionSpec.release` -- and at every other angle its
+corners are under the **lips** either side, held by solid bracket.
 
 The carriage runs on a slide in the deck (see `cannon/slide.py`). The bed is
 raised over a tunnel that the slide passes through, and in the tunnel, fixed to
@@ -13,15 +14,14 @@ the brackets at their middles, are the two **clamps** that snap under the
 slide's lip. Four **trucks** on the sides are the wheels a sea carriage stands
 on; here they are for looks, since the slide does the running.
 
-An earlier version held the gun with cap squares: little grooved blocks that
-slid aft along a hooked rail. Neither the groove nor the hook survived the
-printer at 1:55, and the gun had to be threaded together rather than pushed. The
-clip asks less of the print and nothing of the assembler -- press the gun down
-until it clicks -- and it pops the gun out rather than breaking when the boat is
-played with hard. What flexes is a lip 0.7mm thick on a 3.9mm arm, strained
-under one percent by the pin going past, and it cannot be strained much further:
-a lip meets the bracket again after `relief`, half a millimetre, which is four
-times the give the detent asks for.
+Nothing that holds the gun springs, and that is the whole of the point. Two
+earlier schemes did. Cap squares -- little grooved blocks sliding on a hooked
+rail -- were too small to print at 1:55. Sprung lips either side of the slot
+held the gun for an afternoon of play and then took a set: 0.7mm of PLA bending
+across its printed layers creeps a few microns each time, and the 0.12mm each
+lip had to give with was soon gone. A bayonet has nothing to creep, and a child
+can still take the gun out, by pushing the muzzle down to the one angle where
+the flats line up and lifting.
 
 The carriage is built to put the trunnion axis at `axis_height` above the deck,
 which is what the gun needs to fire over the rail; the bed and brackets are
@@ -92,15 +92,17 @@ class CarriageSpec:
     bracket: float = 1.4  # thickness of a side piece
     steps: tuple[tuple[float, float], ...] = STEPS
 
-    # The clip. Its lips stand `cheek` above the trunnion axis and are cut free
-    # of the bracket by a slot apiece, so the lip springs and the bracket does
-    # not; `relief` is both the width of that slot and the stop that keeps a lip
-    # from being bent further than it can bear.
-    cheek: float = 2.0
-    lip: float = 0.7
-    relief: float = 0.5
-    relief_depth: float = 3.6  # how far below the axis a slot reaches
+    # The bayonet. Each bracket's top is opened into a bed with a straight slot
+    # over it, and the slot is narrower than the pin is round: it passes only
+    # with its flats lined up, which is one angle of the gun and no other. The
+    # lips either side are solid bracket -- nothing here springs, which is the
+    # point, an earlier pair of sprung lips having taken a set in an afternoon.
+    cheek: float = 2.4  # how far a bracket stands over the trunnion axis
     lead: float = 0.25  # chamfer at the mouth, so the pin finds its way in
+    # Where a lip's underside meets the bed, in degrees above the axis. It has
+    # to be above the bed's widest point, or the 45-degree underside cuts a
+    # chord off the bed and the pin can drop in but not turn.
+    bite: float = 35.0
 
     quoin_width: float = 2.6  # about half the gun's diameter
     quoin: float = 6.0  # the wedge's length, thin end forward
@@ -134,30 +136,24 @@ class CarriageSpec:
         return self.axis_height + self.cheek
 
     @property
-    def crest(self) -> float:
-        """The detent's crest above the axis, where it reaches furthest inward.
+    def lip_underside(self) -> float:
+        """Where a lip's underside leaves the slot wall, above the axis.
 
-        Both its flanks lie at 45 degrees, so the reach inward and the height
-        above the axis are the same number: the pin rides up the outer flank,
-        spreading the lips, and drops past the inner one into the bed, which
-        that flank roofs.
+        It runs from there down to the bed at 45 degrees, so it carries its own
+        roof, and it meets the bed `bite` degrees above the axis rather than at
+        the widest point -- which is what leaves the bed a full circle for the
+        pin to turn in.
         """
-        return (self.pegs.bed - self.pegs.gate) / 2
+        radius = self.pegs.bed / 2
+        bite = math.radians(self.bite)
+        return radius * (math.cos(bite) + math.sin(bite)) - self.pegs.slot / 2
 
     @property
-    def lip_arm(self) -> float:
-        """A lip's free length: from the floor of its slot up to the detent."""
-        return self.relief_depth + self.crest
-
-    @property
-    def lip_strain(self) -> float:
-        """Peak bending strain in a lip as the pin passes the detent.
-
-        Half the interference each, since both lips give. A lip bends across the
-        printed layers, which is the weak direction in PLA, so this is kept well
-        under the two percent the material itself would take.
-        """
-        return 1.5 * self.lip * self.pegs.snap / 2 / self.lip_arm**2
+    def lip_clears_the_pin_by(self) -> float:
+        """How far a lip's underside passes outside the turning pin."""
+        radius = self.pegs.bed / 2
+        bite = math.radians(self.bite)
+        return radius * (math.cos(bite) + math.sin(bite)) / math.sqrt(2) - self.pegs.shank / 2
 
     @property
     def gap(self) -> float:
@@ -253,26 +249,21 @@ class CarriageSpec:
         return (self.length - self.slide.root) / 2
 
 
-def _clips(spec: CarriageSpec) -> Part:
-    """Both clips, as a solid to subtract: a C in the top of each bracket.
+def _slots(spec: CarriageSpec) -> Part:
+    """Both bayonet slots, as a solid to subtract: a bed with a way in over it.
 
-    The trunnion pin is pushed down the way in, spreads the two lips as it
-    passes the detent, and drops into the round bed under them. Nothing has to
-    be threaded or slid afterwards, and nothing small is left over: the cap
-    squares this replaced were 6mm blocks that had to be grooved to a hooked
-    rail, and at 1:55 neither the groove nor the hook came out of the printer
-    as anything a child could work.
+    The bed is round and takes the pin's full diameter with room to turn; the
+    way in over it is narrower than that, and only as wide as the pin is across
+    its flats. So the pin goes down it at one angle of the gun and is held by
+    solid metal at every other -- there is no spring here, and nothing to take
+    a set. The two sprung lips this replaced held the gun for an afternoon of
+    play and then went soft: 0.7mm of PLA bending across its layers creeps a few
+    microns each time.
 
-    A lip is cut free of the bracket by a slot behind it, so what bends is a
-    beam of known length rather than the whole bracket -- the bracket is stiff,
-    and a stiff bracket asked to give a quarter of a millimetre simply cracks.
-    The slot doubles as the lip's stop: 0.5mm behind each lip and only a fifth
-    of that needed to clip the gun in, so a lip cannot be bent far enough to
-    break, whatever is done to it.
-
-    Everything here lies at 45 degrees or steeper. The detent's flanks, the
-    chamfer at the mouth and the roof over the bed are the only sloping faces,
-    and they are all at the limit, so the clip prints with the carriage.
+    The lips' undersides run down at 45 degrees and meet the bed `bite` degrees
+    above the axis, not at its widest point. Run them to the widest point and
+    they pass 1.03mm from the axis, inside the 1.3mm the pin needs, and the pin
+    drops in and then jams instead of turning.
 
     Returns a part to subtract rather than cutting the caller's, because a
     builder only nests into its parent when both are opened in the same Python
@@ -280,54 +271,37 @@ def _clips(spec: CarriageSpec) -> Part:
     """
     axis, top = spec.axis_height, spec.rail_top
     radius = spec.pegs.bed / 2
-    gate = spec.pegs.gate / 2
-    rise = spec.crest
+    half = spec.pegs.slot / 2
+    bite = math.radians(spec.bite)
+    meets = (radius * math.cos(bite), radius * math.sin(bite))
     lead = spec.lead
     over = 1.0  # how far the cut stands above the bracket, so the mouth is open
 
     with BuildPart() as cutter:
         for side in (1, -1):
             plane = Plane.XZ.offset(-side * (spec.gap / 2 - 0.1))
-            through = -side * (spec.bracket + 0.2)
             with BuildSketch(plane):
                 with BuildLine():
                     Polyline(
-                        (-(radius + lead), top + over),
-                        (-(radius + lead), top),
-                        (-radius, top - lead),
-                        (-radius, axis + 2 * rise),
-                        (-gate, axis + rise),
-                        (-radius, axis),
+                        (-(half + lead), top + over),
+                        (-(half + lead), top),
+                        (-half, top - lead),
+                        (-half, axis + spec.lip_underside),
+                        (-meets[0], axis + meets[1]),
                     )
-                    CenterArc((0, axis), radius, start_angle=180, arc_size=180)
+                    CenterArc(
+                        (0, axis), radius, start_angle=180 - spec.bite, arc_size=180 + 2 * spec.bite
+                    )
                     Polyline(
-                        (radius, axis),
-                        (gate, axis + rise),
-                        (radius, axis + 2 * rise),
-                        (radius, top - lead),
-                        (radius + lead, top),
-                        (radius + lead, top + over),
-                        (-(radius + lead), top + over),
+                        (meets[0], axis + meets[1]),
+                        (half, axis + spec.lip_underside),
+                        (half, top - lead),
+                        (half + lead, top),
+                        (half + lead, top + over),
+                        (-(half + lead), top + over),
                     )
                 make_face()
-            extrude(amount=through)
-
-            # The slot behind each lip, rounded at the bottom: that end is where
-            # the lip is anchored and where it would crack, and a square corner
-            # there is a crack waiting.
-            with BuildSketch(plane):
-                for hand in (1, -1):
-                    near = hand * (radius + spec.lip)
-                    far = near + hand * spec.relief
-                    end = axis - spec.relief_depth + spec.relief / 2
-                    with BuildLine():
-                        Polyline((near, top + over), (near, end))
-                        CenterArc(
-                            ((near + far) / 2, end), spec.relief / 2, start_angle=180, arc_size=180
-                        )
-                        Polyline((far, end), (far, top + over), (near, top + over))
-                    make_face()
-            extrude(amount=through)
+            extrude(amount=-side * (spec.bracket + 0.2))
 
     assert cutter.part is not None
     return cutter.part
@@ -421,12 +395,14 @@ def carriage(spec: CarriageSpec) -> Part:
         raise ValueError("the clamps have no room to spread over the slide's head")
     if rail_top + min(h for _, h in spec.steps) <= spec.bed_top:
         raise ValueError("the brackets' after steps are below the bed")
-    if spec.axis_height - spec.relief_depth - spec.bed < spec.bed_top:
-        raise ValueError("the clips' slots would cut into the bed; shorten them")
+    if spec.pegs.slot >= spec.pegs.shank:
+        raise ValueError("the way in is wider than the pin is round; it would lift out")
+    if spec.lip_clears_the_pin_by <= 0.05:
+        raise ValueError("the lips' undersides cut into the bed; the pin could not turn")
 
     # Built before the builder opens: inside it, a bare Polygon is taken as a
     # sketch operation on the part and refused.
-    tunnel, clamps, clips = _tunnel(spec), _clamps(spec), _clips(spec)
+    tunnel, clamps, slots = _tunnel(spec), _clamps(spec), _slots(spec)
     trucks = _trucks(spec) if spec.trucks else None
 
     with BuildPart() as truck:
@@ -461,7 +437,7 @@ def carriage(spec: CarriageSpec) -> Part:
             )
         extrude(amount=spec.quoin_width / 2, both=True)
 
-        add(clips, mode=Mode.SUBTRACT)
+        add(slots, mode=Mode.SUBTRACT)
 
         if spec.tabs:
             with BuildSketch(Plane.XY):
@@ -486,8 +462,9 @@ def main() -> None:
     print(
         f"carriage {box.X:.1f} x {box.Y:.1f} x {box.Z:.1f} mm, "
         f"trunnion axis {spec.axis_height:.2f}mm above the deck; "
-        f"lips strained {spec.lip_strain:.2%} taking the gun, "
-        f"clamps {spec.slide.strain(spec.arm):.2%} clipping on"
+        f"the pin lifts out at {spec.pegs.release:.0f} degrees and is held by "
+        f"{spec.pegs.locked_by(spec.elevation - spec.pegs.release):.2f}mm where it rests, "
+        f"clamps strained {spec.slide.strain(spec.arm):.2%} clipping on"
     )
     show_object(truck, name="carriage")
 

@@ -17,8 +17,10 @@ from build123d import (
     Compound,
     Part,
     Plane,
+    Pos,
     RevoluteJoint,
     RigidJoint,
+    Rot,
 )
 
 from cannon.cannon import cannon, trunnion_height
@@ -44,13 +46,13 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     truck = carriage(spec)
     truck.color = WOOD
     truck.label = "carriage"
+    # Down as far as the bayonet's release angle, since that is a position the
+    # gun is meant to reach; the quoin stops it going far the other way.
     RevoluteJoint(
-        "elevation", truck, axis=Axis((0, 0, axis_height), (0, 1, 0)), angular_range=(-10, 10)
-    )
-    RigidJoint(
-        "trunnion",
+        "elevation",
         truck,
-        Plane(origin=(0, -pegs.length / 2, axis_height), z_dir=(0, 1, 0)).location,
+        axis=Axis((0, 0, axis_height), (0, 1, 0)),
+        angular_range=(pegs.release - 4.0, 10.0),
     )
 
     gun = cannon(spec.gun)
@@ -63,11 +65,20 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     )
     truck.joints["elevation"].connect_to(gun.joints["trunnions"], angle=elevation)
 
-    pin = trunnion(pegs)
+    # The pin is keyed to the gun, so it is placed in the gun's own frame and
+    # carried wherever the elevation puts it: lying along the gun's y, turned so
+    # its flats stand vertical at `release` and nowhere else. It prints lying on
+    # a flat with that flat on the bed, which is why it has to be stood up here.
+    pin = (
+        gun.location
+        * Pos(0, 0, trunnion_height(spec.gun))
+        * Rot(0, -pegs.release, 0)
+        * Rot(0, 0, 90)
+        * Pos(0, 0, -pegs.waist / 2)
+        * trunnion(pegs)
+    )
     pin.color = BRASS
     pin.label = "trunnion"
-    RigidJoint("seat", pin, Plane(origin=(0, 0, 0)).location)
-    truck.joints["trunnion"].connect_to(pin.joints["seat"])
 
     parts: list[Part] = [truck, gun, pin]
 

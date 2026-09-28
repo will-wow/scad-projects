@@ -15,7 +15,8 @@ Three printed parts per gun, all in the default `just build`:
 
 `cannon/assembly.py` puts them together for looking at -- a `RevoluteJoint` on
 the trunnion axis, so `elevation` swings the gun -- and is not printed. The
-tests assert that the only metal any two of them share is the four detents.
+tests assert that no two of them share any metal, and that the gun lifts out of
+its carriage at one angle and no other.
 
 The barrel is a solid of revolution with its parts named as a gunfounder would
 (swell of the muzzle, neck, astragal, reinforce rings, base ring, cascabel),
@@ -31,25 +32,25 @@ end-on and independently, the starboard 9-pounder comes to 2.23 and 3.37 over
 21.7 calibres, so the two pieces agree. `designs/measure_scan.py` prints the
 numbers for both.
 
-The pin goes right through the piece and reaches the outside of both brackets.
-The top of each bracket is a **clip**: a round bed with a way in above it,
-pinched by a **detent** the pin clicks past, and the two **lips** either side of
-that way in are cut free of the bracket by a slot apiece. A lip is 0.7mm thick
-on a 3.9mm arm and is strained 0.8% by the pin going by; its slot closes after
-half a millimetre, which is four times the give the detent asks, so a lip cannot
-be bent far enough to break. `CarriageSpec.lip_strain` is asserted under one
-percent.
+The pin goes right through the piece and reaches the outside of both brackets,
+and it is not round: two flats down its length make it 2.6mm across the round
+and 1.7mm across the flats, against a 1.85mm slot in each bracket. So it drops
+into its beds at one angle of the gun -- muzzle down 16 degrees -- and at every
+other angle its corners are under the lips, held by solid bracket. The barrel's
+hole carries the same flat, so turning the gun turns the pin. Where the gun
+rests on its quoin it is locked by 0.42mm.
 
-This is the third scheme. The brackets themselves were the spring first (6.5%
-strain, hopeless), then separate pegs in blind sockets under sliding cap squares
--- which printed, and then fell apart in the hand: the pegs would not stay in
-1.2mm of printed hole, and a 2.5mm cap square has no room for a groove and a
-hook. HOW-IT-WORKS.md Part 12 records both.
+This is the third scheme, and the two before it both failed in the hand rather
+than on paper. Pegs in blind sockets under sliding cap squares fell apart during
+assembly. Sprung lips either side of the slot held the gun for an afternoon of
+play and then took a set: the strain was inside what PLA yields at, but nothing
+in that number says what a thousand cycles of creep will do to 0.12mm of travel.
+A bayonet has no travel to lose. HOW-IT-WORKS.md Part 12 records both.
 
 Fits live in `TrunnionSpec`, in printed millimetres -- a clearance does not
 scale -- and the barrel and the carriage both cut their geometry from that one
-spec. The bed is 0.15mm per side over the pin; the detent stands 0.12mm into its
-path on either lip.
+spec, `release` included, so the gun's hole and the brackets' slots cannot
+disagree about the angle. The bed is 0.15mm per side over the pin.
 
 Two things learned the hard way, both recorded in the code: a `BuildSketch`
 opened inside a helper function silently goes nowhere, because build123d only

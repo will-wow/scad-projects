@@ -190,36 +190,46 @@ Three printed parts per gun: the barrel, one **trunnion** pin, and a **carriage*
 breech up.
 
 The pin is bored right through the piece and stands out far enough each side to
-reach the outside of both brackets. The top of each bracket is opened into a
-**clip**: a round **trunnion bed** with a way in above it, pinched by a
-**detent**. Push the gun down and it clicks in; pull it up firmly and it comes
-out. It turns on the pin in the beds, so the gun still elevates.
+reach the outside of both brackets. It is not round: two flats are milled down
+its length, so it is 2.6mm across the round and 1.7mm across the flats, and the
+**slot** over each bracket's **trunnion bed** is 1.85mm wide. It therefore goes
+in at one angle of the gun and no other -- muzzle down 16 degrees -- and at
+every other angle its corners are under the **lips** either side of the slot,
+held by solid bracket. The hole through the barrel carries the same flat, so
+turning the gun turns the pin. It is a bayonet, and it has nothing in it that
+can wear out.
 
-That replaces two earlier schemes, both of which failed on the print bed. First
-came separate pegs pressed into blind sockets in the barrel with a sliding cap
-square over each: the pegs fell out while the gun was going in, because 1.2mm of
-printed hole is not a press fit, and the cap squares were 2.5mm blocks that had
-to be grooved to a hooked rail -- neither the groove nor the hook came out of the
-printer as anything that worked. Before that, the brackets themselves were the
-spring, which wanted 6.5% surface strain against the 2% PLA takes.
+That is the third scheme, and the first two are worth recording. Separate pegs
+pressed into blind sockets, with a sliding cap square over each, fell apart in
+the hand: 1.2mm of printed hole is not a press fit, and a 2.5mm cap square has
+no room for a groove and a hook. Sprung lips either side of the slot then held
+the gun for an afternoon of play and went soft -- 0.7mm of PLA bending across
+its printed layers creeps a few microns each time, and the 0.12mm each lip had
+to give with was soon gone.
 
-What springs now is a **lip**: the two either side of each way in are cut free of
-the bracket by a slot apiece, so each is a beam 0.7mm thick on a 3.9mm arm, and
-the pin going past the detent strains it 0.8%. It cannot be strained much
-further, either -- a lip meets the bracket again after half a millimetre, four
-times the give the detent asks for -- so there is no way to bend one far enough
-to break it. `main()` prints the figure, and a test fails if the geometry drifts
-past one percent.
+Where the gun rests, the pin's corners stand 0.42mm under the lips. Push the
+muzzle down past about 13 degrees and they line up with the slots and it lifts
+straight out; a test raises the gun a quarter of a millimetre at a time at each
+angle and asks whether the pin ever meets a bracket.
 
-The detent's flanks both sit at `max_overhang`, the roof over each bed is the
-inner flank, and the pin's hole through the barrel is a teardrop with its apex
-toward the breech. So all of it prints as modelled, with no support anywhere.
+Two things are easy to get wrong here, and both are asserted. The lips'
+undersides must meet the bed *above* its widest point -- run them to the widest
+point and the 45-degree line passes 1.03mm from the axis, inside the 1.3mm the
+pin needs, so the pin drops in and jams instead of turning. And the flats must
+be no narrower than `shank / sqrt 2`, or the pin stops being printable lying
+down.
 
 `cannon/trunnion.py` holds the fits, and the barrel and the carriage both cut
 their own geometry from that one `TrunnionSpec`. Its numbers are in printed
 millimetres rather than calibres: a clearance does not scale. The bed is 0.15mm
 per side over the pin, looser than it looks on paper -- the mast in `rig.py`
-uses 0.3 -- because a 2.6mm journal that seizes is no pivot at all.
+uses 0.3 -- because a 2.6mm journal that seizes is no pivot at all. `release`
+lives there too, since the gun's hole and the brackets' slots are both cut from
+it and must not disagree.
+
+The pin prints lying on a flat, which is both the easier print -- a real contact
+patch rather than a 3.5mm2 circle on end -- and the stronger part, the layers
+running along it instead of across the way it is loaded.
 
 ```sh
 just watch cannon/assembly.py   # the three parts together
@@ -267,7 +277,8 @@ To arm the boat, print:
 | trunnion pin | `philadelphia-trunnion.3mf` | 3 |
 
 Put the carriage on its slide first, then the pin through the barrel, and press
-the barrel down into the carriage until both clips click.
+the barrel into the carriage with its muzzle pressed down, then let it up onto
+the quoin, which locks it.
 
 `cannon/assembly.py` is not printed. It hangs the gun off a `RevoluteJoint` on
 the trunnion axis -- positive `elevation` raises the muzzle -- and the tests
