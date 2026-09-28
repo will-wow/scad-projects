@@ -23,6 +23,7 @@ from dataclasses import dataclass
 import numpy as np
 from build123d import Axis, Box, Cylinder, Part, Pos, Rot, fillet
 
+from details import bench_top
 from hull import Deck, HullSpec, as_part, inner_half_width
 from lines import HullLines
 from rig import TOLERANCE, Rig, neck_radius, sail
@@ -45,13 +46,15 @@ FLOOR = 2.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    legs: tuple[float, ...] = (0.42, 0.55, 0.74, 0.82)
+    legs: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82)
     """where the pairs of uprights stand, which is also where the frame ends
 
     Kept well forward of the transom, where the hull closes in fast: an upright
     stands on the quarterdeck, and the inside there narrows from 27mm of
     half-width at 0.80 to 15mm at 0.90. Legs that far aft pinch the frame to a
-    point. The second pair stands between the two 9-pounders' carriages.
+    point. The first two pairs stand between the middle platform's knees, the
+    second of them between the two 9-pounders' carriages; the last two stand
+    on the quarterdeck's benches.
     """
     rise: float = 0.40
     """roof clearance above the highest rail under it, as a fraction of the hull's depth"""
@@ -79,7 +82,7 @@ class Foot:
     half: float
     """the centreline's distance from the centreline of the boat"""
     deck: float
-    """the height of the deck it steps on"""
+    """the height of what it steps on: the deck, or a bench where one covers it"""
     bottom: float
     """the outside of the hull below it, which a socket must not reach"""
 
@@ -125,8 +128,8 @@ def _deck_at(spec: HullSpec, fraction: float) -> Deck | None:
 def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Frame:
     """Solve the frame against the hull it has to sit in.
 
-    The uprights' offsets come from `hull.inner_half_width` at the height of the
-    deck they step on -- the narrowest the inside gets over an upright's length,
+    The uprights' offsets come from `hull.inner_half_width` at the height of
+    whatever they step on -- the narrowest the inside gets over an upright's length,
     since the side flares outward going up. Measuring at the rail instead would
     put the feet through the planking.
     """
@@ -145,7 +148,8 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
                 f"the leg at {leg:.3f} stands over open bilge; there is nothing to bore a socket in"
             )
         at = source(leg)
-        height = deck.height * lines.depth * factor
+        seat = bench_top(spec, lines, leg)
+        height = deck.height * lines.depth * factor if seat is None else seat
         inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.bulge)
         feet.append(
             Foot(
@@ -319,7 +323,8 @@ def fit_awning(
     The bosses stand the sockets up off the decks. A deck is solid down to the
     outside of the hull, so a socket bored straight into it would take most of
     its depth out of the bottom; in a boss, most of the hole is above the deck
-    and the hull under it keeps its thickness.
+    and the hull under it keeps its thickness. A pair standing on a bench gets
+    its boss on the seat, so the bench has to be fitted first.
     """
     shape = frame(spec, lines, awning, rig)
     bore = BAR + 2.0 * TOLERANCE

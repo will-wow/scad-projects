@@ -679,7 +679,8 @@ The side flares outward going up, so the inside is narrowest down at the deck â€
 by about 3.5mm on the quarterdeck. Measuring at the rail would put the feet
 through the planking. The hull also closes in fast toward the transom, so legs
 too far aft pinch the frame to a point, which is why they stop at 0.82 rather
-than running to the transom.
+than running to the transom. The aft pairs stand on the quarterdeck's benches,
+and are measured at the seat instead (see Part 13).
 
 ### A boss keeps the socket out of the bottom
 
@@ -866,6 +867,111 @@ Printing it on a flat is the other dividend. Standing on end it had 3.5mm2 of
 first layer under an 11.7mm tower, and its layers ran across the way it is
 loaded; on its side it has a real contact patch and the layers run along it.
 
+## Part 13: the joinery
+
+[`details.py`](details.py) adds the timbers that make the model read as the
+boat in the scan: knees on the middle platform, benches down both sides of the
+quarterdeck, the keelson along each well and the stem on the bow. The seams
+between the deck planks are cut in [`hull.py`](hull.py). Every size comes off
+the scan, and `designs/measure_scan.py` prints the numbers again.
+
+### Merged, and reaching into what they stand on
+
+Each piece is a union with the hull, so it prints as part of it. A union that
+only *touches* the hull is the thing to avoid: coincident faces make fragile
+booleans, and a piece that stops a hair short leaves a crack that the slicer
+reads as two parts. So every piece reaches `OVERLAP` (0.3mm) into the planking
+and is sunk `SINK` into the deck, both well under the 2mm wall.
+
+The side flares, which is why nothing here is a box against it. A knee's back,
+a bench's back and a beam's ends all follow `hull.inner_half_width` up from the
+deck, the same line the cavity was cut to. A box standing square to the deck
+would reach the planking at its foot and stand 0.4mm clear of it at the top of
+a 2mm beam.
+
+All the pieces are fused in one call, `hull.fuse(*pieces)`, rather than one at a
+time. Each boolean against the hull costs about the same whatever the size of
+the piece, so seventeen of them cost 10s where one costs 4s. The end knees overlap
+their beams, which is why each piece is passed as its own tool: a single
+compound of overlapping solids is not a valid argument.
+
+### Knees and their beams
+
+The scan has five knees a side on the middle platform. A pair stands at each
+end, on a cross-beam that is also the platform's edge. Pairs stand at 0.43 and
+0.544, and there is one knee on each side opposite a gun, where the gun's own
+side has none because that is where it runs out. `HullSpec.knees` holds only the
+ones between the ends. The end pairs and their beams are placed from the
+deck's edges, the way the mast step is placed from the wells, so moving the
+platform moves them with it.
+
+The knee's profile is drawn in the transverse plane and extruded 1.6mm along
+the boat. Its back follows the inside face up to half a millimetre under the
+rail. Its tall arm tapers from 2.3mm to 1.6mm, then there is a 5mm curve into
+the low arm, which runs 15.6mm across the deck and slopes down to it at the end.
+Every face is vertical or faces up, so it prints with the hull without
+supports.
+
+### Benches, and the awning standing on them
+
+The benches run from the quarterdeck's forward edge to 0.868, 6.2mm high and
+8.8mm deep. They are solid to the deck, because the scan's front boards run all
+the way down. They cover where the aft pairs of awning legs stood, so those legs
+now stand on the benches: `awning.frame` asks `details.bench_top` what is under
+each leg and uses the seat when there is one. The roof is planar, so the
+uprights just get shorter. That is also why `fit_details` runs before
+`fit_awning`, since the sockets are bored into the seats.
+
+The forward legs moved too, from 0.42 and 0.55 to 0.412 and 0.57: each would
+have stood on a knee.
+
+### The keelson and the stem
+
+The keelson is a 4mm bar standing 1.8mm proud of each well's floor. It runs
+into the bulkhead at each end, and the mast's tube and bore go straight through
+it.
+
+The model's bow is a plumb flat face about 3.7mm wide, where the real one is a
+raked V. So the stem is a separate wedge on that face, and follows the scan's
+curve rather than the model's:
+
+```python
+proud = STEM_PROUD - aft  # the planking meets the stem 220mm aft of its face
+```
+
+It stands 4mm proud at the rail and rakes back as it goes down, until it has
+faded into the bow about 9mm up. It never reaches the bed, so the bottom stays
+flat. The bow gun's clearance check counts the stem's head as part of the rail
+it fires over.
+
+The lines plan's own bow already carries a stand-in for the stem: the faired
+sheer runs on in a straight line to a 205mm-wide face, 134mm forward of where
+its curve ends. The stem stands in front of that, so the hull is 304mm overall
+rather than 300. Taking the stand-in out of the drawing and letting the stem
+replace it was tried. It made a stem narrower than the bow it stood on, which
+looked worse than the extra length.
+
+### Plank seams
+
+The planks all run fore and aft, as the scan shows, so the seams are straight
+grooves 0.5mm wide and 0.2mm deep. A plank is centred on the centreline, and the
+width is set per deck: `Deck.plank` is 7.8, 8.0 and 5.9mm from bow to stern. The
+depth is capped under 0.3mm for a reason: `fit_guns` probes 0.3mm below the deck
+under each carriage's corners, and a seam there must not read as a hole.
+
+`_seams` does not intersect a comb with the cavity. It solves each groove's
+length instead, running it only where the deck is wide enough to leave `margin`
+before the side. That is the same shape at a quarter of the cost. A groove runs
+out past a platform's open edge rather than ending on the face of its bulkhead.
+All three decks' grooves are cut in one boolean.
+
+A knee standing across the seams is where this got fragile. Its footprint cuts
+nearly across the strip of deck between two grooves. Left with a neck 0.3mm
+wide, OCCT's mesher dropped the whole strip, and the export had a hole in the
+deck. So a knee's end is kept `SLIVER` (1mm) clear of any seam, and pulled
+outboard when it would land closer. A test exports the fitted hull, so the next
+such sliver fails the suite rather than the slicer.
+
 ## Making your own hull
 
 If you want to do this for a different boat:
@@ -876,7 +982,8 @@ If you want to do this for a different boat:
 2. **Point [`lines.py`](lines.py) at your layer names** and set `PROFILE_OFFSET`
    to however far apart you drew the two views.
 3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `decks`,
-   `bulge`.
+   `bulge`, and any joinery -- `knees`, `benches`, `keelson`, `stem`, and a
+   plank width per deck with `seams`.
 4. **Run `just watch`** and tune by eye.
 
 If your boat has a *rounded* bilge rather than a hard chine, `_side_profile` is
@@ -901,6 +1008,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`watch.py`](watch.py) | warm-process live reload |
 | [`rig.py`](rig.py) | mast, yards, sails, and the socket in the hull |
 | [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
+| [`details.py`](details.py) | knees, benches, keelson and stem, merged into the hull |
 | [`guns.py`](guns.py) | where each gun stands, how far it runs out, and its slide in the deck |
 | [`cannon/`](cannon) | the barrel, carriage, trunnion pin, slide and its proof piece |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |

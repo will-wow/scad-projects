@@ -11,12 +11,13 @@ from build123d import Part, Pos
 from ocp_vscode import show_object
 
 import awning as awnings
+import details as joinery
 import guns as ordnance
 import lines as hull_lines
 import rig as rigging
 from cannon.cannon import NINE_POUNDER
 from cannon.carriage import CarriageSpec, carriage
-from hull import Bulge, Deck, HullSpec, build
+from hull import Bench, Bulge, Deck, HullSpec, Knee, Seams, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -31,16 +32,36 @@ HULL = HullSpec(
     # bilge open between them. All measured off the Smithsonian scan (see
     # designs/measure_scan.py): lengths as fractions from the bow, heights as
     # fractions of the hull's depth. The scan puts the decks 850, 612 and 537mm
-    # above the keel, stepping down from bow to stern.
+    # above the keel, stepping down from bow to stern. The last number is each
+    # deck's plank width in millimetres, from the seams in the scan: about 430,
+    # 440 and 320mm full size.
     decks=(
-        Deck(0.0, 0.31, 0.48),
-        Deck(0.39, 0.655, 0.34),
-        Deck(0.71, 1.0, 0.30),
+        Deck(0.0, 0.31, 0.48, plank=7.8),
+        Deck(0.39, 0.655, 0.34, plank=8.0),
+        Deck(0.71, 1.0, 0.30, plank=5.9),
     ),
+    seams=Seams(),
     # How far the sides bow out between chine and rail, as a fraction of the
     # side's slant height. The lines plan gives straight panels; the scan's
     # topsides swell. Dial this by eye against the scan -- 0 is the old shape.
     bulge=Bulge(amount=0.06, peak=0.45),
+    # The middle platform's knees, off the scan. A pair stands at each end of
+    # the platform on its cross-beam, which come with it; these are the ones
+    # between. Each gun's own side has none where it runs out, so the knees
+    # there stand alone on the far side.
+    knees=(
+        Knee(0.430, -1),
+        Knee(0.437, 1),
+        Knee(0.481, 1),
+        Knee(0.544, -1),
+        Knee(0.544, 1),
+        Knee(0.591, -1),
+    ),
+    # Along both sides of the quarterdeck, from its forward edge; the scan has
+    # them running to 0.868.
+    benches=(Bench(0.71, 0.868),),
+    keelson=True,
+    stem=True,
 )
 
 
@@ -67,12 +88,14 @@ GUNS = (
 
 
 def fitted(lines: hull_lines.HullLines) -> Part:
-    """The hull with the mast's step, the awning's sockets and the guns' slides.
+    """The hull with its joinery, the mast's step, the awning's sockets and the guns' slides.
 
     Every fitting runs after `build`, which is not optional: the cavity
-    subtraction would carve away anything added before it.
+    subtraction would carve away anything added before it. The joinery goes
+    first, since the awning's aft sockets are bored into the benches.
     """
-    hull = rigging.fit_mast(build(HULL, lines), HULL, lines, RIG)
+    hull = joinery.fit_details(build(HULL, lines), HULL, lines)
+    hull = rigging.fit_mast(hull, HULL, lines, RIG)
     hull = awnings.fit_awning(hull, HULL, lines, AWNING, RIG)
     return ordnance.fit_guns(hull, HULL, lines, GUNS)
 

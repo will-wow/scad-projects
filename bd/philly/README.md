@@ -87,6 +87,12 @@ bow.
 The faired bottom is flat -- one height between the two ends, which curve up
 to the rail. No rocker to interpolate, and the toy sits flat on a printer bed.
 
+`details.py` merges the boat's joinery into the hull, all sized from the scan:
+the knees and cross-beams on the middle platform, benches down both sides of
+the quarterdeck, the keelson along each well, and the stem standing proud of
+the bow. The decks get shallow seams between fore-and-aft planks. The stem
+puts the bow 4mm ahead of the lines' own, so the hull is 304mm long overall.
+
 ## Looking at it headlessly
 
 `just viewer` needs a browser. In a remote or headless session there isn't one,

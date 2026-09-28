@@ -28,7 +28,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Compound, Part, Polyline, Vector, loft, make_face, scale
+from build123d import Box, Compound, Part, Polyline, Pos, Vector, loft, make_face, scale
 
 import lines as hull_lines
 from lines import HullLines
@@ -58,12 +58,70 @@ class Deck:
     """where it ends, as a fraction of the overall length"""
     height: float
     """the platform's height above the bottom, as a fraction of the hull's depth"""
+    plank: float | None = None
+    """the width of its planks in millimetres of the finished model, or None for a plain deck"""
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.start < self.end <= 1.0:
             raise ValueError(f"deck {self.start}..{self.end} is not an increasing 0..1 range")
         if not 0.0 < self.height <= 1.0:
             raise ValueError(f"deck height must lie in 0..1, got {self.height}")
+        if self.plank is not None and self.plank <= 0.0:
+            raise ValueError(f"a plank must have some width, got {self.plank}")
+
+
+@dataclass(frozen=True)
+class Seams:
+    """The grooves between a deck's planks, in millimetres of the finished model.
+
+    Planks run fore and aft, as the scan shows on every deck, so the seams are
+    straight lines along the length. Shallow on purpose: a gun's carriage is
+    checked for deck 0.3mm under each corner, and a seam there must not read
+    as a hole.
+    """
+
+    width: float = 0.5
+    depth: float = 0.2
+    margin: float = 0.5
+    """how far short of the inside of the hull each seam stops"""
+
+    def __post_init__(self) -> None:
+        if self.width <= 0.0 or self.margin < 0.0:
+            raise ValueError("a seam needs some width, and cannot run into the side")
+        if not 0.0 < self.depth < 0.3:
+            raise ValueError(f"a seam must be shallower than 0.3mm, got {self.depth}")
+
+
+@dataclass(frozen=True)
+class Knee:
+    """An L-shaped knee against the inside of the side, standing on a deck.
+
+    Only the ones between a platform's ends: the pairs at each end stand on its
+    cross-beams and are placed from the deck's edges. See details.py.
+    """
+
+    station: float
+    """along the length, as a fraction from the bow"""
+    side: int
+    """+1 to starboard, -1 to port"""
+
+    def __post_init__(self) -> None:
+        if self.side not in (-1, 1):
+            raise ValueError(f"a knee stands to port or starboard, not {self.side}")
+        if not 0.0 < self.station < 1.0:
+            raise ValueError(f"the knee at {self.station} is off the boat")
+
+
+@dataclass(frozen=True)
+class Bench:
+    """A bench along both sides, between two stations given as fractions from the bow."""
+
+    start: float
+    end: float
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.start < self.end <= 1.0:
+            raise ValueError(f"bench {self.start}..{self.end} is not an increasing 0..1 range")
 
 
 @dataclass(frozen=True)
@@ -107,6 +165,15 @@ class HullSpec:
     # How far the sides bow outward between chine and rail. None keeps them the
     # dead-straight panels the lines plan alone gives.
     bulge: Bulge | None = None
+    # The grooves cut into any deck that has a plank width.
+    seams: Seams | None = None
+    # The boat's joinery, which details.py fits once the hull is built: knees on
+    # the platforms, benches along the sides, the keelson showing in the wells
+    # and the stem standing proud of the bow.
+    knees: tuple[Knee, ...] = ()
+    benches: tuple[Bench, ...] = ()
+    keelson: bool = False
+    stem: bool = False
 
     @property
     def deck_open(self) -> bool:
@@ -459,6 +526,57 @@ def _cut(
     return as_part(hull - loft(faces), "cavity subtraction")
 
 
+# Stations each groove's length is solved over. The deck's inside only curves
+# gently along a platform, so a groove ends within a hair of where it could.
+SEAM_SAMPLES = 200
+
+
+def _seams(
+    lines: HullLines,
+    wall: float,
+    bounds: tuple[float, float],
+    floor: float,
+    plank: float,
+    seam: tuple[float, float, float],
+    overrun: tuple[float, float],
+    bulge: Bulge | None = None,
+) -> list[Part]:
+    """The grooves between one deck's planks, in the source's units like `_cut`.
+
+    Straight grooves with a plank centred on the centreline, each running only
+    where the deck is wide enough to keep it `margin` clear of the side -- so
+    they stop short wherever the hull closes in. `overrun` is how far each end
+    carries past the deck's own ends: out over an open edge, so the groove does
+    not end on the bulkhead's face, or short of a neighbouring deck.
+
+    `seam` is the width, depth and margin of `Seams`, in the source's units.
+    Trimming each groove to the deck rather than intersecting a comb with the
+    cavity is the same shape at a quarter of the cost.
+    """
+    width, depth, margin = seam
+    start, end = bounds
+    if end - start <= 1e-6:
+        return []
+    along = np.linspace(start, end, SEAM_SAMPLES)
+    room = np.array(
+        [inner_half_width(lines, float(x), wall, floor - depth, bulge) for x in along]
+    ) - (margin + 0.5 * width)
+
+    grooves: list[Part] = []
+    for y in np.arange(0.5 * plank, float(room.max()), plank):
+        fits = along[room >= y]
+        low = float(fits.min()) - (overrun[0] if fits.min() <= start else 0.0)
+        high = float(fits.max()) + (overrun[1] if fits.max() >= end else 0.0)
+        if high - low <= width:
+            continue
+        for side in (-1.0, 1.0):
+            grooves.append(
+                Pos(0.5 * (low + high), side * float(y), floor)
+                * Box(high - low, width, 2.0 * depth)
+            )
+    return grooves
+
+
 def _hollow(
     hull: Part,
     lines: HullLines,
@@ -466,6 +584,8 @@ def _hollow(
     wall: float,
     decks: tuple[Deck, ...],
     bulge: Bulge | None = None,
+    seams: Seams | None = None,
+    factor: float = 1.0,
 ) -> Part:
     """Hollow the undecked stretches to the bottom, and each deck to its height."""
     x0, x1 = float(stations[0]), float(stations[-1])
@@ -480,7 +600,15 @@ def _hollow(
     ordered = _ordered(decks)
     stretches = open_stretches(ordered)
 
+    def overrun(edge: float, others: list[Deck]) -> float:
+        """Past an open edge, a wall's width; up against another deck, a margin short."""
+        if seams is None:
+            return 0.0
+        abutting = any(abs(d.start - edge) < 1e-9 or abs(d.end - edge) < 1e-9 for d in others)
+        return -seams.margin / factor if abutting else wall
+
     hollowed = hull
+    grooves: list[Part] = []
     for stretch in stretches:
         hollowed = _cut(
             hollowed,
@@ -507,6 +635,22 @@ def _hollow(
             lambda x, floor=floor: floor,
             bulge,
         )
+        if seams is None or deck.plank is None:
+            continue
+        others = [d for d in ordered if d is not deck]
+        grooves += _seams(
+            lines,
+            wall,
+            clip(deck.start, deck.end),
+            floor,
+            deck.plank / factor,
+            (seams.width / factor, seams.depth / factor, seams.margin / factor),
+            (overrun(deck.start, others), overrun(deck.end, others)),
+            bulge,
+        )
+    if grooves:
+        # One cut for every deck: each boolean costs about as much as the last.
+        hollowed = as_part(hollowed - Part(Compound(grooves).wrapped), "cutting the seams")
 
     if hollowed.volume >= 0.95 * hull.volume:
         raise RuntimeError("hollowing removed nothing -- check the wall thickness and the decks")
@@ -539,6 +683,8 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
             spec.wall / factor,
             spec.decks,
             spec.bulge,
+            spec.seams,
+            factor,
         )
 
     return as_part(scale(hull, factor), "scaling")

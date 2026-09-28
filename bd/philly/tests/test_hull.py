@@ -8,6 +8,8 @@ so these look inside and measure rather than trusting that it built at all.
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import numpy as np
 import pytest
 from build123d import Plane, Vector
@@ -17,11 +19,13 @@ from hull import (
     Bulge,
     Deck,
     HullSpec,
+    Seams,
     _cavity_span,
     _inner_section,
     _section,
     _station_positions,
     build,
+    inner_half_width,
     open_stretches,
 )
 
@@ -183,6 +187,60 @@ def test_a_backwards_deck_is_refused():
 def test_a_deck_height_outside_the_hull_is_refused():
     with pytest.raises(ValueError, match="height"):
         Deck(0.0, 0.5, 1.5)
+
+
+class TestSeams:
+    """The grooves between the planks of each deck."""
+
+    DECKS = tuple(replace(d, plank=w) for d, w in zip(DECKS, (7.8, 8.0, 5.9), strict=True))
+
+    @pytest.fixture(scope="class")
+    def seamed(self, lines):
+        return build(HullSpec(stations=STATIONS, decks=self.DECKS, seams=Seams()), lines)
+
+    def _deck(self, lines, deck: Deck) -> tuple[float, float]:
+        """The middle of the deck along the boat, and its height, in printed mm."""
+        factor = HullSpec().length / lines.length
+        x = HullSpec().length * 0.5 * (deck.start + deck.end)
+        return x, deck.height * lines.depth * factor
+
+    def test_a_seam_is_cut_into_every_planked_deck(self, seamed, lines):
+        depth = Seams().depth
+        for deck in self.DECKS:
+            assert deck.plank is not None
+            x, z = self._deck(lines, deck)
+            for side in (-1.0, 1.0):
+                assert not seamed.is_inside(Vector(x, side * 0.5 * deck.plank, z - 0.5 * depth))
+                assert seamed.is_inside(Vector(x, side * 0.5 * deck.plank, z - 1.5 * depth))
+
+    def test_the_planks_between_them_are_left_whole(self, seamed, lines):
+        for deck in self.DECKS:
+            x, z = self._deck(lines, deck)
+            assert seamed.is_inside(Vector(x, 0.0, z - 0.05))
+            assert deck.plank is not None
+            assert seamed.is_inside(Vector(x, deck.plank, z - 0.05))
+
+    def test_no_seam_runs_into_the_side(self, seamed, lines):
+        spec = HullSpec()
+        factor = spec.length / lines.length
+        for deck in self.DECKS:
+            x, z = self._deck(lines, deck)
+            inside = inner_half_width(lines, x / factor, spec.wall / factor, z / factor) * factor
+            for y in np.arange(inside - Seams().margin + 0.05, inside, 0.05):
+                assert seamed.is_inside(Vector(x, float(y), z - 0.05))
+
+    def test_a_seam_is_the_only_material_taken(self, seamed, decked_hull):
+        """Grooves this small take a fraction of a percent; anything more is a cut gone astray."""
+        lost = decked_hull.volume - seamed.volume
+        assert 0.0 < lost < 0.01 * decked_hull.volume
+
+    def test_a_seam_deep_enough_to_fool_the_guns_is_refused(self):
+        with pytest.raises(ValueError, match="shallower"):
+            Seams(depth=0.3)
+
+    def test_a_plank_with_no_width_is_refused(self):
+        with pytest.raises(ValueError, match="width"):
+            Deck(0.0, 0.5, 0.5, plank=0.0)
 
 
 def test_overlapping_decks_are_refused(lines):
