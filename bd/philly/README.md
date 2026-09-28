@@ -172,6 +172,15 @@ had 2.1 to 2.8 over 20.8. It is the taper that was wrong more than the size --
 the muzzle was within a couple of percent, the breech a third too narrow -- and
 correcting it put 60% more metal in the barrel.
 
+The rings came off the scan too, later and for the same reason. Laid out by the
+founders' rule they sat at 0.14, 0.52 and 0.71 of the length from the muzzle
+face, and the trunnions looked off-centre between the after two. On the piece
+they come in pairs -- a ring with its astragal -- at 0.45/0.51 and 0.625/0.675,
+with the muzzle astragal at 0.14 and one more over the vent at 0.91; and the
+trunnion axis at 0.57 falls within a quarter of a percent of halfway between
+the two that flank it. The heights are the scan's scaled together, since
+detrended they read 6 to 11mm proud, which at 1:55 would round off to nothing.
+
 ```sh
 just watch cannon/cannon.py     # preview the gun on its own
 just test tests/test_cannon.py

@@ -22,7 +22,9 @@ The barrel is a solid of revolution with its parts named as a gunfounder would
 (swell of the muzzle, neck, astragal, reinforce rings, base ring, cascabel),
 proportioned in calibres, so the bow 12-pounder and the broadside 9-pounders
 are one `CannonSpec` at two calibres. It is bored only three calibres deep so
-the trunnion pin bears on solid metal.
+the trunnion pin bears on solid metal. The rings are placed off the scan like
+everything else: they come in pairs on the piece, a ring with its astragal, and
+the trunnion axis falls halfway between the two that flank it.
 
 Every one of those proportions is measured off the Smithsonian's scan rather
 than assumed. The first printed gun felt thin in the hand, and it was: the
