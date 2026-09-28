@@ -112,14 +112,10 @@ class CarriageSpec:
     bed: float = 1.0  # least thickness of the bed, over the top of the tunnel
     headroom: float = 0.3  # between the tunnel's roof and the clamps' tops
 
-    # What holds the first layer down. A bracket is 1.4mm thick and 30mm long,
-    # and two strips that narrow under a part this tall peel off a clean bed --
-    # this one took three goes. The feet spread at 45 degrees into room that is
-    # going spare either side, which costs nothing, shows as a plinth less than
-    # a millimetre tall, and needs no trimming. `tabs` adds a sacrificial pad at
-    # each corner on top of that, for a bed that still will not hold: they snap
-    # off with a fingernail, and nothing in the boat is built with them.
-    foot: float = 0.6
+    # For a bed that will not hold the carriage down -- it stands on two strips
+    # 30mm long and 1.4mm wide -- a sacrificial pad at each corner, which snaps
+    # off with a fingernail. Off by default: the print came out without them,
+    # and nothing in the boat is built with them.
     tabs: float = 0.0  # diameter of each pad; 0 for none
     tab: float = 0.25  # how thick they are: a layer or two
 
@@ -427,10 +423,6 @@ def carriage(spec: CarriageSpec) -> Part:
         raise ValueError("the brackets' after steps are below the bed")
     if spec.axis_height - spec.relief_depth - spec.bed < spec.bed_top:
         raise ValueError("the clips' slots would cut into the bed; shorten them")
-    if spec.foot > spec.half_width - half - spec.bracket:
-        raise ValueError("the brackets' feet would spread wider than the trucks")
-    if half - spec.foot < slide.reach + slide.snap + 0.2:
-        raise ValueError("the brackets' feet would spread into where a clamp swings")
 
     # Built before the builder opens: inside it, a bare Polygon is taken as a
     # sketch operation on the part and refused.
@@ -459,22 +451,6 @@ def carriage(spec: CarriageSpec) -> Part:
             with BuildSketch(Plane.XZ.offset(-side * half)):
                 Polygon(*outline, align=None)
             extrude(amount=-side * spec.bracket)
-
-            # The spreading foot. Everything about it is below the height it
-            # spreads by, so every layer is narrower than the one under it and
-            # nothing overhangs; outboard it stops at the trucks' line, which
-            # already sets what has to clear the hull, and inboard well short of
-            # where a clamp swings.
-            inner, outer = side * half, side * (half + spec.bracket)
-            with BuildSketch(Plane.YZ.offset(fore)):
-                Polygon(
-                    (inner - side * spec.foot, 0),
-                    (outer + side * spec.foot, 0),
-                    (outer, spec.foot),
-                    (inner, spec.foot),
-                    align=None,
-                )
-            extrude(amount=aft - fore)
 
         with BuildSketch(Plane.XZ):
             Polygon(
