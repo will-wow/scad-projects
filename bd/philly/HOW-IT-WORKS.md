@@ -796,20 +796,46 @@ nothing that survives a nozzle.
 
 Both go away if the trunnion is **one pin bored right through the piece**. It
 cannot fall out of a hole it passes through, it needs no press fit to stay put,
-and it turns both jobs -- locating the gun and pivoting it -- into one round part
-that is the easiest thing in the box to print. What is left is holding the pin
-down, and that is now a **clip** in the top of each bracket rather than a
-separate strap: a bed with a detent over it, and the two lips either side of the
-way in cut free of the bracket by a slot apiece.
+and it turns both jobs -- locating the gun and pivoting it -- into one part that
+is among the easiest in the box to print. What is left is holding the pin down.
 
-The slot is what makes the clip work at this scale. Without it the lip is part of
-the bracket, and a bracket asked to give a quarter of a millimetre cracks: that
-was the 6.5%-strain calculation that killed the first design. With it the lip is
-a beam of known length -- 0.7mm thick on a 3.9mm arm, strained 0.8% by the pin
-going past -- and the slot doubles as the lip's stop, since it closes after half
-a millimetre, four times what the detent asks for. A child cannot bend a lip far
-enough to break it, and `CarriageSpec.lip_strain` is asserted under one percent
-so the geometry cannot drift there quietly.
+### Sprung lips went soft in an afternoon
+
+The first answer was a **clip**: a bed with a detent over it and the two lips
+either side cut free of the bracket by a slot apiece, so that what gave was a
+beam of known length rather than the whole bracket. The arithmetic was fine --
+0.7mm thick on a 3.9mm arm, strained 0.8% by the pin going past, against the 2%
+PLA yields at -- and it was wrong anyway. PLA creeps. A lip bends across the
+printed layers, which is the direction it creeps in fastest, and every clip-in
+leaves a few microns of set. A couple of hours of a child's play is some
+hundreds of cycles, and the 0.12mm each lip had to give with was gone.
+
+The lesson is not that the numbers were wrong but that they were the wrong
+numbers. Yield strain says whether a spring survives being bent once. Nothing in
+that calculation says what happens when it is bent a thousand times, and at this
+scale there is no travel to spare for creep to eat.
+
+### A bayonet has nothing to creep
+
+So the pin stopped being round. Two flats are milled down its length -- 2.6mm
+across the round, 1.7mm across the flats -- and each bracket's slot is 1.85mm
+wide. The pin passes at one angle of the gun and is held by solid bracket at
+every other, and the hole through the barrel carries the same flat, so turning
+the gun turns the pin. Where the gun rests, 20 degrees from lined up, its
+corners stand 0.42mm under the lips. `TrunnionSpec.release` holds the angle they
+line up at, and both the gun's hole and the brackets' slots are cut from it, so
+they cannot disagree.
+
+Two traps, both now asserted. The lips' undersides have to meet the bed *above*
+its widest point: run the 45-degree line from the slot wall to the widest point
+and it passes 1.03mm from the axis, inside the 1.3mm the pin needs, so the pin
+drops in and jams instead of turning. And the flats cannot be cut too deep --
+lying on a flat to print, the arcs undercut the bed by `asin(waist/shank)`, so
+the pin is only self-supporting while the waist is no wider than `shank/sqrt 2`.
+
+Printing it on a flat is the other dividend. Standing on end it had 3.5mm2 of
+first layer under an 11.7mm tower, and its layers ran across the way it is
+loaded; on its side it has a real contact patch and the layers run along it.
 
 ## Making your own hull
 
