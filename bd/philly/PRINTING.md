@@ -35,7 +35,7 @@ Two worth noting:
   (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
 The fittings barely register: mast, sails, awning and its canvas together are
-32.1 cm³, so at 15% infill they add 5.9 g and about a third of a millimetre of
+34.7 cm³, so at 15% infill they add 6.4 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their pegs and cap
 squares are 10.8 cm³, about 13 g, and another 0.9mm of draft.
@@ -115,7 +115,7 @@ snaps.
 
 The awning frame is exported **roof down**, which is the whole reason its roof
 is a flat plane rather than following the sheer. That way the roof is the first
-layer -- one connected grid, well stuck to the bed -- and the eight legs rise
+layer -- one connected grid, well stuck to the bed -- and the ten legs rise
 off it as plain columns with nothing to bridge. Flipped the other way up, the
 legs print first as thin towers and the entire roof has to span between them.
 

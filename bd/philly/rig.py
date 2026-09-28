@@ -39,6 +39,7 @@ from build123d import (
     Rectangle,
     RegularPolygon,
     Rot,
+    Sketch,
     Vector,
     extrude,
     fillet,
@@ -399,13 +400,26 @@ def _hull(points: list[Vector]) -> list[Vector]:
     return half(ordered) + half(ordered[::-1])
 
 
-def sail(rig: Rig, foot: float, head: float, height: float, radius: float, offset: float) -> Part:
+def sail(
+    rig: Rig,
+    foot: float,
+    head: float,
+    height: float,
+    radius: float,
+    offset: float,
+    edge: tuple[tuple[float, float], ...] = (),
+) -> Part:
     """One sail, lying flat: the plate in the XY plane, corner eyes along Y.
 
     The head is at -x and the foot at +x, `head` and `foot` wide between the
     eyes -- a trapezoid, since a topsail narrows toward its head. Public so an
     assembled view can hang one on the yards; `sails()` lays both out side by
     side for printing instead. The awning's canvas is one of these too.
+
+    `edge` widens the plate out to more points between head and foot, as
+    (along, half-width) pairs, on both sides: the canvas uses it to follow the
+    frame under it rather than run straight from end to end. The plate is the
+    convex hull of these and the corners, so the points must bulge outward.
 
     The corners cannot simply be holes. The bore has to be wider than the yard,
     and the yard is several times thicker than the plate, so a hole through the
@@ -439,15 +453,17 @@ def sail(rig: Rig, foot: float, head: float, height: float, radius: float, offse
         for dx in (-outer, outer)
         for dy in (-eye_length / 2.0, eye_length / 2.0)
     ]
+    posts += [Vector(along, side * half) for along, half in edge for side in (-1.0, 1.0)]
     outline = Polygon(*_hull(posts), align=None)
     plate = extrude(outline, amount=rig.sail_thickness)
 
-    rope = outline - offset2d(outline, -rig.rope_width, kind=Kind.INTERSECTION)
+    # The booleans hand back a Compound; extrude wants to be told it is a sketch.
+    rope = Sketch((outline - offset2d(outline, -rig.rope_width, kind=Kind.INTERSECTION)).wrapped)
     plate += extrude(rope, amount=rig.rope_thickness)
     side = rig.patch * np.sqrt(2.0)
     for eye in eyes:
         diamond = Pos(eye) * Rot(0.0, 0.0, 45.0) * Rectangle(side, side)
-        plate += extrude(outline & diamond, amount=rig.patch_thickness)
+        plate += extrude(Sketch((outline & diamond).wrapped), amount=rig.patch_thickness)
 
     mouth = rig.mouth * 2.0 * radius
     lengthwise = Rot(-90.0, 0.0, 0.0)
