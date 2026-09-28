@@ -21,17 +21,17 @@ import details  # noqa: E402
 from awning import frame  # noqa: E402
 from export import write_3mf  # noqa: E402
 from hull import Bench, Knee, build, open_stretches  # noqa: E402
-from main import AWNING, HULL, RIG, fitted  # noqa: E402
+from main import AWNING, HULL, RIG  # noqa: E402
 
 
 @pytest.fixture(scope="module")
-def hull(lines):
-    return fitted(lines)
+def hull(fitted_hull):
+    return fitted_hull
 
 
 @pytest.fixture(scope="module")
-def bare(lines):
-    return build(HULL, lines)
+def bare(built_hull):
+    return built_hull
 
 
 @pytest.fixture(scope="module")

@@ -22,8 +22,8 @@ from main import HULL, RIG  # noqa: E402
 
 
 @pytest.fixture(scope="module")
-def assembled():
-    return assembly.parts()
+def assembled(fitted_hull):
+    return assembly.parts(fitted_hull)
 
 
 def _boxes_meet(first, second) -> bool:

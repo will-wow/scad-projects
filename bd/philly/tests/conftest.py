@@ -6,6 +6,7 @@ and shared: these tests assert about geometry, not about rebuilding it.
 
 from __future__ import annotations
 
+import os
 import sys
 from pathlib import Path
 
@@ -73,3 +74,33 @@ def solid_hull(lines):
 def decked_hull(lines):
     """Three platforms at three heights, bilge open between them."""
     return build(HullSpec(stations=STATIONS, decks=DECKS), lines)
+
+
+def _main():
+    """main.py, at preview detail.
+
+    Every module that imports main sets PREVIEW first, since main's HULL reads it
+    on import; this does too, so the shared hulls below are the same whichever
+    test asks for them first.
+    """
+    os.environ.setdefault("PREVIEW", "1")
+    import main
+
+    return main
+
+
+@pytest.fixture(scope="session")
+def built_hull(lines):
+    """The model's own hull, built but with nothing fitted to it."""
+    main = _main()
+    return build(main.HULL, lines)
+
+
+@pytest.fixture(scope="session")
+def fitted_hull(lines):
+    """The hull as it prints: joinery, mast step, awning sockets and gun slides.
+
+    The slowest thing the tests build -- about half a minute -- so it is built
+    once and shared. Nothing may change it: every module sees this one.
+    """
+    return _main().fitted(lines)

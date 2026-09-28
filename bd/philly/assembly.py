@@ -71,8 +71,12 @@ def _hung_sails(lines, seat) -> list[Part]:
     return hung
 
 
-def parts() -> dict[str, Part | Compound]:
-    """Every piece, named and in its assembled place."""
+def parts(hull: Part | None = None) -> dict[str, Part | Compound]:
+    """Every piece, named and in its assembled place.
+
+    `hull` is the fitted hull, if one is already built: it is the slowest piece
+    by far.
+    """
     lines = hull_lines.load()
     seat = rigging.step(HULL, lines, RIG)
     sails = _hung_sails(lines, seat)
@@ -81,7 +85,7 @@ def parts() -> dict[str, Part | Compound]:
         for m in ordnance.mounts(HULL, lines, GUNS)
     }
     painted = {
-        "hull": (fitted(lines), HULL_WOOD),
+        "hull": (hull or fitted(lines), HULL_WOOD),
         "mast": (_stepped_mast(lines, seat), SPAR),
         "course": (sails[0], CANVAS),
         "topsail": (sails[1], CANVAS),

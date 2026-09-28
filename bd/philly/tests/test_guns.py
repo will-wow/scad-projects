@@ -10,9 +10,10 @@ from __future__ import annotations
 
 import os
 from dataclasses import replace
+from functools import cache
 
 import pytest
-from build123d import Part
+from build123d import Box, Part, Pos
 
 # Before main is imported, whose HULL reads this. These are about where the
 # guns sit, which a coarse hull answers as well as a fine one.
@@ -20,8 +21,7 @@ os.environ.setdefault("PREVIEW", "1")
 
 import guns  # noqa: E402
 from details import stem_head  # noqa: E402
-from hull import build  # noqa: E402
-from main import BROADSIDE, GUNS, HULL, fitted  # noqa: E402
+from main import BROADSIDE, GUNS, HULL  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -30,11 +30,39 @@ def solved(lines):
 
 
 @pytest.fixture(scope="module")
-def hull(lines):
-    return fitted(lines)
+def hull(fitted_hull):
+    return fitted_hull
 
 
+@pytest.fixture(scope="module")
+def near(solved, hull):
+    """The hull clipped to a box around each gun's whole run.
+
+    A boolean against the whole hull costs seconds; against the few
+    millimetres a gun can reach, a fraction of that. The pieces only slide
+    between run out and recoiled, so a box around both ends holds them all.
+    """
+    clipped = {}
+    for side, m in solved.items():
+        boxes = [
+            piece.bounding_box()
+            for recoil in (0.0, m.travel)
+            for piece in _pieces(m, recoil).values()
+        ]
+        low = [min(getattr(b.min, a) for b in boxes) - 1.0 for a in "XYZ"]
+        high = [max(getattr(b.max, a) for b in boxes) + 1.0 for a in "XYZ"]
+        middle = [0.5 * (lo + hi) for lo, hi in zip(low, high, strict=True)]
+        size = [hi - lo for lo, hi in zip(low, high, strict=True)]
+        clipped[side] = hull & (Pos(*middle) * Box(*size))
+        # A clip that caught nothing would pass every clash test below.
+        assert clipped[side].volume > 100.0
+    return clipped
+
+
+@cache
 def _pieces(m: guns.Mount, recoil: float = 0.0) -> dict[str, Part]:
+    """The gun's pieces in place. Cached: assembling a gun costs a second or so,
+    and the same positions are asked for again and again."""
     return {piece.label: piece for piece in guns.placed(m, recoil).children}
 
 
@@ -45,13 +73,13 @@ def test_every_gun_clears_its_rail(solved):
 
 @pytest.mark.parametrize("side", [0, -1, 1], ids=["bow", "port", "starboard"])
 @pytest.mark.parametrize("recoil", [0.0, 0.5, 1.0], ids=["run out", "halfway", "recoiled"])
-def test_nothing_of_the_gun_is_in_the_hull(solved, hull, side, recoil):
+def test_nothing_of_the_gun_is_in_the_hull(solved, near, side, recoil):
     """The barrel over the rail, and the carriage clipped to its slide, at every
     point in its run. The carriage's jaws wrap the slide by a fit's width, so
     this is also what says they clear it."""
     m = solved[side]
     for name, piece in _pieces(m, recoil * m.travel).items():
-        shared = (piece & hull).volume
+        shared = (piece & near[side]).volume
         assert shared == pytest.approx(0.0, abs=1e-6), f"{name} is {shared:.3f}mm3 into the hull"
 
 
@@ -94,14 +122,14 @@ def test_recoil_draws_the_muzzle_inboard(solved):
         assert moved == pytest.approx(m.travel, abs=1e-6)
 
 
-def test_the_fitted_hull_is_one_solid_no_wider_than_the_bare_one(hull, lines):
+def test_the_fitted_hull_is_one_solid_no_wider_than_the_bare_one(hull, built_hull, lines):
     """The slides are laid on the decks; none of them may reach the outside.
 
     Only the stem stands forward of the bare hull, and only by its own depth.
     """
     assert hull.is_valid
     assert len(hull.solids()) == 1
-    bare = build(HULL, lines).bounding_box()
+    bare = built_hull.bounding_box()
     box = hull.bounding_box()
     assert box.min.Y >= bare.min.Y - 1e-6 and box.max.Y <= bare.max.Y + 1e-6
     stem = stem_head(HULL, lines) + 0.02
