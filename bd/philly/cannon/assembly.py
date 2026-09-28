@@ -4,7 +4,8 @@ Nothing here is printed -- it is where the fits are checked, by eye in the
 viewer and by the tests, which assert that no two parts share any volume.
 
 The gun hangs off a `RevoluteJoint` on the trunnion axis, so `elevation`
-swings it the way the real one swings on its trunnions.
+swings it the way the real one swings on its trunnions. The pin stands still
+while it does: it is pressed into the brackets, and the barrel turns on it.
 
     just watch cannon/assembly.py
 """
@@ -46,13 +47,14 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     truck = carriage(spec)
     truck.color = WOOD
     truck.label = "carriage"
-    # Down as far as the bayonet's release angle, since that is a position the
-    # gun is meant to reach; the quoin stops it going far the other way.
+    # Down as far as the barrel goes before its underside meets the fore edge of
+    # the bed, which is about 19 degrees; the quoin stops it going the other way
+    # at `elevation`, and the range above that is for posing it in the viewer.
     RevoluteJoint(
         "elevation",
         truck,
         axis=Axis((0, 0, axis_height), (0, 1, 0)),
-        angular_range=(pegs.release - 4.0, 10.0),
+        angular_range=(-18.0, 10.0),
     )
 
     gun = cannon(spec.gun)
@@ -65,18 +67,12 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     )
     truck.joints["elevation"].connect_to(gun.joints["trunnions"], angle=elevation)
 
-    # The pin is keyed to the gun, so it is placed in the gun's own frame and
-    # carried wherever the elevation puts it: lying along the gun's y, turned so
-    # its flats stand vertical at `release` and nowhere else. It prints lying on
-    # a flat with that flat on the bed, which is why it has to be stood up here.
-    pin = (
-        gun.location
-        * Pos(0, 0, trunnion_height(spec.gun))
-        * Rot(0, -pegs.release, 0)
-        * Rot(0, 0, 90)
-        * Pos(0, 0, -pegs.waist / 2)
-        * trunnion(pegs)
-    )
+    # The pin belongs to the carriage: it is pressed into the brackets and stays
+    # where they are, whatever the gun does. It prints standing on its head, so
+    # the Rot lays it along y, head first, and the Pos seats that head against
+    # the outside of the near bracket.
+    outside = spec.gap / 2 + spec.bracket
+    pin = Pos(0, -(outside + pegs.head_thick), axis_height) * Rot(-90, 0, 0) * trunnion(pegs)
     pin.color = BRASS
     pin.label = "trunnion"
 

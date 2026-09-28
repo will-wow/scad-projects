@@ -1,11 +1,12 @@
 """The carriage, the trunnion pin, and the three of them together.
 
 These are parts that have to fit each other, so most of what can go wrong is a
-clearance: a pin that binds instead of pivoting, a lip that will not give, a
-quoin that holds the breech off its seat. Two things here have gone wrong on the
-print bed already and are tested against by name -- pegs that fell out of the
-barrel, and cap squares too small to hook onto anything -- so these are about
-whether what should be captive is, and whether what has to spring can.
+clearance: a pin that binds instead of pivoting, a hole drawn looser than the pin
+it grips, a quoin that holds the breech off its seat. Three schemes have now gone
+wrong on the print bed and are tested against by name -- pegs that fell out of
+the barrel, cap squares too small to hook onto anything, and a bayonet the gun
+wobbled sideways out of -- so most of these are the same question asked of a
+fourth: is the gun captive, and can it still turn?
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ LIMIT = math.sin(math.radians(PEGS.max_overhang)) + 1e-6
 
 
 class TestTrunnion:
-    """One pin, bored through the gun, its ends clipped into the brackets."""
+    """One pin, bored through the gun and pressed into both brackets."""
 
     @pytest.fixture(scope="class")
     def pin(self):
@@ -39,26 +40,36 @@ class TestTrunnion:
         assert pin.is_valid
         assert len(pin.solids()) == 1
 
-    def test_it_prints_lying_on_a_flat(self, pin):
-        """Which is the easier print -- a real contact patch instead of a 3.5mm2
-        circle -- and the stronger part, the layers now running along the pin
-        rather than across the way it is loaded."""
+    def test_it_prints_standing_on_its_head(self, pin):
+        """The head is what makes that a print at all: 13.9mm2 of first layer where
+        the shank on its own would stand on 5.3, and a face that seats against the
+        outside of a bracket, so there is one depth to press it to."""
         box = pin.bounding_box()
         assert abs(box.min.Z) < 1e-6
-        assert abs(box.size.X - PEGS.length) < 1e-6
-        assert abs(box.size.Y - PEGS.shank) < 1e-6
-        assert abs(box.size.Z - PEGS.waist) < 1e-6
+        assert abs(box.size.X - PEGS.head) < 1e-6
+        assert abs(box.size.Y - PEGS.head) < 1e-6
+        assert abs(box.size.Z - PEGS.height) < 1e-6
 
-    def test_the_flats_are_wide_enough_to_lie_on(self):
-        """Cut them shallower and the arcs undercut the bed by more than the
-        overhang limit on the way down; the two conditions meet at shank/sqrt 2."""
-        assert PEGS.waist <= PEGS.shank / math.sqrt(2)
-        with pytest.raises(ValueError, match="lying down"):
-            trunnion(replace(PEGS, waist=2.0))
+    def test_it_is_round_all_the_way_along(self, pin):
+        """No flats anywhere: the bayonet's flats are what let the gun work sideways
+        out of its slots. A volume is the cheapest proof that none survive -- two
+        cylinders, less the ring the entry chamfer takes off the top."""
+        radius, lead = PEGS.shank / 2, PEGS.entry
+        head = math.pi * (PEGS.head / 2) ** 2 * PEGS.head_thick
+        shank = math.pi * radius**2 * PEGS.length
+        chamfered = math.pi * (lead * radius**2 - (radius**3 - (radius - lead) ** 3) / 3)
+        assert pin.volume == pytest.approx(head + shank - chamfered, rel=1e-3)
+
+    def test_a_head_no_wider_than_the_hole_is_refused(self):
+        """It is the head that stops the pin going in too far, so it has to bear on
+        something. Turned down to the bore it would press straight through."""
+        with pytest.raises(ValueError, match="press straight through"):
+            trunnion(replace(PEGS, head=PEGS.bore))
 
     def test_it_is_long_enough_for_either_carriage(self):
-        """Short of the outside of a bracket it would have nothing but the detent
-        holding it; over-long it only stands a little proud, which looks right."""
+        """With the head seated on the outside of one bracket the shank has to reach
+        the outside of the other, or one half of the press fit is simply missing.
+        Over-long it stands a little proud, which reads as the end of a trunnion."""
         for spec in (SPEC, BROADSIDE):
             assert PEGS.length >= spec.gap + 2 * spec.bracket
 
@@ -120,38 +131,42 @@ class TestCarriage:
     def truck(self):
         return carriage(SPEC)
 
-    def test_the_bed_is_open_at_the_top(self, truck):
-        """The gun is pushed straight down into it, so nothing may roof the bed --
-        and nothing could, since there is no support under a roof."""
+    def test_the_bracket_is_closed_over_the_pins_hole(self, truck):
+        """The wobble, asked as a shape. The bayonet had the bracket open to the top
+        so the pin could drop in, and a slot the pin can get into is a slot it can
+        work along: the printed gun came off sideways in an afternoon. This is a
+        hole, walled all the way to the top of the bracket."""
         y = SPEC.gap / 2 + SPEC.bracket / 2
         axis = SPEC.axis_height
-        assert not truck.is_inside(Vector(0, y, axis)), "the bed itself"
-        assert not truck.is_inside(Vector(0, y, SPEC.rail_top - 0.1)), "and the way in"
-        assert truck.is_inside(Vector(0, y, axis - PEGS.bed / 2 - 0.3)), "metal under it"
+        apex = axis + (PEGS.bore / 2) / math.sin(math.radians(PEGS.max_overhang))
+        assert not truck.is_inside(Vector(0, y, axis)), "the hole itself"
+        assert not truck.is_inside(Vector(0, y, apex - 0.2)), "and the teardrop over it"
+        assert truck.is_inside(Vector(0, y, apex + 0.2)), "bracket over the apex"
+        assert truck.is_inside(Vector(0, y, SPEC.rail_top - 0.1)), "and on up to the top"
+        assert truck.is_inside(Vector(0, y, axis - PEGS.bore / 2 - 0.3)), "metal under it"
 
-    def test_the_way_in_is_narrower_than_the_pin_is_round(self, truck):
-        """The whole bayonet in two numbers: the slot takes the pin across its
-        flats and not across its round, so the pin passes at one angle only."""
-        assert PEGS.waist < PEGS.slot < PEGS.shank < PEGS.bed
+    def test_the_bracket_grips_and_the_barrel_turns(self):
+        """The whole fit in three diameters: the hole the pin presses into is no
+        wider than the pin, and the hole it turns in is `running` wider."""
+        assert PEGS.bore <= PEGS.shank < PEGS.socket
+        assert PEGS.shank - PEGS.bore == pytest.approx(PEGS.press)
+        assert PEGS.socket - PEGS.shank == pytest.approx(PEGS.running)
+
+    def test_the_hole_is_walled_all_round(self, truck):
+        """Not a slot in any direction, which is the one thing the last scheme was."""
         y = SPEC.gap / 2 + SPEC.bracket / 2
-        over = SPEC.axis_height + SPEC.lip_underside + 0.4
         for hand in (1, -1):
-            assert truck.is_inside(Vector(hand * (PEGS.slot / 2 + 0.05), y, over)), "the lip"
-            assert not truck.is_inside(Vector(hand * (PEGS.slot / 2 - 0.05), y, over)), "the way in"
+            for out in (0.2, 0.6, 1.0):
+                here = Vector(hand * (PEGS.bore / 2 + out), y, SPEC.axis_height)
+                assert truck.is_inside(here), f"metal {out}mm out from the hole"
 
-    def test_the_lips_are_solid_bracket(self, truck):
-        """Nothing here springs. The sprung lips this replaced were cut free by a
-        slot apiece and took a set after an afternoon of play."""
-        y = SPEC.gap / 2 + SPEC.bracket / 2
-        for hand in (1, -1):
-            for out in (0.2, 0.6, 1.0, 1.4):
-                here = Vector(hand * (PEGS.slot / 2 + out), y, SPEC.axis_height + 1.0)
-                assert truck.is_inside(here), f"metal {out}mm out from the slot"
-
-    def test_the_bed_carries_its_own_roof(self, truck):
-        """The lips' undersides lie at 45 degrees from the slot out to the bed's
-        widest, so there is nothing to bridge."""
-        assert SPEC.lip_clears_the_pin_by > 0.05, "or the pin drops in and jams"
+    def test_there_is_bracket_over_the_holes_apex(self, truck):
+        """What `cheek` is set from. The hole carries its own roof as a teardrop, so
+        its apex stands 1.84mm over the axis, and what is left above that is the one
+        ligament the press fit could split: the old 2.4mm cheek left 0.56 of it."""
+        assert SPEC.roof_over_the_pin > 1.0
+        with pytest.raises(ValueError, match="over the pin"):
+            carriage(replace(SPEC, cheek=2.4))
         assert steepest_overhang(truck) <= LIMIT
 
     def test_the_brackets_clear_the_widest_part_of_the_gun(self):
@@ -178,30 +193,40 @@ class TestAssembled:
         [("carriage", "cannon"), ("cannon", "trunnion"), ("carriage", "trunnion")],
     )
     def test_no_two_parts_share_any_volume(self, parts, one, other):
-        """A fit that is 0.05mm too tight is invisible in the viewer."""
+        """A fit that is 0.05mm too tight is invisible in the viewer.
+
+        The press fit is drawn nominal, so the pin and the brackets share a surface
+        and no volume: a 2.6mm hole comes off the printer a tenth or two under size
+        already, and that is the whole of the grip. Draw interference here instead
+        and this pair would have to expect it.
+        """
         shared = parts[one] & parts[other]
         assert shared is None or shared.volume < 1e-9
 
-    def test_the_gun_lifts_out_only_with_its_muzzle_down(self):
-        """The bayonet, asked as the physical question: raise the gun straight up
-        out of its beds, a quarter of a millimetre at a time, and see whether the
-        pin ever meets a bracket on the way. At the angle it rests at, it does."""
-        for elevation, out in ((SPEC.elevation, False), (0.0, False), (PEGS.release, True)):
-            parts = {p.label: p for p in assembly(SPEC, elevation=elevation).children}
-            truck, pin = parts["carriage"], parts["trunnion"]
-            worst = max(
-                (Pos(0, 0, float(z)) * pin & truck).volume for z in np.arange(0.0, 3.6, 0.25)
-            )
-            assert (worst < 1e-9) is out, f"at {elevation:+.1f} degrees"
+    def test_the_gun_cannot_be_lifted_off_the_pin(self):
+        """The failed print, asked as the physical question and answered the other
+        way round. Shove the gun anywhere but along the pin's own axis, a quarter of
+        a millimetre at a time, and it never clears the pin. The bayonet let it out
+        at one elevation by design and at any elevation in practice."""
+        parts = {p.label: p for p in assembly(SPEC).children}
+        gun, pin = parts["cannon"], parts["trunnion"]
+        for dx, dz in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+            for step in np.arange(0.25, 3.6, 0.5):
+                shoved = Pos(dx * float(step), 0, dz * float(step)) * gun
+                assert (shoved & pin).volume > 1e-9, f"shoved {dx},{dz} by {step}"
 
-    def test_it_is_held_by_solid_metal_rather_than_by_a_spring(self):
-        """How far the pin's corners stand under the lips where the gun rests."""
-        turned = SPEC.elevation - PEGS.release
-        assert PEGS.locked_by(turned) > 0.3
-        assert PEGS.locked_by(0.0) < 0, "and lined up, it passes"
+    def test_the_barrel_turns_freely_on_the_pin(self):
+        """A bearing, not a key. The gun swings through its whole range without ever
+        touching the pin it hangs on -- where the bayonet's hole had a flat in it,
+        so that turning the gun turned the pin."""
+        for elevation in (-16.0, 0.0, SPEC.elevation):
+            parts = {p.label: p for p in assembly(SPEC, elevation=elevation).children}
+            shared = parts["cannon"] & parts["trunnion"]
+            assert shared is None or shared.volume < 1e-9, f"at {elevation:+.1f} degrees"
 
     def test_the_pin_reaches_from_bracket_to_bracket(self, parts):
-        """Through the barrel and out both sides: there is no way for it to work out."""
+        """Through the barrel and into both brackets: a press fit at each end, and
+        no way for the gun to reach either of them."""
         box = parts["trunnion"].bounding_box()
         outside = SPEC.gap / 2 + SPEC.bracket
         assert -outside >= box.min.Y and outside <= box.max.Y
