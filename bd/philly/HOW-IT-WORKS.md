@@ -678,9 +678,10 @@ inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.b
 The side flares outward going up, so the inside is narrowest down at the deck —
 by about 3.5mm on the quarterdeck. Measuring at the rail would put the feet
 through the planking. The hull also closes in fast toward the transom, so legs
-too far aft pinch the frame to a point, which is why they stop at 0.82 rather
-than running to the transom. The aft pairs stand on the quarterdeck's benches,
-and are measured at the seat instead (see Part 13).
+too far aft pinch the frame to a point. The last pair stands at 0.895, just aft
+of the quarterdeck's benches, which carries the frame nearly to the transom as
+the museum's model does. The two pairs before it stand on the benches, and are
+measured at the seat instead (see Part 13).
 
 ### A boss keeps the socket out of the bottom
 
@@ -695,10 +696,10 @@ So each leg steps on a 3mm boss and the socket is bored into that, leaving over
 
 ### The roof is planar on purpose
 
-The sheer rises about 2mm toward the transom under the awning and the roof does
+The sheer rises nearly 5mm toward the transom under the awning and the roof does
 not follow it — the legs absorb it instead. That is what lets the part print **roof down**, with the
 roof as one flat connected first layer and the legs rising off it as plain
-columns. Following the sheer would leave one end of the roof standing 2mm off
+columns. Following the sheer would leave one end of the roof standing 5mm off
 the bed with its crossbar hanging in air.
 
 The side rails are a polyline through the leg tops.
@@ -965,12 +966,23 @@ before the side. That is the same shape at a quarter of the cost. A groove runs
 out past a platform's open edge rather than ending on the face of its bulkhead.
 All three decks' grooves are cut in one boolean.
 
-A knee standing across the seams is where this got fragile. Its footprint cuts
-nearly across the strip of deck between two grooves. Left with a neck 0.3mm
-wide, OCCT's mesher dropped the whole strip, and the export had a hole in the
-deck. So a knee's end is kept `SLIVER` (1mm) clear of any seam, and pulled
-outboard when it would land closer. A test exports the fitted hull, so the next
-such sliver fails the suite rather than the slicer.
+Anything standing across the seams is where this gets fragile. A knee's
+footprint cut nearly across the strip of deck between two grooves, leaving a
+neck 0.3mm wide. OCCT's mesher dropped the whole strip, and the export had a
+hole in the deck. Later an awning boss did the same with an edge 0.01mm from a
+seam. So `hull.clear_of_seams` says how far to move anything standing on a deck
+to keep its edges `Seams.clearance` (1mm) from any seam. The knees move their
+ends by it, and the awning moves its bosses. A test exports the fitted hull, so
+the next such sliver fails the suite rather than the slicer.
+
+That was not the whole story. With the aft boss clear of every seam, the export
+still dropped a strip of quarterdeck. The fault was the mesher's settings:
+build123d's `tessellate` treats its tolerance as *relative* to each edge's
+size, and meshed that way, the quarterdeck's comb-shaped top face lost a strip.
+[`export.triangulate`](export.py) meshes first with the tolerance absolute,
+which is also the only way `MESH_TOLERANCE` actually means 0.05mm. Both fixes
+are needed: with the clearance off, a neck 0.01mm wide will not mesh at any
+setting.
 
 ## Making your own hull
 

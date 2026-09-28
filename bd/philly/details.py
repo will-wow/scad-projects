@@ -29,7 +29,16 @@ from __future__ import annotations
 import numpy as np
 from build123d import Box, Part, Polyline, Pos, extrude, loft, make_face
 
-from hull import Deck, HullSpec, Knee, _cavity_span, as_part, inner_half_width, open_stretches
+from hull import (
+    Deck,
+    HullSpec,
+    Knee,
+    _cavity_span,
+    as_part,
+    clear_of_seams,
+    inner_half_width,
+    open_stretches,
+)
 from lines import HullLines
 
 # How far a piece reaches into the planking or the deck it is merged with.
@@ -45,12 +54,6 @@ KNEE_REACH = 15.6
 """how far the low arm runs inboard of the inside face"""
 KNEE_TAPER = 3.7
 """the low arm's last stretch, sloping down to the deck"""
-SLIVER = 1.0
-"""the least a knee's end may leave between itself and a seam
-
-Any closer and the strip of deck left between them is too thin for the mesher,
-which drops it: the export then has a hole in the deck.
-"""
 KNEE_THICK = (2.3, 1.6)
 """the tall arm's thickness, at the foot of its curve and at its top"""
 KNEE_SIDING = 1.6
@@ -146,16 +149,6 @@ def _transverse(profile: list[tuple[float, float]], x: float, side: int, siding:
     return Part(extrude(face, siding, dir=(1.0, 0.0, 0.0)).wrapped)
 
 
-def _clear_of_seams(spec: HullSpec, deck: Deck, y: float) -> float:
-    """`y`, or a little outboard of it if a knee ending there would all but touch a seam."""
-    if spec.seams is None or deck.plank is None:
-        return y
-    seam = (np.floor(y / deck.plank - 0.5) + 0.5) * deck.plank
-    nearest = min((seam, seam + deck.plank), key=lambda c: abs(y - c))
-    keep = spec.seams.width / 2.0 + SLIVER
-    return float(nearest + keep) if abs(y - nearest) < keep else y
-
-
 def knee(hull: _Hull, x: float, side: int, platform: Deck) -> Part:
     """One knee, centred on station `x`, standing on `platform`."""
     deck = hull.deck(platform)
@@ -179,7 +172,8 @@ def knee(hull: _Hull, x: float, side: int, platform: Deck) -> Part:
         for t in np.linspace(0.0, -np.pi / 2.0, 7)[1:]
     ]
     face = hull.inside(x, deck)
-    end = _clear_of_seams(hull.spec, platform, face - KNEE_REACH)
+    end = face - KNEE_REACH
+    end += clear_of_seams(hull.spec, platform, (end,))
     profile = [
         *hull.side(x, deck - SINK, top),
         *tall,
