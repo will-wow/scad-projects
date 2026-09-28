@@ -1,4 +1,4 @@
-"""The boat's joinery: knees, benches, the keelson and the stem.
+"""The boat's joinery: knees, benches and the keelson.
 
 None of it changes how the hull works; it is what makes the model read as the
 boat in the scan rather than a hollow shape. Each piece is sized from the
@@ -12,8 +12,6 @@ lines, the way the mast step and the gun slides are:
   the scan's front boards make them look.
 - **The keelson**, the top of the backbone, showing along the centreline of
   each well.
-- **The stem**, standing proud of the bow and raking back as it goes down,
-  until it fades into the bow well clear of the bed.
 
 Everything is merged into the hull, so it prints with it. A piece that meets
 the side reaches `OVERLAP` into the planking -- the side flares, so it follows
@@ -72,30 +70,6 @@ BENCH_REACH = 8.8
 # The keelson stands this far proud of a well's floor, and is this wide.
 KEELSON_PROUD = 1.8
 KEELSON_WIDTH = 4.0
-
-# The stem's face, as (height above the keel, distance aft of the stem head),
-# full size off the scan. The planking meets it STEM_PROUD aft of its face, so
-# where the face is further aft than that the stem is inside the bow.
-STEM_PROFILE = (
-    (100.0, 395.0),
-    (300.0, 283.0),
-    (500.0, 194.0),
-    (700.0, 110.0),
-    (900.0, 67.0),
-    (1100.0, 28.0),
-    (1300.0, 6.0),
-    (1400.0, 0.0),
-)
-STEM_PROUD = 220.0
-STEM_HEAD = 1506.0
-"""the scan's stem head above its keel, which the model's bow rail stands for"""
-STEM_FACE = (1.1, 1.7)
-"""the face's width at the bottom and at the head"""
-STEM_ROOT = 3.4
-"""the width where the stem meets the bow"""
-STEM_LEAST = 0.2
-"""how proud the stem is where it starts, low down; below this it has faded into the bow"""
-STEM_SECTIONS = 10
 
 # Sections along a bench, and points up a flared side.
 BENCH_SECTIONS = 8
@@ -226,40 +200,6 @@ def keelson(hull: _Hull, start: float, end: float) -> Part:
     )
 
 
-def _stem_proud(spec: HullSpec, lines: HullLines) -> tuple[np.ndarray, np.ndarray]:
-    """The stem's (height, proud of the bow) at the scan's heights and its head."""
-    factor = spec.length / lines.length
-    head = lines.sheer_height.value(lines.sheer_half_width.span[0])
-    heights = np.array([h for h, _ in STEM_PROFILE] + [STEM_HEAD]) * head / STEM_HEAD
-    proud = np.array([STEM_PROUD - aft for _, aft in STEM_PROFILE] + [STEM_PROUD])
-    return heights * factor, proud * factor
-
-
-def stem_head(spec: HullSpec, lines: HullLines) -> float:
-    """How far forward of the bow the stem's head stands, or 0 with no stem."""
-    return float(_stem_proud(spec, lines)[1][-1]) if spec.stem else 0.0
-
-
-def stem(hull: _Hull) -> Part:
-    """The stem: a wedge on the bow's face, lofted through horizontal sections."""
-    heights, proud = _stem_proud(hull.spec, hull.lines)
-    bow = hull.station(0.0)
-    low = float(np.interp(STEM_LEAST, proud, heights))
-    sections = []
-    for z in np.linspace(low, float(heights[-1]), STEM_SECTIONS):
-        z = float(z)
-        out = float(np.interp(z, heights, proud))
-        face = STEM_FACE[0] + (STEM_FACE[1] - STEM_FACE[0]) * (z - low) / (heights[-1] - low)
-        outline = [
-            (bow + OVERLAP, -STEM_ROOT / 2.0),
-            (bow + OVERLAP, STEM_ROOT / 2.0),
-            (bow - out, face / 2.0),
-            (bow - out, -face / 2.0),
-        ]
-        sections.append(make_face(Polyline(*[(x, y, z) for x, y in outline], close=True)))
-    return Part(loft(sections, ruled=False).wrapped)
-
-
 def _platform_knees(hull: _Hull, spec: HullSpec) -> tuple[list[Part], list[tuple[Knee, Deck]]]:
     """Each knee'd platform's cross-beams, and every knee with the deck it stands on.
 
@@ -282,7 +222,7 @@ def _platform_knees(hull: _Hull, spec: HullSpec) -> tuple[list[Part], list[tuple
 
 
 def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
-    """Merge the knees, benches, keelson and stem into a finished hull.
+    """Merge the knees, benches and keelson into a finished hull.
 
     Runs after `build`, like every fitting, and before the awning's: its
     sockets are bored into the benches where a pair of legs stands on one.
@@ -310,9 +250,6 @@ def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
             end = min(at.station(b) + OVERLAP, last * at.factor)
             if end > start:
                 pieces.append(keelson(at, start, end))
-
-    if spec.stem:
-        pieces.append(stem(at))
 
     if not pieces:
         return hull

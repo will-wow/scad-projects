@@ -1,4 +1,4 @@
-"""The joinery: knees, beams, benches, keelson and stem, merged into the hull.
+"""The joinery: knees, beams, benches and keelson, merged into the hull.
 
 Every piece is a union, and a union that misses -- a knee standing off the side,
 a bench floating over the deck -- still builds a valid solid. So these probe the
@@ -12,7 +12,7 @@ import os
 from dataclasses import replace
 
 import pytest
-from build123d import Box, Pos, Vector
+from build123d import Vector
 
 # Before main is imported, whose HULL reads this.
 os.environ.setdefault("PREVIEW", "1")
@@ -62,14 +62,13 @@ def test_the_joinery_adds_material(lines, bare):
 
 
 def test_nothing_reaches_through_the_planking(lines, bare):
-    """Aft of the stem, everything the joinery added is inside the bare hull's outline.
+    """Everything the joinery added is inside the bare hull's outline.
 
     On the joinery alone: the mast's tube stands above the rail on purpose.
     """
     joined = details.fit_details(bare, HULL, lines)
     outline = build(replace(HULL, wall=0.0), lines)
-    aft = Pos(151.0, 0.0, 20.0) * Box(298.0, 100.0, 50.0)
-    outside = ((joined & aft) - outline).volume
+    outside = (joined - outline).volume
     assert outside == pytest.approx(0.0, abs=1e-3), f"{outside:.4f}mm3 outside the hull"
 
 
@@ -149,19 +148,6 @@ def test_the_keelson_runs_down_each_well(hull, at):
         assert not _solid(hull, x, 0.0, floor + details.KEELSON_PROUD + 0.3)
         for side in (-1.0, 1.0):
             assert not _solid(hull, x, side * (details.KEELSON_WIDTH / 2.0 + 0.5), floor + 1.0)
-
-
-def test_the_stem_stands_proud_at_the_head_and_fades_out_low_down(hull, at, lines):
-    head = at.sheer(0.0)
-    assert details.stem_head(HULL, lines) == pytest.approx(4.0, abs=0.1)
-    assert pytest.approx(-details.stem_head(HULL, lines), abs=0.02) == hull.bounding_box().min.X
-    assert _solid(hull, -2.0, 0.0, head - 1.0)
-    assert not _solid(hull, -2.0, 1.5, head - 1.0), "the stem is too wide"
-    assert not _solid(hull, -0.2, 0.0, 3.0), "the stem reaches the bed"
-
-
-def test_no_stem_stands_nothing_proud(lines):
-    assert details.stem_head(replace(HULL, stem=False), lines) == 0.0
 
 
 def test_a_bench_across_two_decks_is_refused(lines, bare):
