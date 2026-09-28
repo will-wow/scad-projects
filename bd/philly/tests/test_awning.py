@@ -17,9 +17,10 @@ from build123d import Vector
 os.environ.setdefault("PREVIEW", "1")
 
 import awning as awnings  # noqa: E402
+import details  # noqa: E402
 import rig as rigging  # noqa: E402
 from awning import BAR, BOSS_HEIGHT, FLOOR, SOCKET_DEPTH, Awning, frame  # noqa: E402
-from hull import Deck, HullSpec, build  # noqa: E402
+from hull import Deck, HullSpec  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
 
 
@@ -165,8 +166,10 @@ class TestCanvas:
 
 class TestSockets:
     @pytest.fixture(scope="class")
-    def fitted(self, lines):
-        return awnings.fit_awning(build(HULL, lines), HULL, lines, AWNING, RIG)
+    def fitted(self, built_hull, lines):
+        """With the joinery first, as it prints: the aft pairs stand on the benches."""
+        joined = details.fit_details(built_hull, HULL, lines)
+        return awnings.fit_awning(joined, HULL, lines, AWNING, RIG)
 
     def test_no_socket_comes_near_the_outside_of_the_hull(self, shape):
         """A deck is solid down to the outside of the hull, so a socket's floor
@@ -185,10 +188,10 @@ class TestSockets:
                 assert not fitted.is_inside(bore), "the socket was not bored"
                 assert fitted.is_inside(beside), "there is no boss around the socket"
 
-    def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, lines):
+    def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, built_hull):
         assert fitted.is_valid
         assert len(fitted.solids()) == 1
-        bare = build(HULL, lines).bounding_box()
+        bare = built_hull.bounding_box()
         assert pytest.approx(bare.max.Y, abs=1e-6) == fitted.bounding_box().max.Y
 
     def test_a_peg_fits_its_socket_with_clearance(self):

@@ -38,11 +38,23 @@ def _section_area(part, x: float) -> float:
 
 
 def _top_of_material(part, x: float, ceiling: float) -> float:
-    """Height at which material stops on the centreline, searching down."""
+    """Height at which material stops on the centreline, searching down.
+
+    Coarse steps find the first solid, then bisection pins its top. Stepping
+    the whole way at the precision wanted cost 560 probes a search and most of
+    a minute a test; this is under forty.
+    """
+    step = 0.5
     z = ceiling
     while z > 0.0 and not part.is_inside(Vector(x, 0.0, z)):
-        z -= 0.05
-    return z
+        z -= step
+    if z <= 0.0:
+        return z
+    solid, air = z, min(z + step, ceiling)
+    while air - solid > 0.01:
+        middle = 0.5 * (solid + air)
+        solid, air = (middle, air) if part.is_inside(Vector(x, 0.0, middle)) else (solid, middle)
+    return solid
 
 
 def test_hull_is_one_watertight_solid(open_hull):
