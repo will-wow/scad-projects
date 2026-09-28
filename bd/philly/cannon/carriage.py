@@ -2,11 +2,10 @@
 
 Two **brackets** -- the side pieces -- standing on the deck either side of a
 **bed**, with a **quoin**, the wedge under the breech that sets the elevation.
-The top of each bracket is opened into a **bed** for the trunnion pin, with a
-straight **slot** over it. The slot is narrower than the pin is round and only
-as wide as the pin is across its flats, so the pin drops in at one angle of the
-gun -- muzzle down by `TrunnionSpec.release` -- and at every other angle its
-corners are under the **lips** either side, held by solid bracket.
+Each bracket is bored right through at the trunnion axis and the pin is pressed
+into it; the barrel turns on the pin between them. There is no way in from above
+and nothing to line up: the gun goes together one way and comes apart only by
+pushing the pin back out.
 
 The carriage runs on a slide in the deck (see `cannon/slide.py`). The bed is
 raised over a tunnel that the slide passes through, and in the tunnel, fixed to
@@ -14,14 +13,17 @@ the brackets at their middles, are the two **clamps** that snap under the
 slide's lip. Four **trucks** on the sides are the wheels a sea carriage stands
 on; here they are for looks, since the slide does the running.
 
-Nothing that holds the gun springs, and that is the whole of the point. Two
-earlier schemes did. Cap squares -- little grooved blocks sliding on a hooked
-rail -- were too small to print at 1:55. Sprung lips either side of the slot
-held the gun for an afternoon of play and then took a set: 0.7mm of PLA bending
-across its printed layers creeps a few microns each time, and the 0.12mm each
-lip had to give with was soon gone. A bayonet has nothing to creep, and a child
-can still take the gun out, by pushing the muzzle down to the one angle where
-the flats line up and lifting.
+Nothing that holds the gun springs, and nothing lets it go. Three earlier
+schemes each left the gun a way out and the gun took it. Cap squares -- little
+grooved blocks sliding on a hooked rail -- were too small to print at 1:55, and
+the pegs under them fell out of their blind sockets. Sprung lips either side of
+a slot held the gun for an afternoon of play and then took a set: 0.7mm of PLA
+bending across its printed layers creeps a few microns each time. And a bayonet
+-- a pin with two flats, passing a narrow slot at one elevation and under solid
+bracket at every other -- printed, and then let the gun wobble sideways out of
+the slots, because a slot the pin can get into is a slot it can work along. A
+hole cannot be worked along, and the child who wants the gun off needs a
+needle.
 
 The carriage is built to put the trunnion axis at `axis_height` above the deck,
 which is what the gun needs to fire over the rail; the bed and brackets are
@@ -91,17 +93,12 @@ class CarriageSpec:
     bracket: float = 1.4  # thickness of a side piece
     steps: tuple[tuple[float, float], ...] = STEPS
 
-    # The bayonet. Each bracket's top is opened into a bed with a straight slot
-    # over it, and the slot is narrower than the pin is round: it passes only
-    # with its flats lined up, which is one angle of the gun and no other. The
-    # lips either side are solid bracket -- nothing here springs, which is the
-    # point, an earlier pair of sprung lips having taken a set in an afternoon.
-    cheek: float = 2.4  # how far a bracket stands over the trunnion axis
-    lead: float = 0.25  # chamfer at the mouth, so the pin finds its way in
-    # Where a lip's underside meets the bed, in degrees above the axis. It has
-    # to be above the bed's widest point, or the 45-degree underside cuts a
-    # chord off the bed and the pin can drop in but not turn.
-    bite: float = 35.0
+    # The pin, pressed through both brackets with the barrel turning on it
+    # between them. What sets `cheek` is not how the bracket looks but what the
+    # hole needs over it: the hole is a teardrop carrying its own roof, so its
+    # apex stands 1.84mm above the axis, and the bracket left over that apex is
+    # the one ligament a press fit could split.
+    cheek: float = 3.0  # how far a bracket stands over the trunnion axis
 
     quoin_width: float = 2.6  # about half the gun's diameter
     quoin: float = 6.0  # the wedge's length, thin end forward
@@ -135,24 +132,16 @@ class CarriageSpec:
         return self.axis_height + self.cheek
 
     @property
-    def lip_underside(self) -> float:
-        """Where a lip's underside leaves the slot wall, above the axis.
+    def roof_over_the_pin(self) -> float:
+        """Bracket left over the apex of the pin's hole.
 
-        It runs from there down to the bed at 45 degrees, so it carries its own
-        roof, and it meets the bed `bite` degrees above the axis rather than at
-        the widest point -- which is what leaves the bed a full circle for the
-        pin to turn in.
+        The hole is horizontal in a part that prints standing, so it is cut as a
+        teardrop with 45-degree flanks to carry its own roof, which puts its apex
+        `bore/2 / sin 45` above the axis. What is left over that apex is the one
+        ligament a press fit could split, and it is what `cheek` is set from.
         """
-        radius = self.pegs.bed / 2
-        bite = math.radians(self.bite)
-        return radius * (math.cos(bite) + math.sin(bite)) - self.pegs.slot / 2
-
-    @property
-    def lip_clears_the_pin_by(self) -> float:
-        """How far a lip's underside passes outside the turning pin."""
-        radius = self.pegs.bed / 2
-        bite = math.radians(self.bite)
-        return radius * (math.cos(bite) + math.sin(bite)) / math.sqrt(2) - self.pegs.shank / 2
+        lean = math.radians(self.pegs.max_overhang)
+        return self.cheek - (self.pegs.bore / 2) / math.sin(lean)
 
     @property
     def gap(self) -> float:
@@ -248,59 +237,49 @@ class CarriageSpec:
         return (self.length - self.slide.root) / 2
 
 
-def _slots(spec: CarriageSpec) -> Part:
-    """Both bayonet slots, as a solid to subtract: a bed with a way in over it.
+def _bores(spec: CarriageSpec) -> Part:
+    """Both brackets' holes for the trunnion pin, as a solid to subtract.
 
-    The bed is round and takes the pin's full diameter with room to turn; the
-    way in over it is narrower than that, and only as wide as the pin is across
-    its flats. So the pin goes down it at one angle of the gun and is held by
-    solid metal at every other -- there is no spring here, and nothing to take
-    a set. The two sprung lips this replaced held the gun for an afternoon of
-    play and then went soft: 0.7mm of PLA bending across its layers creeps a few
-    microns each time.
+    The pin is a press fit in these and the gun turns on it, so there is no bed,
+    no slot and no way in from above: the pin goes in along its own axis and
+    comes out the same way or not at all. That is the whole of the fix. The
+    bayonet this replaced gave the pin a slot to drop down at one elevation of
+    the gun, and a slot the pin can get into is a slot it can work sideways
+    along, which is how the printed gun came off in the hand.
 
-    The lips' undersides run down at 45 degrees and meet the bed `bite` degrees
-    above the axis, not at its widest point. Run them to the widest point and
-    they pass 1.03mm from the axis, inside the 1.3mm the pin needs, and the pin
-    drops in and then jams instead of turning.
+    A teardrop, apex up, 45-degree flanks -- the same shape as the gun's own hole
+    and for the same reason: a horizontal hole in a part that prints standing has
+    to carry its own roof. It leans the right way for the press, too, since the
+    interference is then only round the lower 270 degrees and the pin pushes the
+    bracket outward rather than up through the thin ligament over the apex.
+
+    One prism across the whole carriage does both brackets. At this height there
+    is nothing between them to cut: the quoin tops out some 4mm lower and the bed
+    lower still.
 
     Returns a part to subtract rather than cutting the caller's, because a
     builder only nests into its parent when both are opened in the same Python
     frame: a BuildSketch opened down here would quietly go nowhere.
     """
-    axis, top = spec.axis_height, spec.rail_top
-    radius = spec.pegs.bed / 2
-    half = spec.pegs.slot / 2
-    bite = math.radians(spec.bite)
-    meets = (radius * math.cos(bite), radius * math.sin(bite))
-    lead = spec.lead
-    over = 1.0  # how far the cut stands above the bracket, so the mouth is open
+    lean = math.radians(spec.pegs.max_overhang)
+    axis = spec.axis_height
+    radius = spec.pegs.bore / 2
+    reach = spec.gap / 2 + spec.bracket + 0.5
+    shoulder = (radius * math.cos(lean), axis + radius * math.sin(lean))
+    apex = (0, axis + radius / math.sin(lean))
 
     with BuildPart() as cutter:
-        for side in (1, -1):
-            plane = Plane.XZ.offset(-side * (spec.gap / 2 - 0.1))
-            with BuildSketch(plane):
-                with BuildLine():
-                    Polyline(
-                        (-(half + lead), top + over),
-                        (-(half + lead), top),
-                        (-half, top - lead),
-                        (-half, axis + spec.lip_underside),
-                        (-meets[0], axis + meets[1]),
-                    )
-                    CenterArc(
-                        (0, axis), radius, start_angle=180 - spec.bite, arc_size=180 + 2 * spec.bite
-                    )
-                    Polyline(
-                        (meets[0], axis + meets[1]),
-                        (half, axis + spec.lip_underside),
-                        (half, top - lead),
-                        (half + lead, top),
-                        (half + lead, top + over),
-                        (-(half + lead), top + over),
-                    )
-                make_face()
-            extrude(amount=-side * (spec.bracket + 0.2))
+        with BuildSketch(Plane.XZ.offset(-reach)):
+            with BuildLine():
+                CenterArc(
+                    (0, axis),
+                    radius,
+                    start_angle=180 - spec.pegs.max_overhang,
+                    arc_size=180 + 2 * spec.pegs.max_overhang,
+                )
+                Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
+            make_face()
+        extrude(amount=2 * reach)
 
     assert cutter.part is not None
     return cutter.part
@@ -394,10 +373,14 @@ def carriage(spec: CarriageSpec) -> Part:
         raise ValueError("the clamps have no room to spread over the slide's head")
     if rail_top + min(h for _, h in spec.steps) <= spec.bed_top:
         raise ValueError("the brackets' after steps are below the bed")
-    if spec.pegs.slot >= spec.pegs.shank:
-        raise ValueError("the way in is wider than the pin is round; it would lift out")
-    if spec.lip_clears_the_pin_by <= 0.05:
-        raise ValueError("the lips' undersides cut into the bed; the pin could not turn")
+    if spec.pegs.bore > spec.pegs.shank:
+        raise ValueError("the brackets' holes are wider than the pin; it would not press in")
+    if spec.roof_over_the_pin < 1.0:
+        raise ValueError(
+            f"only {spec.roof_over_the_pin:.2f}mm of bracket over the pin's hole; raise the cheek"
+        )
+    if spec.trucks and spec.pegs.head_thick > spec.truck:
+        raise ValueError("the pin's head would stand proud of the trucks")
     if spec.foot > spec.half_width - half - spec.bracket:
         raise ValueError("the brackets' feet would spread wider than the trucks")
     if half - spec.foot < slide.reach + slide.snap + 0.2:
@@ -405,7 +388,7 @@ def carriage(spec: CarriageSpec) -> Part:
 
     # Built before the builder opens: inside it, a bare Polygon is taken as a
     # sketch operation on the part and refused.
-    tunnel, clamps, slots = _tunnel(spec), _clamps(spec), _slots(spec)
+    tunnel, clamps, bores = _tunnel(spec), _clamps(spec), _bores(spec)
     trucks = _trucks(spec) if spec.trucks else None
 
     with BuildPart() as truck:
@@ -456,7 +439,7 @@ def carriage(spec: CarriageSpec) -> Part:
             )
         extrude(amount=spec.quoin_width / 2, both=True)
 
-        add(slots, mode=Mode.SUBTRACT)
+        add(bores, mode=Mode.SUBTRACT)
 
     assert truck.part is not None
     return truck.part
@@ -473,8 +456,9 @@ def main() -> None:
     print(
         f"carriage {box.X:.1f} x {box.Y:.1f} x {box.Z:.1f} mm, "
         f"trunnion axis {spec.axis_height:.2f}mm above the deck; "
-        f"the pin lifts out at {spec.pegs.release:.0f} degrees and is held by "
-        f"{spec.pegs.locked_by(spec.elevation - spec.pegs.release):.2f}mm where it rests, "
+        f"the pin presses into {spec.pegs.bore:.2f}mm with "
+        f"{spec.roof_over_the_pin:.2f}mm of bracket over it, the barrel turning on "
+        f"{spec.pegs.running / 2:.2f}mm a side, "
         f"clamps strained {spec.slide.strain(spec.arm):.2%} clipping on"
     )
     show_object(truck, name="carriage")

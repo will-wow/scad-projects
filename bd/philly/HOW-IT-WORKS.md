@@ -768,7 +768,9 @@ whatever puts the axis 15.6mm above the platform where the barrel crosses the
 rail. Everything else follows. The bed is as high as it can be while the base
 ring clears it at the quoin's elevation (`breech_drop`); the bracket steps hang
 off the rail's top; the quoin is sized to catch the breech at `elevation`, and
-ends short of the base ring.
+ends short of the base ring. The one thing that does not follow from the axis is
+`cheek`, how far a bracket stands over it: that is set from underneath, by the
+bracket the pin's teardrop hole needs above its apex.
 
 That last one was a fixed number until the 9-pounder showed why it cannot be.
 A shorter barrel puts its base ring over the old quoin, so the breech sat on the
@@ -833,9 +835,11 @@ for their own geometry: a 0.55mm wall grooved to catch a 0.5mm hook leaves
 nothing that survives a nozzle.
 
 Both go away if the trunnion is **one pin bored right through the piece**. It
-cannot fall out of a hole it passes through, it needs no press fit to stay put,
-and it turns both jobs -- locating the gun and pivoting it -- into one part that
-is among the easiest in the box to print. What is left is holding the pin down.
+cannot fall out of a hole it passes through, and it turns both jobs -- locating
+the gun and pivoting it -- into one part that is among the easiest in the box to
+print. What is left is holding the pin itself, and it took two more prints to
+believe that the answer was a press fit after all: 1.2mm of blind socket grips
+nothing, but 1.4mm of bracket at each end of an 11.7mm pin grips plenty.
 
 ### Sprung lips went soft in an afternoon
 
@@ -853,27 +857,59 @@ numbers. Yield strain says whether a spring survives being bent once. Nothing in
 that calculation says what happens when it is bent a thousand times, and at this
 scale there is no travel to spare for creep to eat.
 
-### A bayonet has nothing to creep
+### The bayonet let the gun walk out sideways
 
-So the pin stopped being round. Two flats are milled down its length -- 2.6mm
-across the round, 1.7mm across the flats -- and each bracket's slot is 1.85mm
-wide. The pin passes at one angle of the gun and is held by solid bracket at
-every other, and the hole through the barrel carries the same flat, so turning
-the gun turns the pin. Where the gun rests, 20 degrees from lined up, its
-corners stand 0.42mm under the lips. `TrunnionSpec.release` holds the angle they
-line up at, and both the gun's hole and the brackets' slots are cut from it, so
-they cannot disagree.
+So the pin stopped being round. Two flats were milled down its length -- 2.6mm
+across the round, 1.7mm across the flats -- and each bracket's top was opened into
+a bed with a 1.85mm slot over it. The pin passed at one elevation of the gun and
+was under solid bracket at every other, and the hole through the barrel carried
+the same flat, so turning the gun turned the pin. On paper it was the best of the
+three: nothing sprang, nothing crept, and a child who knew the trick could still
+take the gun out.
 
-Two traps, both now asserted. The lips' undersides have to meet the bed *above*
-its widest point: run the 45-degree line from the slot wall to the widest point
-and it passes 1.03mm from the axis, inside the 1.3mm the pin needs, so the pin
-drops in and jams instead of turning. And the flats cannot be cut too deep --
-lying on a flat to print, the arcs undercut the bed by `asin(waist/shank)`, so
-the pin is only self-supporting while the waist is no wider than `shank/sqrt 2`.
+Printed, it lasted about as long as it took to pick the boat up. The gun wobbled
+sideways out of the slots. All the arithmetic had been about the *depth* the
+corners stood under the lips -- 0.42mm, and quite real -- and none of it about a
+slot being open at the top. Rock the barrel and the pin rolls in a bed 0.15mm
+looser than itself, the corners come off the lips at one end before the other,
+and the thing screws itself up the slot. A slot the pin can get into at one angle
+is a slot it can work along at every angle, and 1.4mm of bracket has no depth to
+argue with a child's wrist.
 
-Printing it on a flat is the other dividend. Standing on end it had 3.5mm2 of
-first layer under an 11.7mm tower, and its layers ran across the way it is
-loaded; on its side it has a real contact patch and the layers run along it.
+The lesson is the one the first two failures were also teaching, and it took a
+third print to hear it: every scheme so far had left the gun a way out and then
+tried to make that way hard to find. Hard to find is not the same as shut.
+
+### A pressed pin has no way out at all
+
+So the pin went back to being round and the way out closed. Each bracket is bored
+right through at the axis, the pin is a press fit in both holes, and the barrel
+turns on it between them: 2.6mm of shank, a 2.6mm hole in the bracket, a 2.9mm
+hole in the barrel. Nothing lines up, nothing springs, and nothing is held by
+being at the right angle. The gun comes off when somebody pushes the pin out with
+a needle, and not before.
+
+The hole is drawn nominal on purpose. A 2.6mm hole comes off the printer a tenth
+or two under size, and that undersize is the grip; drawn interference on top of it
+would hoop-stress a bracket 1.4mm thick for nothing, and if a print will not take
+the pin the fix is `press` going negative rather than a reamer going into the
+carriage. It is the one number here that cannot be checked in CAD. Everything
+else is geometry; this is a material fit on a machine that does not hold a tenth.
+
+Both holes are teardrops, apex up, because both are horizontal holes in parts
+that print standing and each has to carry its own roof. In the bracket that earns
+its keep twice: it puts the apex 1.84mm above the axis, so `cheek` is no longer a
+number chosen for looks but whatever leaves enough bracket over that apex -- 3.0,
+leaving 1.16 -- and it leaves the top 90 degrees of the hole as clearance, so the
+pin presses the bracket outward rather than up through the one ligament that
+could split. In the barrel the same teardrop drives its apex up the piece toward
+the first reinforce ring; there is 0.21mm between them, and a test says so,
+because widening that hole any further would notch the ring's chamfer.
+
+The printing changed with it. The pin stands on a small head, 4.2mm across and
+0.6 thick, which gives it 13.9mm2 of first layer where the shank alone had 5.3,
+and gives the press a face to seat against -- so there is one depth to push it to
+and no judgement in it.
 
 ## Part 13: the joinery
 

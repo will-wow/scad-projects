@@ -37,8 +37,8 @@ Two worth noting:
 The fittings barely register: mast, sails, awning and its canvas together are
 34.7 cm³, so at 15% infill they add 6.4 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
-print as nearly all wall: three barrels, three carriages and their pegs and cap
-squares are 10.8 cm³, about 13 g, and another 0.9mm of draft.
+print as nearly all wall: three barrels, three carriages and their three trunnion
+pins are 12.7 cm³, about 16 g, and another 1.1mm of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
@@ -84,11 +84,13 @@ not another hull: `just build --model cannon.proof:model=proof-12` writes a patc
 of deck with the same rail sunk into it, two grams and a few minutes, and the
 same carriage clips to it.
 
-The clips that take the gun are at the top of the same part: two lips either side
-of each trunnion bed, 0.7mm thick, with a 0.5mm slot behind each. Both want at
-least two perimeters and no over-extrusion, or the slot closes up and the lip
-stops being a spring. The pin they hold is the smallest part in the box and
-prints standing on end; print a spare.
+The brackets are bored right through for the trunnion pin and the pin is a press
+fit in them, so what matters here is flow and hole shrinkage: a 2.6mm hole prints
+undersize, and that undersize is the grip. If the pin will not go in, ease the pin
+or drop `press` in `cannon/trunnion.py` -- do not put a reamer through a bracket
+1.4mm thick. The pin itself is the smallest part in the box and prints standing on
+its head; print a spare. Once it is in, the gun does not come off until somebody
+pushes the pin back out with a needle, which is the whole point of it.
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the

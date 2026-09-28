@@ -34,6 +34,12 @@ end-on and independently, the starboard 9-pounder comes to 2.23 and 3.37 over
 21.7 calibres, so the two pieces agree. `designs/measure_scan.py` prints the
 numbers for both.
 
+> **Superseded, 2026-09-28.** The bayonet described below printed, and the gun
+> wobbled sideways out of its slots: a slot the pin can get into at one angle is
+> a slot it can work along at every angle. The pin is now plain round and a press
+> fit in both brackets, with the barrel turning on it. See README.md and
+> HOW-IT-WORKS.md Part 12; the rest of this file still holds.
+
 The pin goes right through the piece and reaches the outside of both brackets,
 and it is not round: two flats down its length make it 2.6mm across the round
 and 1.7mm across the flats, against a 1.85mm slot in each bracket. So it drops

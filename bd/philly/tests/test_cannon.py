@@ -54,6 +54,36 @@ def test_the_bore_opens_onto_the_muzzle_face_and_stops_short_of_the_trunnions(gu
     assert gun.is_inside(Vector(0, 0, below)), "solid between the bore and the pin's hole"
 
 
+def test_the_hole_the_pin_turns_in_is_closed_all_round(gun):
+    """Half of what makes the gun captive: its hole is a hole, not a slot, so the
+    only way off the pin is along the pin. The bayonet this replaced had the slot
+    in the carriage, and the printed gun worked sideways out of it."""
+    pin = SPEC.trunnions
+    assert pin is not None
+    height = trunnion_height(SPEC)
+    radius = pin.socket / 2
+    apex = height + radius / math.sin(math.radians(SPEC.max_overhang))
+    assert not gun.is_inside(Vector(0, 0, height)), "the hole itself"
+    for hand in (1, -1):
+        assert gun.is_inside(Vector(hand * (radius + 0.3), 0, height)), "metal beside it"
+    assert gun.is_inside(Vector(0, 0, height - radius - 0.3)), "metal under it"
+    assert gun.is_inside(Vector(0, 0, apex + 0.3)), "metal over the teardrop"
+
+
+def test_the_pins_hole_stops_short_of_the_first_reinforce_ring():
+    """It is a teardrop, so widening it drives its apex up the barrel toward the
+    ring above. Going to a running fit spent 0.14mm of the 0.35 there was; a notch
+    in that ring's chamfer is what running out altogether would look like."""
+    pin = SPEC.trunnions
+    assert pin is not None
+    lean = math.sin(math.radians(SPEC.max_overhang))
+    apex = trunnion_height(SPEC) + pin.socket / 2 / lean
+    ring = min((r for r in SPEC.rings if r.at > SPEC.trunnions_at), key=lambda r: r.at)
+    cal = SPEC.calibre * SPEC.scale
+    foot = ring.at * SPEC.length * SPEC.scale - ring.proud * cal / lean
+    assert foot - apex > 0.1, f"only {foot - apex:.2f}mm from the hole's apex to the ring"
+
+
 @pytest.mark.parametrize("overhang", [45.0, 35.0])
 def test_nothing_overhangs_more_than_allowed(overhang):
     """The rings, the button and the roof of the trunnion hole, all as printed."""
