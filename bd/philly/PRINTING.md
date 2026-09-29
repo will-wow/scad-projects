@@ -38,7 +38,7 @@ The fittings barely register: mast, sails, awning and its canvas together are
 34.7 cm³, so at 15% infill they add 6.4 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their three trunnion
-pins are 12.7 cm³, about 16 g, and another 1.1mm of draft.
+bars are 12.7 cm³, about 16 g, and another 1.1mm of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
@@ -56,7 +56,7 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.7mm | as exported, flat | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
-`gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` pin for each of
+`gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` bar for each of
 the three -- each in its own print orientation; the README's section on the guns
 covers how they print and how many of each.
 
@@ -84,13 +84,13 @@ not another hull: `just build --model cannon.proof:model=proof-12` writes a patc
 of deck with the same rail sunk into it, two grams and a few minutes, and the
 same carriage clips to it.
 
-The brackets are bored right through for the trunnion pin and the pin is a press
-fit in them, so what matters here is flow and hole shrinkage: a 2.6mm hole prints
-undersize, and that undersize is the grip. If the pin will not go in, ease the pin
-or drop `press` in `cannon/trunnion.py` -- do not put a reamer through a bracket
-1.4mm thick. The pin itself is the smallest part in the box and prints standing on
-its head; print a spare. Once it is in, the gun does not come off until somebody
-pushes the pin back out with a needle, which is the whole point of it.
+The brackets are cut right through with a diamond for the trunnion bar, and the
+bar is a press fit in them, so what matters here is flow and hole shrinkage: a
+printed hole comes out undersize, and that undersize is the grip. If the bar will
+not go in, ease it or drop `press` in `cannon/trunnion.py` -- do not put a file
+through a bracket. The bar itself prints lying on a face; print a spare. Once it
+is in, the gun does not come off, or tip, until somebody pushes the bar back out
+with a needle.
 
 The mast is exported **lying down** rather than standing. Upright it would be a
 200mm tower on a 5mm footprint, which is why the shaft is hexagonal and the

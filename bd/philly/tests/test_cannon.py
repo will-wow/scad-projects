@@ -13,6 +13,7 @@ from build123d import Vector
 from conftest import steepest_overhang
 
 from cannon.cannon import CannonSpec, Ring, cannon, trunnion_height
+from cannon.trunnion import diamond
 
 SPEC = CannonSpec()
 
@@ -39,7 +40,7 @@ def test_it_is_the_right_size(gun):
 
 
 def test_the_bore_opens_onto_the_muzzle_face_and_stops_short_of_the_trunnions(gun):
-    """The trunnion pin is bored right through the piece, so it must find solid metal
+    """The trunnion bar goes right through the piece, so it must find solid metal
     there: the bore is a muzzle detail only."""
     bore = SPEC.calibre * SPEC.scale
     wall = (SPEC.neck - 1) / 2 * bore
@@ -48,36 +49,36 @@ def test_the_bore_opens_onto_the_muzzle_face_and_stops_short_of_the_trunnions(gu
     top = SPEC.bore_length * bore
     assert not gun.is_inside(Vector(0, 0, top - bore)), "the bore runs its stated length"
     assert gun.is_inside(Vector(0, 0, top + 0.1)), "and is closed above that"
-    pin = SPEC.trunnions
-    assert pin is not None
-    below = trunnion_height(SPEC) - pin.socket / 2 - 0.2
-    assert gun.is_inside(Vector(0, 0, below)), "solid between the bore and the pin's hole"
+    below = trunnion_height(SPEC) + min(up for _, up in _hole()) - 0.2
+    assert gun.is_inside(Vector(0, 0, below)), "solid between the bore and the bar's hole"
 
 
-def test_the_hole_the_pin_turns_in_is_closed_all_round(gun):
+def _hole() -> list[tuple[float, float]]:
+    bar = SPEC.trunnions
+    assert bar is not None
+    return diamond(bar.socket, 0.0, SPEC.max_overhang)
+
+
+def test_the_hole_the_bar_goes_through_is_closed_all_round(gun):
     """Half of what makes the gun captive: its hole is a hole, not a slot, so the
-    only way off the pin is along the pin. The bayonet this replaced had the slot
-    in the carriage, and the printed gun worked sideways out of it."""
-    pin = SPEC.trunnions
-    assert pin is not None
+    only way off the bar is along the bar. The bayonet had its slot in the
+    carriage, and the printed gun worked sideways out of it."""
     height = trunnion_height(SPEC)
-    radius = pin.socket / 2
-    apex = height + radius / math.sin(math.radians(SPEC.max_overhang))
+    across = max(along for along, _ in _hole())
+    apex = max(up for _, up in _hole())
     assert not gun.is_inside(Vector(0, 0, height)), "the hole itself"
     for hand in (1, -1):
-        assert gun.is_inside(Vector(hand * (radius + 0.3), 0, height)), "metal beside it"
-    assert gun.is_inside(Vector(0, 0, height - radius - 0.3)), "metal under it"
-    assert gun.is_inside(Vector(0, 0, apex + 0.3)), "metal over the teardrop"
+        assert gun.is_inside(Vector(hand * (across + 0.3), 0, height)), "metal beside it"
+    assert gun.is_inside(Vector(0, 0, height - apex - 0.3)), "metal under it"
+    assert gun.is_inside(Vector(0, 0, height + apex + 0.3)), "metal over it"
 
 
-def test_the_pins_hole_stops_short_of_the_first_reinforce_ring():
-    """It is a teardrop, so widening it drives its apex up the barrel toward the
-    ring above. Going to a running fit spent 0.14mm of the 0.35 there was; a notch
-    in that ring's chamfer is what running out altogether would look like."""
-    pin = SPEC.trunnions
-    assert pin is not None
+def test_the_bars_hole_stops_short_of_the_first_reinforce_ring():
+    """The hole stands on a corner, so its apex points up the barrel toward the
+    ring above; a notch in that ring's chamfer is what running into it would look
+    like."""
     lean = math.sin(math.radians(SPEC.max_overhang))
-    apex = trunnion_height(SPEC) + pin.socket / 2 / lean
+    apex = trunnion_height(SPEC) + max(up for _, up in _hole())
     ring = min((r for r in SPEC.rings if r.at > SPEC.trunnions_at), key=lambda r: r.at)
     cal = SPEC.calibre * SPEC.scale
     foot = ring.at * SPEC.length * SPEC.scale - ring.proud * cal / lean

@@ -44,7 +44,6 @@ from build123d import (
     BuildLine,
     BuildPart,
     BuildSketch,
-    CenterArc,
     Cone,
     Cylinder,
     Line,
@@ -52,6 +51,7 @@ from build123d import (
     Mode,
     Part,
     Plane,
+    Polygon,
     Polyline,
     SagittaArc,
     ThreePointArc,
@@ -63,7 +63,7 @@ from build123d import (
 )
 from ocp_vscode import show_object
 
-from cannon.trunnion import TrunnionSpec
+from cannon.trunnion import TrunnionSpec, diamond
 
 
 @dataclass(frozen=True)
@@ -213,20 +213,17 @@ def outline(spec: CannonSpec, s: float) -> float:
 
 
 def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
-    """The hole the trunnion pin turns in, as a solid to subtract.
+    """The hole the trunnion bar goes through, as a solid to subtract.
 
-    A teardrop rather than a round hole: the gun prints muzzle-down, so this is
-    a horizontal hole, and the apex points toward the breech -- up, as printed
-    -- to carry its own roof. It goes right through, which is what holds the
-    pin; the blind sockets this replaced let the pegs fall out.
+    A diamond: the bar's square stood on a corner. The gun prints muzzle-down, so
+    this is a horizontal hole, and stood on a corner every face of it leans 45
+    degrees and carries itself, with nothing round to sag. Square because the bar
+    is, so the gun is fixed on it rather than turning -- a printed gun is heavier
+    at the muzzle than the model says, and on a round pin it tipped forward. It
+    goes right through, which is what holds the bar; the blind sockets of the
+    first scheme let their pegs fall out.
 
-    It is a bearing and nothing else, `running` wider than the pin all round.
-    The pin is pressed into the brackets and the gun turns on it, so there is
-    nothing here to key: the flat that used to be cut in the underside belonged
-    to the bayonet, which printed and then let the gun walk sideways out of its
-    slots.
-
-    In printed millimetres, like the pin it takes, and so cut after the gun has
+    In printed millimetres, like the bar it takes, and so cut after the gun has
     been scaled: scaling a cut this fine afterwards shrinks the sliver where the
     apex pierces the barrel below what OCCT will mesh into a closed surface.
 
@@ -234,24 +231,13 @@ def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
     builder only nests into its parent when both are opened in the same Python
     frame: a BuildSketch opened down here would quietly go nowhere.
     """
-    lean = math.radians(spec.max_overhang)
     height = trunnion_height(spec)
-    radius = pegs.socket / 2
     reach = barrel_radius(spec, spec.trunnions_at) + 1
-    shoulder = (radius * math.cos(lean), height + radius * math.sin(lean))
-    apex = (0, height + radius / math.sin(lean))
+    corners = [(x, height + z) for x, z in diamond(pegs.socket, 0.0, spec.max_overhang)]
 
     with BuildPart() as cutter:
         with BuildSketch(Plane.XZ.offset(-reach)):
-            with BuildLine():
-                CenterArc(
-                    (0, height),
-                    radius,
-                    start_angle=180 - spec.max_overhang,
-                    arc_size=180 + 2 * spec.max_overhang,
-                )
-                Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
-            make_face()
+            Polygon(*corners, align=None)
         extrude(amount=2 * reach)
 
     assert cutter.part is not None

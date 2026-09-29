@@ -1,103 +1,135 @@
-"""The trunnion: the pin the gun swings on, pressed into the carriage.
+"""The trunnion: a square bar the gun is fixed on, pressed into the carriage.
 
 On the real gun the trunnions are cast as part of the barrel, two stubs either
 side resting in the carriage's trunnion beds under a cap square. Here they are
-one pin, bored right through the piece and pressed into both brackets -- the way
+one bar, bored right through the piece and pressed into both brackets -- the way
 a wheelwright hangs a wheel, not the way a founder cast a gun, but it is what
 makes the thing survive a child.
 
-The pin is round and plain. It presses into a hole in each bracket and the
-barrel turns on it, so the only fit that has to be a fit is the bracket's, and
-the gun's angle has nothing to do with anything. The gun is then captive: there
-is no way out of a hole the pin passes through, and taking it apart means
-pushing the pin back out with a needle.
+The bar is square and every hole it goes through is a diamond, the square stood
+on a corner, so the gun does not turn on it. That fixes two things at once. A
+round pin let the gun pivot, and the printed gun is not breech-heavy the way the
+model is: at sparse infill the thin chase prints as nearly solid wall and the fat
+breech as mostly air, so it tipped muzzle-down off its quoin. And the round holes
+sagged, so the pin went in tight. A diamond is four flat faces at 45 degrees,
+which is the one shape a horizontal hole can have with nothing to sag.
 
-That is the fourth scheme, and the three before it all failed the same way, by
-leaving the gun a way out. Two pegs pressed 1.2mm into blind sockets fell out of
+The gun is fixed at its carriage's `elevation`, not level: level, the barrel
+would stand 0.7mm into the rail it has to fire over. So the bracket's diamond is
+turned by that much from the gun's, and `diamond` swings whichever roof face that
+leaves too flat back up to 45 degrees. The sliver of clearance that opens over
+that one face is on the side the gun's weight never bears on.
+
+This is the fifth scheme. Two pegs pressed 1.2mm into blind sockets fell out of
 the barrel while the gun was being offered up. Sprung lips either side of a slot
-held it for an afternoon and then took a set. And a bayonet -- a pin with two
-flats, passing a narrow slot at one elevation and under solid bracket at every
-other -- printed, and let the gun wobble sideways out of its slots: a slot the
-pin can get into is a slot it can work along. A hole cannot be worked along.
+held it for an afternoon and then took a set. A bayonet -- a pin with two flats,
+passing a slot at one elevation -- let the gun wobble sideways out of the slot.
+And a round pin pressed into two holes held the gun on and let it fall forward.
 
-It prints standing on a small head, which is 13.9mm2 of first layer instead of
-the 5.3mm2 the shank alone would stand on, and which seats against the outside
-of a bracket, so there is one depth to press it to and no judgement in it.
+The bar prints lying on a face: a real first layer, and the layers running along
+it. Its long edges are relieved, since the diamonds' corners print a little
+filled and a sharp corner would jam in them before the faces met.
 
 Every dimension is in printed millimetres, not calibres -- these are fits, and a
-fit does not scale. `CannonSpec` bores its hole and `CarriageSpec` bores the
-brackets' from one of these.
+fit does not scale. `CannonSpec` cuts its hole and `CarriageSpec` the brackets'
+from one of these.
 
     just watch cannon/trunnion.py
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
-from build123d import Align, Axis, BuildPart, Cylinder, Locations, Part, chamfer
+from build123d import Align, Axis, Box, BuildPart, Part, chamfer
 from ocp_vscode import show_object
 
 
 @dataclass(frozen=True)
 class TrunnionSpec:
-    shank: float = 2.6  # diameter of the pin
+    side: float = 2.4  # across the bar's flats
     # Right through the gun and both brackets. One length serves both carriages:
     # it is the 12-pounder's gap plus its two brackets to within a few
-    # hundredths, so there the far end comes flush, and on the 9-pounder it
-    # stands 0.57 proud, which reads as the flat end of a trunnion.
+    # hundredths, so there both ends come flush, and on the 9-pounder they stand
+    # 0.28 proud, which reads as the flat end of a trunnion.
     length: float = 11.7
 
-    # The head: what the pin stands on to print, and what it seats against.
-    head: float = 4.2
-    head_thick: float = 0.6
-
     stand_off: float = 1.2  # barrel surface to a bracket's inner face
-    running: float = 0.3  # diameter clearance in the barrel, so the gun turns on it
-    # How much narrower than the pin a bracket's hole is drawn. Nothing: a 2.6mm
-    # hole comes off the printer a tenth or two under size already and that is
-    # the whole of the grip, where drawn interference would only hoop-stress a
-    # 1.4mm bracket. If a print will not take the pin, make this negative rather
-    # than reaming the bracket.
+    # How much smaller than the bar a bracket's hole is drawn. Nothing: a printed
+    # hole comes out a tenth or two under size already, and that is the grip. If
+    # a print will not take the bar, make this negative.
     press: float = 0.0
+    # How much larger than the bar the barrel's hole is drawn. A little, since it
+    # is the longest of the three fits and the bar has to slide through it; the
+    # printer takes most of it back. Every 0.05 of it that survives is about 1.2
+    # degrees the muzzle can droop, and the barrel clears its rail by only a
+    # third of a millimetre per degree.
+    key_fit: float = 0.05
 
-    entry: float = 0.3  # chamfer on the free end, so the pin finds its holes
+    relief: float = 0.25  # chamfer on the long edges, clear of the diamonds' corners
+    entry: float = 0.3  # chamfer on both ends, so the bar finds each hole
     max_overhang: float = 45.0
 
     @property
     def bore(self) -> float:
-        """Diameter of a bracket's hole: the press fit that holds the gun on."""
-        return self.shank - self.press
+        """Across the flats of a bracket's hole: the press fit that holds the gun on."""
+        return self.side - self.press
 
     @property
     def socket(self) -> float:
-        """Diameter of the barrel's hole: a running fit, since the gun turns on the pin."""
-        return self.shank + self.running
+        """Across the flats of the barrel's hole: the fit that holds the gun's angle."""
+        return self.side + self.key_fit
 
-    @property
-    def height(self) -> float:
-        """Head and shank together: the whole part, as it stands on the bed."""
-        return self.head_thick + self.length
+
+def _meet(
+    p: tuple[float, float], d: tuple[float, float], q: tuple[float, float], e: tuple[float, float]
+) -> tuple[float, float]:
+    """Where the line through `p` along `d` crosses the line through `q` along `e`."""
+    t = ((q[0] - p[0]) * e[1] - (q[1] - p[1]) * e[0]) / (d[0] * e[1] - d[1] * e[0])
+    return (p[0] + t * d[0], p[1] + t * d[1])
+
+
+def diamond(
+    across: float, turned: float = 0.0, overhang: float = 45.0
+) -> list[tuple[float, float]]:
+    """A square hole `across` its flats, stood on a corner about the origin.
+
+    Returns its corners anticlockwise from the right-hand one, in a plane whose
+    second axis is up as printed. `turned` degrees anticlockwise, one of its two
+    roof faces leans further than `overhang` from vertical and would sag, so that
+    face is swung up to `overhang` about its lower end and meets the other higher
+    up. The bar still bears on the three faces left; over the fourth there is a
+    sliver of clearance, nothing at the side corner and widest at the top.
+    """
+    radius = across / math.sqrt(2)
+    right, top, left, bottom = (
+        (radius * math.cos(a), radius * math.sin(a))
+        for a in (math.radians(turned + 90 * k) for k in range(4))
+    )
+    lean = math.radians(overhang)
+    rising = (
+        (-math.sin(lean), math.cos(lean))
+        if 45 + turned > overhang
+        else (top[0] - right[0], top[1] - right[1])
+    )
+    falling = (
+        (math.sin(lean), math.cos(lean))
+        if 45 - turned > overhang
+        else (top[0] - left[0], top[1] - left[1])
+    )
+    return [right, _meet(right, rising, left, falling), left, bottom]
 
 
 def trunnion(spec: TrunnionSpec) -> Part:
-    """The pin, standing on its head with its length up z, chamfered at the top.
+    """The bar, lying on a face with its length along x, relieved and chamfered."""
+    with BuildPart() as bar:
+        Box(spec.length, spec.side, spec.side, align=(Align.CENTER, Align.CENTER, Align.MIN))
+        chamfer(bar.edges().filter_by(Axis.X), spec.relief)
+        chamfer(bar.faces().filter_by(Axis.X).edges(), spec.entry)
 
-    Nothing overhangs: the shank steps inward off the head, so the only downward
-    face in the part is the head's own underside, lying on the bed.
-    """
-    if spec.head <= spec.bore:
-        raise ValueError("the head is no wider than the hole; it would press straight through")
-
-    from_the_bed = (Align.CENTER, Align.CENTER, Align.MIN)
-    with BuildPart() as pin:
-        Cylinder(spec.head / 2, spec.head_thick, align=from_the_bed)
-        with Locations((0, 0, spec.head_thick)):
-            Cylinder(spec.shank / 2, spec.length, align=from_the_bed)
-        chamfer(pin.faces().sort_by(Axis.Z)[-1].edges(), spec.entry)
-
-    assert pin.part is not None
-    return pin.part
+    assert bar.part is not None
+    return bar.part
 
 
 def model() -> Part:
@@ -106,14 +138,14 @@ def model() -> Part:
 
 def main() -> None:
     spec = TrunnionSpec()
-    pin = trunnion(spec)
-    box = pin.bounding_box().size
+    bar = trunnion(spec)
+    box = bar.bounding_box().size
     print(
         f"trunnion {box.X:.2f} x {box.Y:.2f} x {box.Z:.2f} mm; print three and a spare. "
-        f"It presses into {spec.bore:.2f}mm in each bracket, and the barrel turns "
-        f"on it in {spec.socket:.2f}mm."
+        f"It presses into {spec.bore:.2f}mm in each bracket and slides through "
+        f"{spec.socket:.2f}mm in the barrel."
     )
-    show_object(pin, name="trunnion")
+    show_object(bar, name="trunnion")
 
 
 if __name__ == "__main__":
