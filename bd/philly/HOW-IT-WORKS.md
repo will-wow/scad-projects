@@ -760,6 +760,18 @@ Each clamp arm is 13.5mm long and bends 0.45mm clipping on: 0.37% strain, well
 inside the 2% PLA takes. `Slide.strain` does the sum and a test holds it under
 1%.
 
+### Width comes from the barrel, and thickness is free
+
+The gap between the brackets is the barrel at its trunnions plus `stand_off`
+either side, and everything under the bed -- the tunnel, the clamps, the slide --
+is sized from that gap. The brackets' thickness is not: it widens the carriage
+outward and touches nothing inside. At 1.4mm the printed carriage felt flimsy,
+and they are 2.0 now, which is nearly three times as stiff across. The hull does
+not mind. Swept from 1.4 to 2.6, every gun still fits its deck, the broadside
+guns run out less than a tenth of a millimetre less far, and no barrel's
+clearance over its rail moves at all. The trunnion bar grows with them, since
+it has to reach the outside of both.
+
 ### Height comes from what the gun has to clear
 
 `CarriageSpec.axis_height` is the trunnion axis above the deck, taken from the

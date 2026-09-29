@@ -52,8 +52,8 @@ class TrunnionSpec:
     # Right through the gun and both brackets. One length serves both carriages:
     # it is the 12-pounder's gap plus its two brackets to within a few
     # hundredths, so there both ends come flush, and on the 9-pounder they stand
-    # 0.28 proud, which reads as the flat end of a trunnion.
-    length: float = 11.7
+    # 0.29 proud, which reads as the flat end of a trunnion.
+    length: float = 12.9
 
     stand_off: float = 1.2  # barrel surface to a bracket's inner face
     # How much smaller than the bar a bracket's hole is drawn. Nothing: a printed

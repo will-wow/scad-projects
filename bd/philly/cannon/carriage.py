@@ -88,7 +88,7 @@ class CarriageSpec:
     elevation: float = 4.1  # degrees the quoin holds the muzzle up; the bow gun's, off the scan
     slide: Slide = field(default_factory=Slide)
 
-    bracket: float = 1.4  # thickness of a side piece
+    bracket: float = 2.0  # thickness of a side piece
     steps: tuple[tuple[float, float], ...] = STEPS
 
     # The bar, pressed through both brackets with the barrel fixed on it between
@@ -109,10 +109,10 @@ class CarriageSpec:
     headroom: float = 0.3  # between the tunnel's roof and the clamps' tops
 
     # What holds the first layer down. A carriage stands on two strips 30mm long
-    # and 1.4mm wide with 16mm of part over them, and on a clean sheet that took
-    # three goes. The brackets spread at 45 degrees where they meet the bed, into
-    # room going spare either side, which roughly doubles the first layer, costs
-    # nothing to remove and reads as a plinth under a millimetre tall.
+    # with 16mm of part over them. The brackets spread at 45 degrees where they
+    # meet the bed, into room going spare either side, which adds a third to the
+    # first layer, costs nothing to remove and reads as a plinth under a
+    # millimetre tall.
     foot: float = 0.6
 
     # Trucks, as (millimetres aft of the trunnion axis, radius). The fore pair
