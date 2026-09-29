@@ -770,7 +770,7 @@ ring clears it at the quoin's elevation (`breech_drop`); the bracket steps hang
 off the rail's top; the quoin is sized to catch the breech at `elevation`, and
 ends short of the base ring. The one thing that does not follow from the axis is
 `cheek`, how far a bracket stands over it: that is set from underneath, by the
-bracket the pin's teardrop hole needs above its apex.
+bracket the bar's diamond hole needs above its apex.
 
 That last one was a fixed number until the 9-pounder showed why it cannot be.
 A shorter barrel puts its base ring over the old quoin, so the breech sat on the
@@ -778,9 +778,10 @@ ring and the gun was a hair into the wedge. A test asks the physical question
 -- the gun at its elevation is clear of the carriage, half a degree more and it
 is in the quoin -- and `quoin_to` is now derived from where the ring starts.
 
-The gun rests on the quoin because it is breech-heavy, by a third of a
-millimetre. That is worth a test too: the other way round it would tip
-muzzle-down onto the rail.
+The model says the gun is breech-heavy, by a third of a millimetre, and a test
+used to hold it to that so it would rest on the quoin. The print disagreed, and
+the section on the trunnions below says why; the quoin now stands a hair under a
+breech that the trunnion bar holds.
 
 ### Running out as far as the hull allows
 
@@ -882,34 +883,42 @@ tried to make that way hard to find. Hard to find is not the same as shut.
 
 ### A pressed pin has no way out at all
 
-So the pin went back to being round and the way out closed. Each bracket is bored
-right through at the axis, the pin is a press fit in both holes, and the barrel
-turns on it between them: 2.6mm of shank, a 2.6mm hole in the bracket, a 2.9mm
-hole in the barrel. Nothing lines up, nothing springs, and nothing is held by
-being at the right angle. The gun comes off when somebody pushes the pin out with
-a needle, and not before.
+So the pin went back to being round and the way out closed. Each bracket was
+bored right through at the axis, the pin pressed into both holes, and the barrel
+turned on it between them. The gun came off when somebody pushed the pin out with
+a needle, and not before -- and that part worked.
 
-The hole is drawn nominal on purpose. A 2.6mm hole comes off the printer a tenth
-or two under size, and that undersize is the grip; drawn interference on top of it
-would hoop-stress a bracket 1.4mm thick for nothing, and if a print will not take
-the pin the fix is `press` going negative rather than a reamer going into the
-carriage. It is the one number here that cannot be checked in CAD. Everything
-else is geometry; this is a material fit on a machine that does not hold a tenth.
+### A round pin let the gun fall forward
 
-Both holes are teardrops, apex up, because both are horizontal holes in parts
-that print standing and each has to carry its own roof. In the bracket that earns
-its keep twice: it puts the apex 1.84mm above the axis, so `cheek` is no longer a
-number chosen for looks but whatever leaves enough bracket over that apex -- 3.0,
-leaving 1.16 -- and it leaves the top 90 degrees of the hole as clearance, so the
-pin presses the bracket outward rather than up through the one ligament that
-could split. In the barrel the same teardrop drives its apex up the piece toward
-the first reinforce ring; there is 0.21mm between them, and a test says so,
-because widening that hole any further would notch the ring's chamfer.
+Two things did not. The holes were teardrops, round below their 45-degree roofs,
+and in a 2.6mm hole the round part sagged enough that the pin went in tight. And
+the gun, free to turn, fell forward off its quoin. The model's centre of volume is
+a third of a millimetre aft of the trunnions, but a print's mass is not its
+volume: at 15% infill the thin chase is nearly all wall and the fat breech nearly
+all air, and that is worth a good deal more than a third of a millimetre.
 
-The printing changed with it. The pin stands on a small head, 4.2mm across and
-0.6 thick, which gives it 13.9mm2 of first layer where the shank alone had 5.3,
-and gives the press a face to seat against -- so there is one depth to push it to
-and no judgement in it.
+So the gun stopped turning. The pin is a square bar and every hole it goes
+through is a diamond -- the square stood on a corner -- so each face leans 45
+degrees with nothing round to sag, and the gun sits at the one angle the bar
+holds it at.
+
+That angle is the carriage's `elevation`, not level. Level was the obvious
+choice, since both diamonds would then stand square, and the rail forbids it: at
+0 degrees every barrel stands 0.6 to 0.7mm into the rail it fires over, against
+half a millimetre clear at the scan's 4. So the brackets' diamond is turned four
+degrees from the gun's, which would lean one of its roof faces 49 degrees.
+`diamond` swings that face back up to 45 about its lower end. That opens a sliver
+of clearance over one upper face of the bar, 0.17mm at its widest, and the gun's
+weight goes down into the two faces under the bar, which are whole.
+
+The fits are what the pin taught. The brackets' holes are drawn nominal, the
+printer's undersize being the grip. The barrel's is drawn 0.05 over, since it is
+the longest of the three and the bar has to slide through it; whatever of that
+survives printing is play, and play in a keyed square is droop -- about 1.2
+degrees per 0.05 -- which matters because the barrel clears its rail by about a
+third of a millimetre a degree. The bar's long edges are relieved a quarter of a
+millimetre, because a diamond's corners print a little filled and a sharp corner
+would jam there before the faces met. It prints lying on a face.
 
 ## Part 13: the joinery
 

@@ -199,54 +199,57 @@ goes a few calibres in, so the trunnion pin bears on solid metal.
 
 ### Carriage and trunnions
 
-Three printed parts per gun: the barrel, one **trunnion** pin, and a **carriage**
--- two **brackets** on a **bed**, with a **quoin**, the wedge that holds the
-breech up.
+Three printed parts per gun: the barrel, one **trunnion** bar, and a
+**carriage** -- two **brackets** on a **bed**, with a **quoin**, the wedge a real
+gun's breech rests on.
 
-The pin is bored right through the piece and reaches the outside of both
-brackets, and it is plain round: 2.6mm of shank with a small head on one end.
-Each bracket is bored right through at the trunnion axis and the pin is a press
-fit in both of those holes, while the barrel turns on it between them, 0.15mm a
-side looser. So the gun elevates on its trunnions the way the real one does, and
-it is captive: there is no way out of a hole the pin passes through. To take it
-apart, push the pin back out with a needle.
+The bar goes right through the piece and into both brackets, and it is square:
+2.4mm across the flats. Every hole it goes through is a **diamond**, the square
+stood on a corner, so the gun is fixed on it at the carriage's elevation and
+cannot turn. It is a press fit in the brackets, so the gun is captive as well:
+there is no way out of a hole the bar passes through. To take it apart, push the
+bar back out with a needle.
 
-That is the fourth scheme, and each of the three before it left the gun a way out
-and the gun took it. Separate pegs pressed into blind sockets, with a sliding cap
-square over each, fell apart in the hand: 1.2mm of printed hole is not a press
-fit, and a 2.5mm cap square has no room for a groove and a hook. Sprung lips
-either side of a slot then held the gun for an afternoon of play and went soft --
-0.7mm of PLA bending across its printed layers creeps a few microns each time,
-and the 0.12mm each lip had to give with was soon gone. And a bayonet -- a pin
-with two flats, passing a 1.85mm slot at one elevation and under solid bracket at
-every other -- printed, and then let the gun wobble sideways out of the slots. A
-slot the pin can get into at one angle is a slot it can work along at every
-angle, and 1.4mm of bracket has no depth to argue with a child's wrist.
+That is the fifth scheme, and each of the four before it failed on the print bed.
+Separate pegs pressed into blind sockets, with a sliding cap square over each,
+fell apart in the hand: 1.2mm of printed hole is not a press fit, and a 2.5mm cap
+square has no room for a groove and a hook. Sprung lips either side of a slot
+held the gun for an afternoon of play and went soft -- 0.7mm of PLA bending
+across its printed layers creeps a few microns each time. A bayonet -- a pin with
+two flats, passing a slot at one elevation -- let the gun wobble sideways out of
+the slot, because a slot the pin can get into at one angle is a slot it can work
+along at every angle. And a round pin pressed into round holes held the gun on
+and let it fall forward: the printed gun is heavier at the muzzle than the model
+says, because at sparse infill the thin chase prints as nearly solid wall and the
+fat breech as mostly air. The round holes sagged, too, so the pin went in tight.
 
-Two things are easy to get wrong here, and both are asserted. Both holes are cut
-as **teardrops**, apex up, since both are horizontal holes in parts that print
-standing and each has to carry its own roof. In the bracket that puts the apex
-1.84mm above the axis, and what is left over it is the one ligament a press fit
+A diamond answers both. It holds the angle, and its four faces each lean 45
+degrees, which is the one shape a horizontal hole can have with nothing round to
+sag.
+
+Two things are easy to get wrong here, and both are asserted. The angle the bar
+holds is the carriage's `elevation`, not level: level, each barrel would stand
+0.6 to 0.7mm into the rail it fires over. So the brackets' diamond is turned four
+degrees from the gun's, which would lean one roof face 49 degrees, and `diamond`
+swings that face back up to 45. That leaves a sliver of clearance over one upper
+face of the bar, 0.17mm at its widest, on the side the gun's weight never bears
+on. And the bracket left over the diamond's apex is the one ligament a press fit
 could split, so `cheek` -- how far the bracket stands over the axis -- is set
-from that and nothing else: 3.0mm, leaving 1.16. In the barrel the same teardrop
-drives its apex up toward the first reinforce ring, and there is 0.21mm between
-them.
+from that: 3.0mm, leaving 1.18.
 
 `cannon/trunnion.py` holds the fits, and the barrel and the carriage both cut
 their own geometry from that one `TrunnionSpec`. Its numbers are in printed
-millimetres rather than calibres: a clearance does not scale. The bracket's hole
-is drawn **nominal**, exactly the pin, because a 2.6mm hole comes off the printer
-a tenth or two under size already and that undersize is the whole of the grip;
-drawn interference on top of it would only hoop-stress a bracket 1.4mm thick. If
-a print will not take the pin, `press` goes negative rather than a reamer going
-into the carriage. The barrel's hole is 0.3mm the wider, looser than it looks on
-paper -- the mast in `rig.py` uses 0.3 too -- because a 2.6mm journal that seizes
-is no pivot at all.
+millimetres rather than calibres: a clearance does not scale. The brackets' holes
+are drawn **nominal**, exactly the bar, because a printed hole comes out a tenth
+or two under size already and that undersize is the grip; if a print will not
+take the bar, `press` goes negative. The barrel's hole is drawn 0.05 over, since
+it is the longest of the three and the bar has to slide through it -- but any of
+that which survives printing lets the muzzle droop, about 1.2 degrees per 0.05,
+and the barrel clears its rail by only a third of a millimetre a degree.
 
-The pin prints standing on its head, which is what makes it a print: 13.9mm2 of
-first layer where the shank on its own would stand on 5.3, and a face that seats
-against the outside of a bracket, so there is one depth to press it to and no
-judgement in it.
+The bar prints lying on a face, with its long edges relieved a quarter of a
+millimetre: a diamond's corners print a little filled, and a sharp corner would
+jam in them before the faces met.
 
 ```sh
 just watch cannon/assembly.py   # the three parts together
@@ -291,12 +294,12 @@ To arm the boat, print:
 | 12-pounder carriage | `philadelphia-carriage.3mf` | 1 |
 | 9-pounder barrel | `philadelphia-gun-9.3mf` | 2 |
 | 9-pounder carriage | `philadelphia-carriage-9.3mf` | 2 |
-| trunnion pin | `philadelphia-trunnion.3mf` | 3 |
+| trunnion bar | `philadelphia-trunnion.3mf` | 3 |
 
 Put the carriage on its slide first. Then stand the barrel between the brackets,
-line its hole up with theirs, and press the pin in head-first until the head
-seats against the bracket; the far end comes flush with the other one. It is not
-meant to come apart again -- push the pin back out with a needle if it must.
+line its diamond up with theirs, and press the bar through until it is flush on
+both sides. It is not meant to come apart again -- push the bar back out with a
+needle if it must.
 
 `cannon/assembly.py` is not printed. It hangs the gun off a `RevoluteJoint` on
 the trunnion axis -- positive `elevation` raises the muzzle -- and the tests

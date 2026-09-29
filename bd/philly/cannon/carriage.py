@@ -2,10 +2,11 @@
 
 Two **brackets** -- the side pieces -- standing on the deck either side of a
 **bed**, with a **quoin**, the wedge under the breech that sets the elevation.
-Each bracket is bored right through at the trunnion axis and the pin is pressed
-into it; the barrel turns on the pin between them. There is no way in from above
-and nothing to line up: the gun goes together one way and comes apart only by
-pushing the pin back out.
+Each bracket is cut right through at the trunnion axis with a diamond, and the
+square trunnion bar is pressed into both; the barrel is fixed on the bar between
+them at the carriage's `elevation`. There is no way in from above and nothing
+turns: the gun goes together one way and comes apart only by pushing the bar
+back out.
 
 The carriage runs on a slide in the deck (see `cannon/slide.py`). The bed is
 raised over a tunnel that the slide passes through, and in the tunnel, fixed to
@@ -23,7 +24,8 @@ bending across its printed layers creeps a few microns each time. And a bayonet
 bracket at every other -- printed, and then let the gun wobble sideways out of
 the slots, because a slot the pin can get into is a slot it can work along. A
 hole cannot be worked along, and the child who wants the gun off needs a
-needle.
+needle. A round pin pressed into those holes then held the gun on and let it
+fall forward, so the pin is now a square bar and the gun cannot turn on it.
 
 The carriage is built to put the trunnion axis at `axis_height` above the deck,
 which is what the gun needs to fire over the rail; the bed and brackets are
@@ -41,28 +43,24 @@ from dataclasses import dataclass, field
 from build123d import (
     Align,
     Box,
-    BuildLine,
     BuildPart,
     BuildSketch,
-    CenterArc,
     Cone,
     Locations,
     Mode,
     Part,
     Plane,
     Polygon,
-    Polyline,
     Pos,
     Rot,
     add,
     extrude,
-    make_face,
 )
 from ocp_vscode import show_object
 
 from cannon.cannon import CannonSpec, barrel_radius, base_ring_radius, trunnion_height
 from cannon.slide import Slide
-from cannon.trunnion import TrunnionSpec
+from cannon.trunnion import TrunnionSpec, diamond
 
 # Top edge of a bracket: (millimetres aft of the trunnion axis, height below the
 # rail's top). Tallest forward, where it carries the clip, stepping down aft over
@@ -93,11 +91,11 @@ class CarriageSpec:
     bracket: float = 1.4  # thickness of a side piece
     steps: tuple[tuple[float, float], ...] = STEPS
 
-    # The pin, pressed through both brackets with the barrel turning on it
-    # between them. What sets `cheek` is not how the bracket looks but what the
-    # hole needs over it: the hole is a teardrop carrying its own roof, so its
-    # apex stands 1.84mm above the axis, and the bracket left over that apex is
-    # the one ligament a press fit could split.
+    # The bar, pressed through both brackets with the barrel fixed on it between
+    # them. What sets `cheek` is not how the bracket looks but what the hole needs
+    # over it: the hole is a diamond, so its apex stands 1.82mm above the axis,
+    # and the bracket left over that apex is the one ligament a press fit could
+    # split.
     cheek: float = 3.0  # how far a bracket stands over the trunnion axis
 
     quoin_width: float = 2.6  # about half the gun's diameter
@@ -132,16 +130,19 @@ class CarriageSpec:
         return self.axis_height + self.cheek
 
     @property
-    def roof_over_the_pin(self) -> float:
-        """Bracket left over the apex of the pin's hole.
+    def hole(self) -> list[tuple[float, float]]:
+        """A bracket's hole about the axis, as (along, up) corners.
 
-        The hole is horizontal in a part that prints standing, so it is cut as a
-        teardrop with 45-degree flanks to carry its own roof, which puts its apex
-        `bore/2 / sin 45` above the axis. What is left over that apex is the one
-        ligament a press fit could split, and it is what `cheek` is set from.
+        The bar's diamond, turned to match the gun's hole at `elevation`. Positive
+        elevation lifts the muzzle, which is at -x, and in a sketch whose axes are
+        x and up that is clockwise -- hence the minus.
         """
-        lean = math.radians(self.pegs.max_overhang)
-        return self.cheek - (self.pegs.bore / 2) / math.sin(lean)
+        return diamond(self.pegs.bore, -self.elevation, self.pegs.max_overhang)
+
+    @property
+    def roof_over_the_bar(self) -> float:
+        """Bracket left over the apex of the bar's hole: what `cheek` is set from."""
+        return self.cheek - max(up for _, up in self.hole)
 
     @property
     def gap(self) -> float:
@@ -238,20 +239,19 @@ class CarriageSpec:
 
 
 def _bores(spec: CarriageSpec) -> Part:
-    """Both brackets' holes for the trunnion pin, as a solid to subtract.
+    """Both brackets' holes for the trunnion bar, as a solid to subtract.
 
-    The pin is a press fit in these and the gun turns on it, so there is no bed,
-    no slot and no way in from above: the pin goes in along its own axis and
-    comes out the same way or not at all. That is the whole of the fix. The
-    bayonet this replaced gave the pin a slot to drop down at one elevation of
-    the gun, and a slot the pin can get into is a slot it can work sideways
-    along, which is how the printed gun came off in the hand.
+    The bar is a press fit in these and the gun is fixed on it, so there is no bed,
+    no slot and no way in from above: the bar goes in along its own axis and comes
+    out the same way or not at all. The bayonet two schemes back gave its pin a
+    slot to drop down, and a slot the pin can get into is a slot it can work
+    sideways along, which is how that gun came off in the hand.
 
-    A teardrop, apex up, 45-degree flanks -- the same shape as the gun's own hole
-    and for the same reason: a horizontal hole in a part that prints standing has
-    to carry its own roof. It leans the right way for the press, too, since the
-    interference is then only round the lower 270 degrees and the pin pushes the
-    bracket outward rather than up through the thin ligament over the apex.
+    A diamond, like the gun's own hole and for the same reason: a horizontal hole
+    in a part that prints standing has to carry its own roof. Turned to the gun's
+    elevation, one roof face would lean past 45 degrees; `diamond` swings it back
+    up, which leaves a sliver of clearance over the bar's upper face on that side.
+    The gun's weight goes down into the two faces under the bar, which are whole.
 
     One prism across the whole carriage does both brackets. At this height there
     is nothing between them to cut: the quoin tops out some 4mm lower and the bed
@@ -261,24 +261,12 @@ def _bores(spec: CarriageSpec) -> Part:
     builder only nests into its parent when both are opened in the same Python
     frame: a BuildSketch opened down here would quietly go nowhere.
     """
-    lean = math.radians(spec.pegs.max_overhang)
-    axis = spec.axis_height
-    radius = spec.pegs.bore / 2
     reach = spec.gap / 2 + spec.bracket + 0.5
-    shoulder = (radius * math.cos(lean), axis + radius * math.sin(lean))
-    apex = (0, axis + radius / math.sin(lean))
+    corners = [(along, spec.axis_height + up) for along, up in spec.hole]
 
     with BuildPart() as cutter:
         with BuildSketch(Plane.XZ.offset(-reach)):
-            with BuildLine():
-                CenterArc(
-                    (0, axis),
-                    radius,
-                    start_angle=180 - spec.pegs.max_overhang,
-                    arc_size=180 + 2 * spec.pegs.max_overhang,
-                )
-                Polyline(shoulder, apex, (-shoulder[0], shoulder[1]))
-            make_face()
+            Polygon(*corners, align=None)
         extrude(amount=2 * reach)
 
     assert cutter.part is not None
@@ -373,14 +361,12 @@ def carriage(spec: CarriageSpec) -> Part:
         raise ValueError("the clamps have no room to spread over the slide's head")
     if rail_top + min(h for _, h in spec.steps) <= spec.bed_top:
         raise ValueError("the brackets' after steps are below the bed")
-    if spec.pegs.bore > spec.pegs.shank:
-        raise ValueError("the brackets' holes are wider than the pin; it would not press in")
-    if spec.roof_over_the_pin < 1.0:
+    if spec.pegs.bore > spec.pegs.side:
+        raise ValueError("the brackets' holes are wider than the bar; it would not press in")
+    if spec.roof_over_the_bar < 1.0:
         raise ValueError(
-            f"only {spec.roof_over_the_pin:.2f}mm of bracket over the pin's hole; raise the cheek"
+            f"only {spec.roof_over_the_bar:.2f}mm of bracket over the bar's hole; raise the cheek"
         )
-    if spec.trucks and spec.pegs.head_thick > spec.truck:
-        raise ValueError("the pin's head would stand proud of the trucks")
     if spec.foot > spec.half_width - half - spec.bracket:
         raise ValueError("the brackets' feet would spread wider than the trucks")
     if half - spec.foot < slide.reach + slide.snap + 0.2:
@@ -456,9 +442,8 @@ def main() -> None:
     print(
         f"carriage {box.X:.1f} x {box.Y:.1f} x {box.Z:.1f} mm, "
         f"trunnion axis {spec.axis_height:.2f}mm above the deck; "
-        f"the pin presses into {spec.pegs.bore:.2f}mm with "
-        f"{spec.roof_over_the_pin:.2f}mm of bracket over it, the barrel turning on "
-        f"{spec.pegs.running / 2:.2f}mm a side, "
+        f"the gun fixed at {spec.elevation:.1f} degrees on a {spec.pegs.side:.2f}mm bar "
+        f"with {spec.roof_over_the_bar:.2f}mm of bracket over it, "
         f"clamps strained {spec.slide.strain(spec.arm):.2%} clipping on"
     )
     show_object(truck, name="carriage")

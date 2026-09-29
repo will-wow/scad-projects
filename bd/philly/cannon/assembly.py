@@ -3,9 +3,10 @@
 Nothing here is printed -- it is where the fits are checked, by eye in the
 viewer and by the tests, which assert that no two parts share any volume.
 
-The gun hangs off a `RevoluteJoint` on the trunnion axis, so `elevation`
-swings it the way the real one swings on its trunnions. The pin stands still
-while it does: it is pressed into the brackets, and the barrel turns on it.
+The gun hangs off a `RevoluteJoint` on the trunnion axis, and the square bar
+it is fixed on rides with it. The printed gun only ever sits at its carriage's
+`elevation`; posing it anywhere else drives the bar into the brackets, which is
+how the tests show that it cannot turn.
 
     just watch cannon/assembly.py
 """
@@ -67,12 +68,17 @@ def assembly(spec: CarriageSpec | None = None, elevation: float | None = None) -
     )
     truck.joints["elevation"].connect_to(gun.joints["trunnions"], angle=elevation)
 
-    # The pin belongs to the carriage: it is pressed into the brackets and stays
-    # where they are, whatever the gun does. It prints standing on its head, so
-    # the Rot lays it along y, head first, and the Pos seats that head against
-    # the outside of the near bracket.
-    outside = spec.gap / 2 + spec.bracket
-    pin = Pos(0, -(outside + pegs.head_thick), axis_height) * Rot(-90, 0, 0) * trunnion(pegs)
+    # The bar is keyed to the gun, so it is placed in the gun's own frame: lying
+    # along the gun's y, stood on a corner to fill the gun's diamond. It prints
+    # lying on a face, which is why it has to be turned here.
+    pin = (
+        gun.location
+        * Pos(0, 0, trunnion_height(spec.gun))
+        * Rot(0, 45, 0)
+        * Rot(0, 0, 90)
+        * Pos(0, 0, -pegs.side / 2)
+        * trunnion(pegs)
+    )
     pin.color = BRASS
     pin.label = "trunnion"
 
