@@ -715,7 +715,7 @@ The side rails are a polyline through the leg tops.
 
 [`guns.py`](guns.py) puts three guns in the boat: the 12-pounder in the bow,
 firing over the stem, and a 9-pounder either side amidships, staggered and
-firing over the rail. The barrel, the carriage and the trunnion pin are in
+firing over the rail. The barrel, the carriage and the trunnion bar are in
 [`cannon/`](cannon); this is what stands them on the decks.
 
 ### Why the carriage clips on rather than slides in
@@ -1066,7 +1066,7 @@ stations. `_side_profile` stays the only thing that changes.
 | [`awning.py`](awning.py) | the awning frame, its canvas, and its sockets in the decks |
 | [`details.py`](details.py) | knees, benches and keelson, merged into the hull |
 | [`guns.py`](guns.py) | where each gun stands, how far it runs out, and its slide in the deck |
-| [`cannon/`](cannon) | the barrel, carriage, trunnion pin, slide and its proof piece |
+| [`cannon/`](cannon) | the barrel, carriage, trunnion bar, slide and its proof piece |
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |

@@ -195,7 +195,7 @@ It is built in print orientation: muzzle face down on the bed, bore up. Every
 ring and the cascabel's button is a half-round with its underside cut off as a
 chamfer at `max_overhang`, and the bore ends in a point at the same angle, so
 the gun prints standing on its muzzle with a brim and no support. The bore only
-goes a few calibres in, so the trunnion pin bears on solid metal.
+goes a few calibres in, so the trunnion bar bears on solid metal.
 
 ### Carriage and trunnions
 
