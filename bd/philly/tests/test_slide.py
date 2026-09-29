@@ -145,7 +145,7 @@ class TestFeet:
     long, and at 1.4mm wide they peeled off a clean bed three times running."""
 
     def test_the_feet_spread_the_first_layer(self):
-        """155mm2 becomes 217, and each strip goes from 1.4mm wide to 2.6."""
+        """191mm2 becomes 253, and each strip goes from 2.0mm wide to 3.2."""
         bare = section(carriage(CarriageSpec(foot=0.0)), Plane.XY.offset(0.05))
         shod = section(carriage(SPEC), Plane.XY.offset(0.05))
         assert sum(f.area for f in shod.faces()) > 1.3 * sum(f.area for f in bare.faces())

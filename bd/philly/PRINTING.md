@@ -38,7 +38,7 @@ The fittings barely register: mast, sails, awning and its canvas together are
 34.7 cm³, so at 15% infill they add 6.4 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their three trunnion
-bars are 12.7 cm³, about 16 g, and another 1.1mm of draft.
+bars are 14.4 cm³, about 18 g, and another 1.2mm of draft.
 
 So buoyancy is not the thing to design for. Water *getting inside the hull* is.
 
@@ -69,10 +69,11 @@ slide, which is part of the hull.
 
 A carriage is the one part here that is hard to keep on the bed. It stands on
 two strips 30mm long with a 16mm part over them, and at 1.4mm wide they peeled
-off three times running. The brackets therefore spread at 45 degrees where they
-meet the bed, into room going spare inboard of the trucks and outboard of the
-clamps: 217mm2 of first layer instead of 155, each strip 2.6mm wide instead of
-1.4, and a feathered edge rather than a square one, which is where peel starts.
+off three times running. They are 2.0 now, and the brackets also spread at 45
+degrees where they meet the bed, into room going spare inboard of the trucks and
+outboard of the clamps: 253mm2 of first layer instead of 191, each strip 3.2mm
+wide instead of 2.0, and a feathered edge rather than a square one, which is
+where peel starts.
 It needs no trimming and reads as a plinth under a millimetre tall.
 
 Note that elephant's-foot compensation eats into that spread, which is what it
