@@ -141,7 +141,7 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
     """
     rig = rig or Rig()
     factor = spec.length / lines.length
-    x0, x1 = lines.sheer_half_width.span
+    x0, x1 = lines.span
 
     def source(fraction: float) -> float:
         return x0 + (x1 - x0) * fraction

@@ -55,7 +55,7 @@ up immediately rather than serving the copy Python cached on first import. The
 watcher also disables bytecode caching for itself: a `.pyc` counts as current
 when the source's size and whole-second mtime match, so two quick edits of the
 same length (`Box(13, 13, 13)` to `Box(15, 15, 15)`) would otherwise re-import
-stale bytecode and repaint the *old* geometry.
+stale bytecode and repaint the _old_ geometry.
 
 Each batch resets the viewer's object stack before re-running, since
 `show_object` only ever appends to it — otherwise shrinking a shape would draw
@@ -84,8 +84,12 @@ The DXF is drawn transom-first, with X increasing toward the bow; `lines.py`
 mirrors it on load, so everywhere in the model X is the distance aft of the
 bow.
 
-The faired bottom is flat -- one height between the two ends, which curve up
-to the rail. No rocker to interpolate, and the toy sits flat on a printer bed.
+The faired bottom is flat -- one height, no rocker to interpolate, and the toy
+sits flat on a printer bed. `FAIR_BASE_PROFILE` starts where the flat does; forward
+of that the bottom sweeps up round a quarter-ellipse to where the sheer ends,
+leaving a flat face as wide as the lines are there. The stem is one board bent
+round that face, `lines.STEM_DEPTH` thick, its foot flat on the bed and its head
+at the rail. The lines are the planking's only; the stem is not drawn.
 
 `details.py` merges the boat's joinery into the hull, all sized from the scan:
 the knees and cross-beams on the middle platform, benches down both sides of
@@ -264,7 +268,8 @@ side and a **chock** across each end (`cannon/slide.py`). The carriage clips
 onto it from above: two springy **clamps** in a tunnel under its bed snap their
 jaws under the lip. Clipped on, it cannot come off whichever way up the boat
 is, and it runs between the chocks: out until the muzzle is over the side, and
-8mm back in recoil. Pull it straight up, firmly, to take it off.
+back in recoil -- 8mm for the 9-pounders, and for the 12-pounder nearly the
+whole forecastle, as the kit's does. Pull it straight up, firmly, to take it off.
 
 Before printing a hull to find out whether the carriage runs, print the rail on
 its own: `cannon/proof.py` is a 46 x 17 x 4.6mm patch of deck with the slide sunk
@@ -274,16 +279,17 @@ into it, chocks and all, off the bed in a few minutes.
 just build --model cannon.proof:model=proof-12 --model cannon.proof:nine=proof-9
 ```
 
-The rail is the same for both guns -- the carriages are the same length, run the
-same distance, and clip to the same `Slide` -- so the two pieces differ only in
-how wide the deck around it is. The 12-pounder's is the wider and takes either
+The rail is the same for both guns -- the carriages are the same length and clip
+to the same `Slide`, and the pads keep the short 8mm run -- so the two pieces
+differ only in how wide the deck around it is. The 12-pounder's is the wider and takes either
 carriage; a test asserts the rail on the pad is the rail the hull gets, since
 otherwise the print proves nothing.
 
 `guns.py` places them from the scan -- the 12-pounder on the forecastle firing
 over the stem, a 9-pounder each side of the middle platform -- runs each out as
 far as the hull allows, and checks the barrel clears the rail over its whole
-run. No gunports: at the scan's heights none are needed. HOW-IT-WORKS.md Part
+run. At the scan's heights none needs a gunport, but the bow is notched round
+the 12-pounder's barrel, the stem stopping just under the sheer, as on the boat. HOW-IT-WORKS.md Part
 12 has the reasoning.
 
 To arm the boat, print:

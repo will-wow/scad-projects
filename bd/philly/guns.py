@@ -1,9 +1,10 @@
 """Where the guns stand, and the slides they run on.
 
 The boat carried a 12-pounder in the bow, firing over the stem, and a 9-pounder
-either side amidships, staggered and firing over the rail. None had a gunport:
-at the heights the scan gives, every barrel clears its rail, and this checks
-that it still does in the model rather than taking it on trust.
+either side amidships, staggered and firing over the rail. At the heights the
+scan gives every barrel clears its rail, and this checks that it still does in
+the model rather than taking it on trust. The bow gun's rail is still notched
+round the barrel where it crosses the stem, as a close look at the boat shows.
 
 Each gun runs on a slide printed into its deck (see `cannon/slide.py`). The
 slide's chocks are where the carriage stops: run out, with the muzzle over the
@@ -19,7 +20,7 @@ import math
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Compound, Location, Part, Pos, Rot
+from build123d import Circle, Compound, Location, Part, Plane, Pos, Rot, extrude
 
 from cannon.assembly import assembly
 from cannon.cannon import outline, trunnion_height
@@ -33,6 +34,9 @@ CLEARANCE = 0.5
 
 # The least a barrel may clear the rail by, anywhere in its run.
 MARGIN = 0.3
+
+# How far the bow's notch round the barrel dips below the rail at the stem.
+GUNPORT_DEPTH = 1.0
 
 # How close a chock may come to the outside of the hull, which it is merged into
 # where the carriage runs out right against the side.
@@ -104,6 +108,23 @@ class Mount:
         rail = slide(spec.slide, spec.fore, spec.aft + self.travel)
         return self.location() * rail
 
+    def gunport(self, sheer: float) -> Part:
+        """The notch in the bow round the barrel, as a solid to subtract.
+
+        A cylinder on the gun's axis, run out, from the carriage's front to past
+        the stem, large enough to dip `GUNPORT_DEPTH` below the rail at the stem,
+        whose height there is `sheer`. It takes the rail and the stem's head down
+        round the barrel.
+        """
+        tilt = math.radians(self.carriage.elevation)
+        inner = -self.carriage.fore
+        outer = self.trunnions[0] + 1.0
+        radius = self.deck + self.axis_over(self.trunnions[0]) - (sheer - GUNPORT_DEPTH)
+        start = Pos(self.trunnions[0] - inner, 0.0, self.deck + self.axis_over(inner)).position
+        direction = (-math.cos(tilt), 0.0, math.sin(tilt))
+        length = (outer - inner) / math.cos(tilt)
+        return extrude(Plane(origin=start, z_dir=direction) * Circle(radius), amount=length)
+
     def axis_over(self, along: float, recoil: float = 0.0) -> float:
         """The axis's height above the deck, `along` millimetres outboard of run-out trunnions."""
         tilt = math.radians(self.carriage.elevation)
@@ -155,7 +176,7 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     outside. The bow gun's run-out is the scan's, and is only checked.
     """
     factor = spec.length / lines.length
-    x0, x1 = lines.sheer_half_width.span
+    x0, x1 = lines.span
     wall = spec.wall / factor
     truck = gun.carriage
     rig = truck.slide
@@ -228,6 +249,10 @@ def fit_guns(hull: Part, spec: HullSpec, lines: HullLines, guns: tuple[Gun, ...]
     """
     fitted = hull
     solved = mounts(spec, lines, guns)
+    for m in solved:
+        if m.gun.side == 0:
+            head = lines.sheer_height.value(lines.span[0]) * spec.length / lines.length
+            fitted = as_part(fitted - m.gunport(head), "cutting the bow's gunport")
     for m in solved:
         fitted = as_part(fitted + m.slide(), "laying a gun's slide")
     for m in solved:

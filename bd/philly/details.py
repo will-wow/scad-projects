@@ -82,7 +82,7 @@ class _Hull:
     def __init__(self, spec: HullSpec, lines: HullLines) -> None:
         self.spec, self.lines = spec, lines
         self.factor = spec.length / lines.length
-        self.x0, self.x1 = lines.sheer_half_width.span
+        self.x0, self.x1 = lines.span
 
     def station(self, fraction: float) -> float:
         return (self.x0 + (self.x1 - self.x0) * fraction) * self.factor
