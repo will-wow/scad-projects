@@ -12,8 +12,8 @@ Everything here lives in [`bd/philly/`](.). The interesting files are
 
 A boat hull sounds like it needs free-form surfaces. It doesn't — not this one.
 The Philadelphia is a **hard-chine scow**: a flat bottom, a hard corner where
-the bottom meets the side (the *chine*), and sides that flare up to the rail
-(the *sheer*). Cut it anywhere across its width and you get a simple closed
+the bottom meets the side (the _chine_), and sides that flare up to the rail
+(the _sheer_). Cut it anywhere across its width and you get a simple closed
 outline. Stack enough of those outlines along the length, skin them, and you
 have a hull.
 
@@ -28,8 +28,8 @@ NURBS patch, no surface modelling at all.
 
 ### A note on build123d's two dialects
 
-build123d offers a *builder* API (`with BuildPart() as p:` and context
-managers) and a *direct*, algebraic one (objects and operators). This code uses
+build123d offers a _builder_ API (`with BuildPart() as p:` and context
+managers) and a _direct_, algebraic one (objects and operators). This code uses
 the direct one throughout: shapes are values you pass around, and `-` means
 subtract.
 
@@ -48,16 +48,16 @@ tutorials use.
 A hull is traditionally described by a **lines plan**: two 2D views of the same
 boat, from which the 3D shape is recovered.
 
-- The **half-breadth plan** looks down from above and gives *half-widths* — how
+- The **half-breadth plan** looks down from above and gives _half-widths_ — how
   far from the centreline the boat is at each point along its length.
-- The **profile** looks from the side and gives *heights* above the baseline.
+- The **profile** looks from the side and gives _heights_ above the baseline.
 
 Two lines matter here, each appearing in both views, so four curves in total:
 
-| | half-width | height |
-| --- | --- | --- |
-| **sheer** (the rail) | `FAIR_TOP` | `FAIR_SHEER_PROFILE` |
-| **chine** (bottom corner) | `FAIR_BOTTOM` | `FAIR_BASE_PROFILE` |
+|                           | half-width    | height               |
+| ------------------------- | ------------- | -------------------- |
+| **sheer** (the rail)      | `FAIR_TOP`    | `FAIR_SHEER_PROFILE` |
+| **chine** (bottom corner) | `FAIR_BOTTOM` | `FAIR_BASE_PROFILE`  |
 
 Those are DXF layer names in
 [`designs/philadelphia_hull_lines.dxf`](designs/philadelphia_hull_lines.dxf),
@@ -98,7 +98,7 @@ def value(self, x: float) -> float:
 The clamping is the part worth understanding, and it is free: **`np.interp`
 never extrapolates.** Its `left` and `right` parameters default to the first
 and last values of `y`, so anything off either end comes back as the end value.
-Those parameters exist to *override* that, not to switch it on.
+Those parameters exist to _override_ that, not to switch it on.
 
 That happens to be exactly what a lines plan wants. The four curves don't span
 quite the same range — hand-drawn curves never do — so stations near either
@@ -107,7 +107,7 @@ extrapolation off a sheer that is rising steeply runs away fast. Holding the
 end value costs a fraction of a millimetre at the very tip and cannot explode.
 
 It is worth knowing this is deliberate, because the alternative is to not
-notice: if you ever want to *find* the stations that fall off the end rather
+notice: if you ever want to _find_ the stations that fall off the end rather
 than quietly clamp them, pass `left=np.nan, right=np.nan` and they become
 visible.
 
@@ -180,7 +180,7 @@ def at(self, t: float) -> float:
 ```
 
 That's a half-sine with its argument warped so the maximum lands at `peak`
-rather than at the middle. Warping the *argument* rather than the value keeps
+rather than at the middle. Warping the _argument_ rather than the value keeps
 `at(0) == at(1) == 0` however far you move the peak — so the chine and the rail
 stay exactly where the lines plan puts them, and only the middle moves. It's a
 useful trick for any "bulge this edge" parameter.
@@ -197,7 +197,7 @@ Two non-obvious constraints, both of which cost real debugging time:
   lets the cavity follow the same swell in Part 4.
 - **Every station returns the same number of points.** Lofting between sections
   whose vertices don't correspond forces OCCT to build a common
-  parameterisation, and that cost *sixty times* as much here. Keep your section
+  parameterisation, and that cost _sixty times_ as much here. Keep your section
   outlines structurally identical and vary only the numbers.
 
 ## Part 3: the loft
@@ -205,13 +205,12 @@ Two non-obvious constraints, both of which cost real debugging time:
 With a section available at any `x`, the outer hull is three lines:
 
 ```python
-stations = _station_positions(x0, x1, spec.stations)
-faces = [f for f in (_section(lines, float(x), spec.bulge) for x in stations) if f is not None]
+faces = [f for f in (_section(lines, float(x), spec.bulge, bow) for x in stations) if f is not None]
 hull = loft(faces)
 ```
 
-`loft` skins a list of planar faces in order and caps the ends. That's it —
-that's the hull.
+`loft` skins a list of planar faces in order and caps the ends. That's nearly
+all of the hull; the bow is the exception.
 
 Stations are **cosine-spaced** rather than evenly spaced:
 
@@ -226,6 +225,34 @@ Hull curvature is concentrated at the two ends; amidships the shape barely
 changes over long stretches. Cosine spacing puts samples where the shape is
 doing something. It's the same reasoning behind Chebyshev nodes, and it applies
 to almost any swept shape with busy ends.
+
+### The bow
+
+The stations stop where `FAIR_BASE_PROFILE` begins, because that is where the
+flat bottom ends. Forward of it the real boat's bottom sweeps up to the stem
+head, and a section there is not the flat-bottomed trapezoid read off the lines.
+[`_outline`](hull.py) makes those sections instead: the chine rises round a
+quarter-ellipse, tangent to the flat and vertical where it reaches the rail,
+and both half-widths are read straight off the lines. The bottom panel between
+the chines becomes a flat face curving up the bow, as wide as the lines leave
+it, which is what the stem lies on.
+
+The forefoot gets its own handful of sections, spread evenly round the ellipse
+rather than along x, since the curve ends vertical. It is also lofted
+separately and fused on. A single loft through both the tight forefoot and the
+long gaps between stations aft overshoots, dipping the bottom below the bed,
+and the two booleans that follow then fail. The cavity is split in the same
+place for the same reason.
+
+The lines stop where the planking meets the stem, and `load` puts X = 0
+`STEM_DEPTH` forward of that, at the stem's front. [`_stem`](hull.py) is a
+single board bent round the face: its back follows the face, set a millimetre
+into the planking so the two overlap rather than touch, and its front is the
+face offset outward by `STEM_DEPTH` along its normal, so the board has the same
+rectangular section from foot to head. Where the offset would run below the
+bottom it is cut flat, which stands the foot on the bed; the head is cut flat at
+the rail. It is fused before the hollowing, and the cavity keeps a wall aft of
+the face at the height of its own floor, so it never cuts into the board.
 
 `stations` is purely a smoothness/speed dial — 12 while you're iterating, 48
 for export. Nothing about the hull's dimensions depends on it, which is a
@@ -243,7 +270,7 @@ return _as_part(hull - loft(faces), "cavity subtraction")
 This is faster by an order of magnitude, and it sidesteps a whole bug class:
 a thick-solid operation needs to be told which face to leave open, and "the
 deck" is surprisingly hard to identify reliably. Building the cavity so that it
-pokes out through the top means the deck opens *by construction* — there is no
+pokes out through the top means the deck opens _by construction_ — there is no
 face to choose.
 
 The catch is getting the inset right, and this is the one piece of real
@@ -264,7 +291,7 @@ floor_y = base_y + s_floor * run / length
 
 The floor moves straight up by `wall`. The flared side has to move
 **perpendicular to itself**. The new chine corner is where those two offset
-lines *intersect* — not either endpoint moved by a fixed amount. Move the
+lines _intersect_ — not either endpoint moved by a fixed amount. Move the
 corner straight inward instead and a 2mm request measures 2.8mm of side wall,
 because the side's lean turns a horizontal offset into a smaller perpendicular
 one.
@@ -273,7 +300,7 @@ If you take one thing from this file, take that: **offsetting a polygon is
 about offsetting its edges and re-intersecting them**, never about moving its
 vertices.
 
-The cavity is also carried one wall thickness *above* the rail
+The cavity is also carried one wall thickness _above_ the rail
 (`top_z = z_sheer + wall`), which is what makes the subtraction remove the
 section's closed top edge and leave an open boat.
 
@@ -319,6 +346,15 @@ Both loops call the same `_cut`. The only difference is where the floor goes —
 which is why there's one concept here and not two. A shallow well that
 shouldn't reach the bottom is just a low deck.
 
+The forecastle's aft corners run on past its edge along each side, as on the
+boat: `Deck(..., tab=...)` gives a square tab that many millimetres long on
+each corner, with a quarter circle cut out of its inboard aft corner. `main.py`
+makes the forecastle's reach half-way from its edge to the mast's bar, so it
+follows either of them if they move. [`_tabs`](hull.py)
+draws each one oversize in plan, solid to the bilge, and trims it to a cavity
+half a wall larger than the real one, so it fits the flared side and the floor
+exactly without anyone having to work out where they are.
+
 Note `lambda x, floor=floor: floor`. Binding the loop variable as a default
 argument matters: a bare closure over `floor` would see whatever the variable
 held when the lambda was finally called. It happens to be safe here because
@@ -348,7 +384,7 @@ if hull.is_inside(Vector(x, 0.0, z)):
 ```
 
 `is_inside` is the cheapest correctness check in CAD. Note the probe is aimed
-*inside the band the deck skin would occupy* — a probe lower down finds air
+_inside the band the deck skin would occupy_ — a probe lower down finds air
 whether or not the deck was removed, which is a test that always passes.
 
 **Solve for geometry rather than sampling it.** Near each end the hull is
@@ -412,7 +448,7 @@ driven by [`justfile`](justfile).
   boat with its rig standing in it. See Part 10.
 - **[`watch.py`](watch.py)** — `just watch`. Keeps build123d imported between
   reloads, so a save repaints in ~0.2s instead of paying a ~16s cold import
-  each time. It watches *directories*, not files (atomic saves replace inodes,
+  each time. It watches _directories_, not files (atomic saves replace inodes,
   so a file watch goes deaf after one save), and sets
   `sys.dont_write_bytecode = True` because `.pyc` files are validated by
   whole-second mtime plus size — edit a file twice in one second without
@@ -494,7 +530,7 @@ laid = Rot(0.0, 90.0, 0.0) * _upright_mast(spec, lines, rig)
 ```
 
 That carries the shaft from +Z to +X and leaves the yards along Y, all in the
-plane of the bed. The hexagon is drawn with `rotation=30` so that its *flats*
+plane of the bed. The hexagon is drawn with `rotation=30` so that its _flats_
 end up facing the bed rather than its corners -- a test measures the part's
 height against the across-flats figure, which is the narrower of the two, so
 getting this backwards fails rather than printing badly.
@@ -524,7 +560,7 @@ bar += at * (lengthwise * Cylinder(radius, rig.clip_length))
 That is a 2.5mm bridge with a square shoulder at each end rather than a
 cantilever, and the shoulders double as what stops a sail sliding along the
 yard. It also fixed something that was quietly broken: when the clip was a
-shallow groove turned into a round yard, the groove's floor was *narrower* than
+shallow groove turned into a round yard, the groove's floor was _narrower_ than
 a sail's mouth, so nothing held the sail on at all. Clipping onto the full neck
 diameter, the mouth has to spring over it.
 
@@ -598,14 +634,14 @@ front of the mast at the head and foot, and the mast's corners come to within
 `sail_thickness + mast_clearance` (1.6mm). Each has to leave `TOLERANCE` clear,
 and the tests check both.
 
-`sails()` is the one builder here that deliberately does *not* go through
+`sails()` is the one builder here that deliberately does _not_ go through
 `as_part`: two sails really are two solids, so "more than one piece" is the
 answer rather than the failure it would be anywhere else.
 
 ## Part 10: the assembled view
 
 [`assembly.py`](assembly.py) exists because every part is modelled and exported
-the way it wants to *print*, which means nothing in `dist/` shows what the boat
+the way it wants to _print_, which means nothing in `dist/` shows what the boat
 looks like. It stands the mast in its socket and hangs the sails on the yards:
 
 ```python
@@ -754,7 +790,7 @@ clear of its ends.
 
 A jaw is the rail's profile grown by the fit, and the one number to remember is
 that growing a 45-degree face by `fit` square to itself leaves `fit * sqrt 2` of
-room *vertically*. That is the carriage's play upward, and a test pins it.
+room _vertically_. That is the carriage's play upward, and a test pins it.
 
 Each clamp arm is 13.5mm long and bends 0.45mm clipping on: 0.37% strain, well
 inside the 2% PLA takes. `Slide.strain` does the sum and a test holds it under
@@ -811,7 +847,10 @@ still outboard of it. The barrel's radius comes from `cannon.outline`, a
 deliberately generous envelope, with the swell's radius all the way back to the
 neck and every ring at full height. `mounts` refuses any gun under `MARGIN`. At
 the scan's heights the bow gun clears by 0.50mm and the broadside guns by 0.52
-and 0.44, which is why the real boat needed no gunports.
+and 0.44, which is why the real boat needed no gunports as such. Her bow is
+still notched round the 12-pounder: the stem stops a little under the sheer, in
+a round cut the barrel sits in. `Mount.gunport` is a cylinder on the gun's
+axis, sized to dip `GUNPORT_DEPTH` below the rail at the stem.
 
 Those were a millimetre apiece until the barrels were measured off the scan
 rather than proportioned from a founder's table: the true piece is half a
@@ -943,7 +982,7 @@ the scan, and `designs/measure_scan.py` prints the numbers again.
 ### Merged, and reaching into what they stand on
 
 Each piece is a union with the hull, so it prints as part of it. A union that
-only *touches* the hull is the thing to avoid: coincident faces make fragile
+only _touches_ the hull is the thing to avoid: coincident faces make fragile
 booleans, and a piece that stops a hair short leaves a crack that the slicer
 reads as two parts. So every piece reaches `OVERLAP` (0.3mm) into the planking
 and is sunk `SINK` into the deck, both well under the 2mm wall.
@@ -1021,7 +1060,7 @@ the next such sliver fails the suite rather than the slicer.
 
 That was not the whole story. With the aft boss clear of every seam, the export
 still dropped a strip of quarterdeck. The fault was the mesher's settings:
-build123d's `tessellate` treats its tolerance as *relative* to each edge's
+build123d's `tessellate` treats its tolerance as _relative_ to each edge's
 size, and meshed that way, the quarterdeck's comb-shaped top face lost a strip.
 [`export.triangulate`](export.py) meshes first with the tolerance absolute,
 which is also the only way `MESH_TOLERANCE` actually means 0.05mm. Both fixes
@@ -1042,13 +1081,13 @@ If you want to do this for a different boat:
    plank width per deck with `seams`.
 4. **Run `just watch`** and tune by eye.
 
-If your boat has a *rounded* bilge rather than a hard chine, `_side_profile` is
+If your boat has a _rounded_ bilge rather than a hard chine, `_side_profile` is
 the place to change — it's the only function that decides what a section looks
 like between its corners. Everything downstream just consumes points.
 
 If your boat has genuine tumblehome (topsides curving back inward), `Bulge`
 won't express it, and you'd want per-station section data. The architecture
-takes that without much disruption: keep the four curves as the *envelope* and
+takes that without much disruption: keep the four curves as the _envelope_ and
 add a normalized offset-from-chord function interpolated between drawn
 stations. `_side_profile` stays the only thing that changes.
 

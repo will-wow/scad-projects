@@ -7,6 +7,8 @@
 Adjust HULL below and save to see it change.
 """
 
+from dataclasses import replace
+
 from build123d import Part, Pos
 from ocp_vscode import show_object
 
@@ -34,7 +36,8 @@ HULL = HullSpec(
     # fractions of the hull's depth. The scan puts the decks 850, 612 and 537mm
     # above the keel, stepping down from bow to stern. The last number is each
     # deck's plank width in millimetres, from the seams in the scan: about 430,
-    # 440 and 320mm full size.
+    # 440 and 320mm full size. The forecastle's aft corners run on along the
+    # sides as notched square tabs; see FORECASTLE_TABS below.
     decks=(
         Deck(0.0, 0.31, 0.48, plank=7.8),
         Deck(0.39, 0.655, 0.34, plank=8.0),
@@ -66,13 +69,38 @@ HULL = HullSpec(
 
 RIG = rigging.Rig()
 
+
+def _forecastle_tabs(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
+    """The forecastle's corner tabs, half-way from its edge to the mast's bar."""
+    forecastle = spec.decks[0]
+    seat = rigging.step(spec, hull_lines.load(), rig)
+    bar = seat.station - seat.bar_size / 2.0
+    tab = 0.5 * (bar - forecastle.end * spec.length)
+    return replace(spec, decks=(replace(forecastle, tab=tab), *spec.decks[1:]))
+
+
+HULL = _forecastle_tabs(HULL, RIG)
+
 AWNING = awnings.Awning()
 
 # The 12-pounder in the bow: the scan puts its axis 13.9mm above the forecastle
 # at 4.1 degrees, which is CarriageSpec's default. Its station is where the
 # trunnions fall when the muzzle is where the scan has it, just past the stem --
 # so it moved aft when the barrel was measured and came out longer.
-BOW_CHASER = CarriageSpec()
+BOW_STATION = 0.0895
+# Its slide runs aft to this far short of the forecastle's aft edge.
+BOW_SLIDE_SHORT = 1.5
+_carriage = CarriageSpec()
+BOW_CHASER = replace(
+    _carriage,
+    slide=replace(
+        _carriage.slide,
+        travel=(HULL.decks[0].end - BOW_STATION) * HULL.length
+        - BOW_SLIDE_SHORT
+        - _carriage.aft
+        - _carriage.slide.chock,
+    ),
+)
 
 # The 9-pounders. The scan measured the starboard gun's axis 15.6mm above the
 # platform where it crosses the rail, at 4.0 degrees; run out, that is 14.64 at
@@ -80,7 +108,7 @@ BOW_CHASER = CarriageSpec()
 BROADSIDE = CarriageSpec(gun=NINE_POUNDER, axis_height=14.64, elevation=4.0)
 
 GUNS = (
-    ordnance.Gun(station=0.0895, side=0, carriage=BOW_CHASER),
+    ordnance.Gun(station=BOW_STATION, side=0, carriage=BOW_CHASER),
     ordnance.Gun(station=0.483, side=-1, carriage=BROADSIDE),
     ordnance.Gun(station=0.606, side=1, carriage=BROADSIDE),
 )

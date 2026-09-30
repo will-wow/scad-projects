@@ -13,21 +13,25 @@ from dataclasses import replace
 import numpy as np
 import pytest
 from build123d import Plane, Vector
-from conftest import DECKS
+from conftest import DECKS, _main
 
 from hull import (
     Bulge,
     Deck,
     HullSpec,
     Seams,
+    _bow,
     _cavity_span,
+    _forefoot_positions,
     _inner_section,
+    _outline,
     _section,
     _station_positions,
     build,
     inner_half_width,
     open_stretches,
 )
+from lines import STEM_DEPTH
 
 STATIONS = 12
 
@@ -111,12 +115,14 @@ def test_cavity_ends_do_not_move_with_the_station_count(lines):
     solid end plugs ranged over most of a metre and the volume swung 11% -- print weight
     moving with a setting that is supposed to be cosmetic."""
     spec = HullSpec()
-    wall = spec.wall / (spec.length / lines.length)
-    x0, x1 = lines.sheer_half_width.span
+    factor = spec.length / lines.length
+    wall = spec.wall / factor
+    bow = _bow(lines)
+    x0, x1 = lines.span
     spans = set()
     for count in (8, 12, 24, 48):
         stations = _station_positions(x0, x1, count)
-        first, last = _cavity_span(lines, wall, float(stations[0]), float(stations[-1]))
+        first, last = _cavity_span(lines, wall, float(stations[0]), float(stations[-1]), bow)
         spans.add((round(first, 3), round(last, 3)))
     assert len(spans) == 1, f"cavity extent moved with the station count: {spans}"
 
@@ -317,11 +323,17 @@ class TestBulge:
         the invariant that keeps it fast rather than timing anything.
         """
         spec = HullSpec(stations=STATIONS, bulge=self.SPEC)
-        x0, x1 = lines.sheer_half_width.span
+        bow = _bow(lines)
+        stations = np.concatenate(
+            [
+                _forefoot_positions(bow),
+                _station_positions(bow.start, lines.sheer_half_width.span[1], spec.stations),
+            ]
+        )
         counts = {
             len(face.edges())
-            for x in _station_positions(x0, x1, spec.stations)
-            if (face := _section(lines, float(x), spec.bulge)) is not None
+            for x in stations
+            if (face := _section(lines, float(x), spec.bulge, bow)) is not None
         }
         assert len(counts) == 1, f"sections disagree on vertex count: {sorted(counts)}"
 
@@ -336,7 +348,7 @@ class TestBulge:
         spec = HullSpec(stations=STATIONS, bulge=self.SPEC)
         factor = spec.length / lines.length
         wall = spec.wall / factor
-        x0, x1 = lines.sheer_half_width.span
+        x0, x1 = lines.span
 
         for fraction in (0.3, 0.5, 0.7):
             x = x0 + (x1 - x0) * fraction
@@ -383,3 +395,79 @@ class TestBulge:
         )
         assert hull.is_valid
         assert len(hull.solids()) == 1
+
+
+class TestBow:
+    """Forward of the flat bottom the planking sweeps up, and a stem is bent round it."""
+
+    def test_the_bottom_stays_on_the_bed(self, solid_hull, lines):
+        """Nothing dips below the flat, which is what the toy stands on."""
+        factor = HullSpec().length / lines.length
+        bottom = lines.chine_height.value(lines.length / 2) * factor
+        assert pytest.approx(bottom, abs=0.01) == solid_hull.bounding_box().min.Z
+
+    def test_the_bottom_rises_forward_of_the_flat(self, solid_hull, lines):
+        """Clear of the stem, the flat stops where the chine's profile begins."""
+        factor = HullSpec().length / lines.length
+        start = lines.chine_height.span[0] * factor
+        z = lines.chine_height.value(lines.length / 2) * factor + 0.5
+        y = lines.chine_half_width.value(lines.chine_height.span[0]) * factor + 0.5
+        assert solid_hull.is_inside(Vector(start + 2.0, y, z))
+        assert not solid_hull.is_inside(Vector(start - 2.0, y, z))
+
+    def test_the_stem_is_one_thickness_from_foot_to_head(self, solid_hull, lines):
+        """A board bent round the face: its front stands the same distance out
+        from the planking all the way up, which is what makes it a board rather
+        than a wedge."""
+        factor = HullSpec().length / lines.length
+        bow = _bow(lines)
+        depth = STEM_DEPTH * factor
+        for u in (0.5, 0.7, 0.85, 0.95):
+            x = bow.start - (bow.start - bow.tip) * u
+            here = np.array([x, _outline(lines, x, bow).z_chine]) * factor
+            ahead = np.array([x - 1.0, _outline(lines, x - 1.0, bow).z_chine]) * factor
+            tx, tz = (ahead - here) / np.hypot(*(ahead - here))
+            out = np.array([-tz, tx])  # forward and down, out of the hull
+            for reach, inside in ((depth - 0.15, True), (depth + 0.15, False)):
+                px, pz = here + reach * out
+                assert solid_hull.is_inside(Vector(px, 0.0, pz)) == inside, f"u={u}, {reach:.2f}"
+
+    def test_the_stem_is_as_wide_as_the_face_it_covers(self, solid_hull, lines):
+        """Forward of the planking all there is is the stem, as wide as the lines'
+        flat face at the bow."""
+        factor = HullSpec().length / lines.length
+        x = 0.5 * STEM_DEPTH * factor
+        z = lines.sheer_height.value(x / factor) * factor - 2.0
+        half = lines.chine_half_width.value(lines.chine_height.span[0]) * factor
+        assert solid_hull.is_inside(Vector(x, half - 0.1, z))
+        assert not solid_hull.is_inside(Vector(x, half + 0.1, z))
+
+    def test_without_a_stem_the_planking_still_closes(self, lines):
+        hull = build(HullSpec(stations=STATIONS, stem=False), lines)
+        assert hull.is_valid
+        assert len(hull.solids()) == 1
+
+
+def test_the_forecastles_corners_run_on_along_the_sides(built_hull, lines):
+    """As on the boat: past the forecastle's edge a square tab runs on along each
+    side, with a quarter circle cut out of its inboard aft corner."""
+    spec = _main().HULL
+    deck = spec.decks[0]
+    factor = spec.length / lines.length
+    edge = deck.end * spec.length
+    reach = deck.tab
+    top = deck.height * lines.depth * factor
+    z = top - 1.5
+    # The side flares, so where it stands is taken at the probes' own height.
+    face = inner_half_width(lines, edge / factor, spec.wall / factor, z / factor, spec.bulge)
+    face *= factor
+
+    def at(aft: float, inboard: float, side: float) -> Vector:
+        return Vector(edge + aft * reach, side * (face - inboard * reach), z)
+
+    for side in (-1.0, 1.0):
+        assert built_hull.is_inside(at(0.9, 0.1, side)), "the tab along the side"
+        assert built_hull.is_inside(at(0.1, 0.7, side)), "the tab against the edge"
+        assert not built_hull.is_inside(at(0.9, 0.8, side)), "the notch"
+        assert not built_hull.is_inside(at(1.2, 0.1, side)), "aft of the tab"
+        assert not built_hull.is_inside(at(0.5, 1.5, side)), "inboard of the tab"

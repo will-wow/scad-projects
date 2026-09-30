@@ -194,7 +194,7 @@ def step(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Step:
         raise ValueError("the hull is decked over end to end; there is no well to step a mast in")
     start, end = stretches[0]
 
-    x0, x1 = lines.sheer_half_width.span
+    x0, x1 = lines.span
     source_x = x0 + (x1 - x0) * 0.5 * (start + end)
     wall = spec.wall / factor
 

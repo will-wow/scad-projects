@@ -19,13 +19,13 @@ Draft is measured up from the bottom of the print, and freeboard up from the
 waterline to the lowest point of the rail, amidships, which stands 21.7mm
 above the bottom.
 
-| Infill | Mass | Draft | Freeboard |
-| -----: | ---: | ----: | --------: |
-| 10% | 21.9 g | 1.4 mm | 20.3 mm |
-| 15% | 32.8 g | 2.1 mm | 19.6 mm |
-| 25% | 54.6 g | 3.5 mm | 18.2 mm |
-| 40% | 87.4 g | 5.5 mm | 16.2 mm |
-| 100% (solid) | 218.6 g | 12.9 mm | 8.8 mm |
+|       Infill |    Mass |   Draft | Freeboard |
+| -----------: | ------: | ------: | --------: |
+|          10% |  21.9 g |  1.4 mm |   20.3 mm |
+|          15% |  32.8 g |  2.1 mm |   19.6 mm |
+|          25% |  54.6 g |  3.5 mm |   18.2 mm |
+|          40% |  87.4 g |  5.5 mm |   16.2 mm |
+| 100% (solid) | 218.6 g | 12.9 mm |    8.8 mm |
 
 Two worth noting:
 
@@ -40,20 +40,20 @@ draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their three trunnion
 bars are 14.4 cm³, about 18 g, and another 1.2mm of draft.
 
-So buoyancy is not the thing to design for. Water *getting inside the hull* is.
+So buoyancy is not the thing to design for. Water _getting inside the hull_ is.
 
 ## The parts
 
 `just build` writes one file per part, because each wants a different
 orientation and a different profile. The rig and the hull:
 
-| File | Size | Orientation | Notes |
-| --- | --- | --- | --- |
-| `philadelphia-hull.3mf` | 300 x 84.5 x 31.2mm | as exported, bottom down | the watertightness settings below |
-| `philadelphia-mast.3mf` | 200.8 x 93.0 x 5.0mm | as exported, lying flat | needs a 200mm bed axis |
-| `philadelphia-sails.3mf` | 69 x 178 x 6.6mm | as exported, flat | two separate sails in one file |
-| `philadelphia-awning.3mf` | 148.3 x 72.1 x 34.7mm | as exported, **roof down** | legs point up; do not flip it |
-| `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.7mm | as exported, flat | print it with the sails' settings |
+| File                             | Size                  | Orientation                | Notes                             |
+| -------------------------------- | --------------------- | -------------------------- | --------------------------------- |
+| `philadelphia-hull.3mf`          | 300 x 84.5 x 31.2mm   | as exported, bottom down   | the watertightness settings below |
+| `philadelphia-mast.3mf`          | 200.8 x 93.0 x 5.0mm  | as exported, lying flat    | needs a 200mm bed axis            |
+| `philadelphia-sails.3mf`         | 69 x 178 x 6.6mm      | as exported, flat          | two separate sails in one file    |
+| `philadelphia-awning.3mf`        | 148.3 x 72.1 x 34.7mm | as exported, **roof down** | legs point up; do not flip it     |
+| `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.7mm  | as exported, flat          | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
 `gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` bar for each of
@@ -106,7 +106,7 @@ that is a 2.5mm bridge with a square shoulder holding each end.
 
 The sails and the awning's canvas are 0.6mm thick -- three layers at 0.2mm --
 with a 1.2mm bolt rope round the edges and 1.6mm patches at the corners.
-They want the *opposite* of the hull's profile: no extra walls, no solid infill,
+They want the _opposite_ of the hull's profile: no extra walls, no solid infill,
 and no brim that would weld the corner loops to the bed. They should stay
 slightly flexible, since clipping one on means springing each eye over its
 neck.
@@ -138,7 +138,7 @@ These are about watertightness, not flotation.
 
 - **Wall loops: 3, not 2.** The single most important setting. The hull is 2mm
   thick; at 0.45mm line width two loops per side cover 1.8mm and leave a 0.2mm
-  strip of *sparse infill* running through the middle of the shell. Three loops
+  strip of _sparse infill_ running through the middle of the shell. Three loops
   cover 2.7mm, so the whole wall is perimeter extrusions with no infill path
   through it.
 - **Bottom layers: 5–6.** The flat bottom is the largest below-waterline
@@ -150,6 +150,9 @@ These are about watertightness, not flotation.
   over the whole hull; aligned puts them in one vertical line you can control
   and touch up.
 
+The stem's foot stands on the bed and its front leaves it at about 50 degrees,
+so the bow needs no supports.
+
 Do not use vase mode — it would discard the decks, the bulwarks and the wall.
 
 ## Ballast and the waterline
@@ -159,14 +162,14 @@ hull and rides like a leaf.
 
 | Target draft | Total mass needed |
 | -----------: | ----------------: |
-| 8 mm | 130.3 g |
-| 11 mm | 183.6 g |
+|         8 mm |           130.3 g |
+|        11 mm |           183.6 g |
 
 If the real boat drew about two feet, that is roughly 11mm at 1:55 — worth
 checking against a source, but the order of magnitude is right.
 
 The tidy way to get there is a **modifier mesh over the lower hull** with high
-infill, leaving the topsides light. That buys the mass *and* puts it low, so
+infill, leaving the topsides light. That buys the mass _and_ puts it low, so
 she is stable rather than tender. Lead shot set in epoxy in the open wells does
 the same job and is easier to tune by feel.
 

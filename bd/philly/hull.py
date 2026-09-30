@@ -27,9 +27,21 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
+from typing import NamedTuple
 
 import numpy as np
-from build123d import Box, Compound, Part, Polyline, Pos, Vector, loft, make_face, scale
+from build123d import (
+    Box,
+    Compound,
+    Part,
+    Polyline,
+    Pos,
+    Vector,
+    extrude,
+    loft,
+    make_face,
+    scale,
+)
 
 import lines as hull_lines
 from lines import HullLines
@@ -61,6 +73,9 @@ class Deck:
     """the platform's height above the bottom, as a fraction of the hull's depth"""
     plank: float | None = None
     """the width of its planks in millimetres of the finished model, or None for a plain deck"""
+    tab: float = 0.0
+    """how far its aft corners run on along each side past its end, in
+    millimetres of the finished model, or 0 for a square end; see `_tabs`"""
 
     def __post_init__(self) -> None:
         if not 0.0 <= self.start < self.end <= 1.0:
@@ -69,6 +84,8 @@ class Deck:
             raise ValueError(f"deck height must lie in 0..1, got {self.height}")
         if self.plank is not None and self.plank <= 0.0:
             raise ValueError(f"a plank must have some width, got {self.plank}")
+        if self.tab < 0.0:
+            raise ValueError(f"a deck's tab cannot be negative, got {self.tab}")
 
 
 @dataclass(frozen=True)
@@ -208,16 +225,107 @@ class HullSpec:
     knees: tuple[Knee, ...] = ()
     benches: tuple[Bench, ...] = ()
     keelson: bool = False
+    # The stem: one board bent round the bow in front of the planking. Without
+    # it the planking ends in the flat face the lines leave for it.
+    stem: bool = True
 
     @property
     def deck_open(self) -> bool:
         return self.wall > 0.0
 
 
+@dataclass(frozen=True)
+class Bow:
+    """Where the flat bottom ends, and where the planking's sweep up from it ends.
+
+    Both in the source's millimetres. Forward of `start` the bottom rises along
+    `_sweep`, tangent to the flat and vertical at `tip`, reaching the rail there.
+    """
+
+    start: float
+    """the first point of the chine's profile, where the flat bottom begins"""
+    tip: float
+    """where the planking closes onto the stem, at the rail"""
+
+
+def _bow(lines: HullLines) -> Bow:
+    start = lines.chine_height.span[0]
+    tip = lines.sheer_half_width.span[0]
+    if not tip < start:
+        raise ValueError(f"the lines end aft of the start of the flat bottom at {start:.0f}")
+    return Bow(start, tip)
+
+
+# How full the forefoot's curve is: 2 is a quarter-ellipse, and lower fills it
+# out towards the corner between the bottom and the stem.
+FOREFOOT = 2.0
+
+
+def _sweep(u: float) -> float:
+    """How far up the forefoot is, 0..1, at `u` of the way from the flat to the tip.
+
+    A superellipse: flat where it leaves the bottom, vertical at the tip.
+    """
+    return 1.0 - (1.0 - u**FOREFOOT) ** (1.0 / FOREFOOT)
+
+
+def _face_x(lines: HullLines, bow: Bow, z: float) -> float:
+    """Where the forefoot's face is at height `z`, found by bisection."""
+    forward, aft = bow.tip, bow.start
+    for _ in range(40):
+        mid = 0.5 * (forward + aft)
+        forward, aft = (forward, mid) if _outline(lines, mid, bow).z_chine < z else (mid, aft)
+    return aft
+
+
 def _station_positions(x0: float, x1: float, count: int) -> np.ndarray:
     """Cosine-spaced stations: dense at the ends, sparse amidships."""
     t = np.linspace(0.0, 1.0, count)
     return x0 + (x1 - x0) * (1.0 - np.cos(t * np.pi)) / 2.0
+
+
+# Sections through the forefoot, counting the one where the flat bottom begins.
+BOW_SECTIONS = 6
+# How far round the forefoot's quarter-ellipse they go. Nearer the tip they thin
+# to slivers that OCCT cannot cut cleanly, and the stem covers what is left.
+BOW_REACH = 0.8
+
+
+def _forefoot_positions(bow: Bow) -> np.ndarray:
+    """The forefoot's sections, forward to aft, ending where the flat bottom begins.
+
+    Spread evenly round the ellipse rather than along x: the curve ends
+    vertical, so sections even in x would leave its steep part to one or two.
+    """
+    theta = np.linspace(0.0, BOW_REACH * np.pi / 2.0, BOW_SECTIONS)
+    return np.sort(bow.start - (bow.start - bow.tip) * np.sin(theta))
+
+
+class Outline(NamedTuple):
+    """The four numbers that describe a section: chine and rail, out and up."""
+
+    y_chine: float
+    z_chine: float
+    y_sheer: float
+    z_sheer: float
+
+
+def _outline(lines: HullLines, x: float, bow: Bow | None = None) -> Outline:
+    """The section's corners at station `x`, read off the lines.
+
+    Forward of `bow.start` the chine rises round the forefoot, and the bottom
+    panel between the chines becomes the flat face the stem lies on. Forward of
+    the tip there is no section at all; the chine meets the rail.
+    """
+    y_sheer = lines.sheer_half_width.value(x)
+    z_sheer = lines.sheer_height.value(x)
+    y_chine = lines.chine_half_width.value(x)
+    z_chine = lines.chine_height.value(x)
+    if bow is None or x >= bow.start:
+        return Outline(y_chine, z_chine, y_sheer, z_sheer)
+
+    u = min((bow.start - x) / (bow.start - bow.tip), 1.0)
+    return Outline(y_chine, z_chine + (z_sheer - z_chine) * _sweep(u), y_sheer, z_sheer)
 
 
 # Points across the side when it is bowed. The swell is one smooth hump, so it
@@ -262,17 +370,14 @@ def _side_profile(
     return points
 
 
-def _section(lines: HullLines, x: float, bulge: Bulge | None = None):
+def _section(lines: HullLines, x: float, bulge: Bulge | None = None, bow: Bow | None = None):
     """One transverse section at station `x`, as a planar face.
 
     Centreline to chine is flat -- that is the bottom panel -- then out and up to
     the rail, by way of any swell. The top edge closes the section across what
     will become the deck; the hollowing step removes it.
     """
-    y_sheer = lines.sheer_half_width.value(x)
-    z_sheer = lines.sheer_height.value(x)
-    y_chine = lines.chine_half_width.value(x)
-    z_chine = lines.chine_height.value(x)
+    y_chine, z_chine, y_sheer, z_sheer = _outline(lines, x, bow)
 
     if y_chine <= 1e-6 or y_sheer < y_chine or z_sheer <= z_chine:
         return None
@@ -358,6 +463,7 @@ def inner_half_width(
     wall: float,
     z: float,
     bulge: Bulge | None = None,
+    bow: Bow | None = None,
 ) -> float:
     """How far the cavity's side stands from the centreline at height `z`.
 
@@ -370,10 +476,7 @@ def inner_half_width(
     `z` may sit above the rail or below the chine; the line is simply extended,
     which is what the cavity itself needs at its top.
     """
-    y_sheer = lines.sheer_half_width.value(x)
-    z_sheer = lines.sheer_height.value(x)
-    y_chine = lines.chine_half_width.value(x)
-    z_chine = lines.chine_height.value(x)
+    y_chine, z_chine, y_sheer, z_sheer = _outline(lines, x, bow)
 
     rise = z_sheer - z_chine
     run = y_sheer - y_chine
@@ -399,6 +502,7 @@ def _inner_section(
     wall: float,
     floor_z: float | None = None,
     bulge: Bulge | None = None,
+    bow: Bow | None = None,
 ):
     """The cavity's section at station `x`: the outer one, offset inward by `wall`.
 
@@ -423,10 +527,7 @@ def _inner_section(
     Returns None where the section is too small to hold a cavity, which leaves
     the stem and transom solid.
     """
-    y_sheer = lines.sheer_half_width.value(x)
-    z_sheer = lines.sheer_height.value(x)
-    y_chine = lines.chine_half_width.value(x)
-    z_chine = lines.chine_height.value(x)
+    y_chine, z_chine, y_sheer, z_sheer = _outline(lines, x, bow)
 
     rise = z_sheer - z_chine
     if rise <= 1e-9:
@@ -435,11 +536,11 @@ def _inner_section(
     # Where the offset side meets the offset floor.
     bottom = z_chine + wall
     floor_z = bottom if floor_z is None else max(floor_z, bottom)
-    floor_y = inner_half_width(lines, x, wall, floor_z)
+    floor_y = inner_half_width(lines, x, wall, floor_z, None, bow)
 
     # Carry the same line up past the rail.
     top_z = z_sheer + wall
-    top_y = inner_half_width(lines, x, wall, top_z)
+    top_y = inner_half_width(lines, x, wall, top_z, None, bow)
 
     if floor_y <= 1e-6 or top_y < floor_y or top_z <= floor_z:
         return None
@@ -463,7 +564,9 @@ def _inner_section(
     return make_face(Polyline(*points, close=True))
 
 
-def _cavity_span(lines: HullLines, wall: float, x0: float, x1: float) -> tuple[float, float]:
+def _cavity_span(
+    lines: HullLines, wall: float, x0: float, x1: float, bow: Bow | None = None
+) -> tuple[float, float]:
     """The first and last station that can hold a cavity, found by bisection.
 
     Near the stem and the transom the hull is narrower than two walls, so the
@@ -474,10 +577,19 @@ def _cavity_span(lines: HullLines, wall: float, x0: float, x1: float) -> tuple[f
     along with it. Solving
     for the boundary instead pins the plugs to the geometry, so `stations`
     controls smoothness and nothing else.
+
+    In the forefoot the bottom is the stem's face, which leans forward as it
+    rises, so the cavity also has to stay a wall aft of that face at the height
+    of its own floor.
     """
 
     def holds_cavity(x: float) -> bool:
-        return _inner_section(lines, x, wall) is not None
+        if _inner_section(lines, x, wall, None, None, bow) is None:
+            return False
+        if bow is None or x >= bow.start:
+            return True
+        floor = _outline(lines, x, bow).z_chine + wall
+        return x - wall >= _face_x(lines, bow, floor)
 
     middle = 0.5 * (x0 + x1)
     if not holds_cavity(middle):
@@ -539,6 +651,7 @@ def _cut(
     bounds: tuple[float, float],
     floor_z,
     bulge: Bulge | None = None,
+    bow: Bow | None = None,
 ) -> Part:
     """Subtract one cavity between `bounds`, with its floor placed by `floor_z`.
 
@@ -550,14 +663,28 @@ def _cut(
     if end - start <= 1e-6:
         return hull
     inside = [float(x) for x in stations if start < x < end]
-    faces = [
-        f
-        for f in (_inner_section(lines, x, wall, floor_z(x), bulge) for x in (start, *inside, end))
-        if f is not None
-    ]
-    if len(faces) < 2:
+    # Split where the flat bottom begins, as the hull itself is lofted.
+    runs = [[start, *inside, end]]
+    if bow is not None and start < bow.start < end:
+        runs = [
+            [start, *(x for x in inside if x < bow.start), bow.start],
+            [bow.start, *(x for x in inside if x > bow.start), end],
+        ]
+
+    cavity = None
+    for run in runs:
+        faces = [
+            f
+            for f in (_inner_section(lines, x, wall, floor_z(x), bulge, bow) for x in run)
+            if f is not None
+        ]
+        if len(faces) < 2:
+            continue
+        piece = loft(faces)
+        cavity = piece if cavity is None else cavity + piece
+    if cavity is None:
         return hull
-    return as_part(hull - loft(faces), "cavity subtraction")
+    return as_part(hull - cavity, "cavity subtraction")
 
 
 # Stations each groove's length is solved over. The deck's inside only curves
@@ -620,13 +747,14 @@ def _hollow(
     bulge: Bulge | None = None,
     seams: Seams | None = None,
     factor: float = 1.0,
+    bow: Bow | None = None,
 ) -> Part:
     """Hollow the undecked stretches to the bottom, and each deck to its height."""
-    x0, x1 = float(stations[0]), float(stations[-1])
+    x0, x1 = lines.span
     # Where the hull is wide enough to hold a cavity at all; a stretch reaching
     # past that is clipped rather than refused, so "open to the bow" means as
     # far forward as the stem allows.
-    first, last = _cavity_span(lines, wall, x0, x1)
+    first, last = _cavity_span(lines, wall, x0, x1, bow)
 
     def clip(a: float, b: float) -> tuple[float, float]:
         return max(first, x0 + (x1 - x0) * a), min(last, x0 + (x1 - x0) * b)
@@ -650,8 +778,9 @@ def _hollow(
             stations,
             wall,
             clip(*stretch),
-            lambda x: lines.chine_height.value(x) + wall,
+            lambda x: None,
             bulge,
+            bow,
         )
 
     for deck in ordered:
@@ -668,6 +797,7 @@ def _hollow(
             clip(deck.start, deck.end),
             lambda x, floor=floor: floor,
             bulge,
+            bow,
         )
         if seams is None or deck.plank is None:
             continue
@@ -682,6 +812,13 @@ def _hollow(
             (overrun(deck.start, others), overrun(deck.end, others)),
             bulge,
         )
+    for deck in ordered:
+        abutting = any(abs(d.start - deck.end) < 1e-9 for d in ordered)
+        if deck.tab > 0.0 and deck.end < 1.0 and not abutting:
+            edge = x0 + (x1 - x0) * deck.end
+            for tab in _tabs(lines, wall, deck, edge, factor, bulge, bow):
+                hollowed = as_part(hollowed + tab, "adding a deck's tab")
+
     if grooves:
         # One cut for every deck: each boolean costs about as much as the last.
         hollowed = as_part(hollowed - Part(Compound(grooves).wrapped), "cutting the seams")
@@ -692,33 +829,151 @@ def _hollow(
     return hollowed
 
 
+# A deck's tab, as fractions of its length aft: how far it reaches in from the
+# side, and the radius of the quarter circle cut out of its inboard aft corner.
+TAB_WIDTH = 0.95
+TAB_NOTCH = 1.0 / np.sqrt(2.0)
+# Points round a tab's notch.
+TAB_SAMPLES = 12
+
+
+def _tabs(
+    lines: HullLines,
+    wall: float,
+    deck: Deck,
+    edge: float,
+    factor: float,
+    bulge: Bulge | None,
+    bow: Bow | None,
+) -> list[Part]:
+    """The deck's aft corners, carried on past its end at `edge` along each side.
+
+    Each tab is a square on the corner, `deck.tab` long and
+    `TAB_WIDTH` of that in from the inside of the side, with a quarter circle
+    `TAB_NOTCH` as large cut out of its inboard aft corner. Like the deck it is
+    solid down to the bilge. It is drawn oversize in plan and trimmed to a
+    cavity half a wall larger than the real one, so it fits the side and floor
+    exactly and overlaps them rather than meeting them on a surface.
+    """
+    reach = deck.tab / factor
+    width = TAB_WIDTH * reach
+    notch = TAB_NOTCH * reach
+    top = deck.height * lines.depth
+    face = inner_half_width(lines, edge, wall, top, bulge, bow)
+    inner = face - width
+
+    cut = [
+        (edge + reach + notch * np.cos(t), inner + notch * np.sin(t))
+        for t in np.linspace(np.pi / 2.0, np.pi, TAB_SAMPLES)
+    ]
+    plan = [
+        (edge - wall, face + 3.0 * wall),
+        (edge + reach, face + 3.0 * wall),
+        *cut,
+        (edge - wall, inner),
+    ]
+
+    stations = np.linspace(edge - wall, edge + reach + wall, 4)
+    sections = [_inner_section(lines, float(x), 0.5 * wall, None, bulge, bow) for x in stations]
+    room = loft([f for f in sections if f is not None])
+
+    tabs = []
+    for side in (-1.0, 1.0):
+        points = [(x, side * y, 0.0) for x, y in plan]
+        block = extrude(make_face(Polyline(*points, close=True)), amount=top)
+        tabs.append(as_part(block & room, "trimming a deck's tab"))
+    return tabs
+
+
+# Points along the stem.
+STEM_SAMPLES = 48
+# How far the stem's foot sits above the bottom, printed mm. Flush with it, the
+# foot lies on the planking's bottom face tangentially, which OCCT cannot fuse.
+STEM_LIFT = 0.2
+# How far the stem's back reaches into the planking, printed mm, so the two
+# overlap rather than meeting on a surface. Fixed rather than a share of the
+# wall, so the stem is the same board however thick the hull is.
+STEM_OVERLAP = 1.0
+
+
+def _stem(lines: HullLines, bow: Bow, factor: float) -> Part:
+    """The stem, in the source's millimetres: one board bent round the bow.
+
+    Its back follows the face the planking leaves at the forefoot and its front
+    stands `STEM_DEPTH` out from it everywhere, so its section is the same
+    rectangle from foot to head. Where that would run below the bottom it is
+    cut flat, and its head is cut flat at the rail. It is as wide as the face.
+
+    The back is set `STEM_OVERLAP` into the planking.
+    """
+    theta = np.linspace(0.0, np.pi / 2.0, STEM_SAMPLES)
+    xs = bow.start - (bow.start - bow.tip) * np.sin(theta)
+    zs = np.array([_outline(lines, float(x), bow).z_chine for x in xs])
+
+    # Unit normals pointing out of the hull: forward and down.
+    tx, tz = np.gradient(xs), np.gradient(zs)
+    length = np.hypot(tx, tz)
+    nx, nz = -tz / length, tx / length
+
+    depth = hull_lines.STEM_DEPTH
+    overlap = STEM_OVERLAP / factor
+    floor = lines.chine_height.value(bow.start) + STEM_LIFT / factor
+    top = zs[-1]
+
+    outer = [(x, 0.0, max(z, floor)) for x, z in zip(xs + depth * nx, zs + depth * nz, strict=True)]
+    inner = [(x, 0.0, z) for x, z in zip(xs - overlap * nx, zs - overlap * nz, strict=True)][::-1]
+    outer[-1] = (outer[-1][0], 0.0, top)
+    inner[0] = (inner[0][0], 0.0, top)
+    profile = make_face(Polyline(*outer, *inner, close=True))
+    half = lines.chine_half_width.value(bow.start)
+    return extrude(profile, amount=half, dir=(0.0, 1.0, 0.0), both=True)
+
+
+def _loft(lines: HullLines, stations: np.ndarray, bulge: Bulge | None, bow: Bow) -> Part:
+    faces = [f for f in (_section(lines, float(x), bulge, bow) for x in stations) if f is not None]
+    if len(faces) < 2:
+        raise RuntimeError("not enough valid stations to loft the hull")
+    return loft(faces)
+
+
 def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
-    """Loft the outer hull, hollow it, and scale to the target length."""
+    """Loft the outer hull, add the stem, hollow it, and scale to the target length."""
     spec = spec or HullSpec()
     lines = lines or hull_lines.load()
-
-    x0, x1 = lines.sheer_half_width.span
-    stations = _station_positions(x0, x1, spec.stations)
 
     # Everything is built in the source's own millimetres and scaled exactly
     # once, at the end; `factor` converts the spec's finished sizes into them.
     factor = spec.length / lines.length
 
-    faces = [f for f in (_section(lines, float(x), spec.bulge) for x in stations) if f is not None]
-    if len(faces) < 2:
-        raise RuntimeError("not enough valid stations to loft the hull")
-    hull = loft(faces)
+    bow = _bow(lines)
+    forefoot = _forefoot_positions(bow)
+    main = _station_positions(bow.start, lines.sheer_half_width.span[1], spec.stations)
+
+    # Two lofts meeting on the section where the flat bottom begins. One loft
+    # through both sets would overshoot the forefoot's tight turn into the long
+    # gaps between stations aft, and dip below the bottom.
+    hull = as_part(
+        _loft(lines, forefoot, spec.bulge, bow) + _loft(lines, main, spec.bulge, bow),
+        "joining the bow",
+    )
+
+    # Before the hollowing, so that the cavity trims whatever of the post lies
+    # inside the planking and leaves only what stands proud of it.
+    if spec.stem:
+        post = _stem(lines, bow, factor)
+        hull = as_part(hull + post, "adding the stem")
 
     if spec.deck_open:
         hull = _hollow(
             hull,
             lines,
-            stations,
+            np.concatenate([forefoot[:-1], main]),
             spec.wall / factor,
             spec.decks,
             spec.bulge,
             spec.seams,
             factor,
+            bow,
         )
 
     return as_part(scale(hull, factor), "scaling")

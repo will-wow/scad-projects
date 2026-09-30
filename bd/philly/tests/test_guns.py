@@ -13,14 +13,14 @@ from dataclasses import replace
 from functools import cache
 
 import pytest
-from build123d import Box, Part, Pos
+from build123d import Box, Part, Pos, Vector
 
 # Before main is imported, whose HULL reads this. These are about where the
 # guns sit, which a coarse hull answers as well as a fine one.
 os.environ.setdefault("PREVIEW", "1")
 
 import guns  # noqa: E402
-from main import BROADSIDE, GUNS, HULL  # noqa: E402
+from main import BOW_SLIDE_SHORT, BROADSIDE, GUNS, HULL  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -99,7 +99,7 @@ def test_the_broadside_guns_cross_the_rail_at_the_scans_height(solved):
 def test_the_bow_gun_runs_out_over_the_stem(solved, lines):
     """The scan has its muzzle 0.7mm past the stem."""
     muzzle = _pieces(solved[0])["cannon"].bounding_box().min.X
-    stem = lines.sheer_half_width.span[0] * HULL.length / lines.length
+    stem = lines.span[0] * HULL.length / lines.length
     assert stem - 1.5 < muzzle < stem
 
 
@@ -141,3 +141,20 @@ def test_a_gun_over_open_bilge_is_refused(lines):
     """Between the forecastle and the middle platform there is nothing to stand on."""
     with pytest.raises(ValueError, match="open bilge"):
         guns.mount(replace(GUNS[2], station=0.35), HULL, lines)
+
+
+def test_the_bow_is_notched_round_the_barrel(hull, lines):
+    """The stem's head stops a little under the sheer, in a round notch the barrel sits in."""
+    rail = lines.sheer_height.value(0.0) * HULL.length / lines.length
+    for x in (0.5, 1.5):
+        assert not hull.is_inside(Vector(x, 0.0, rail - 0.5 * guns.GUNPORT_DEPTH))
+        assert hull.is_inside(Vector(x, 0.0, rail - guns.GUNPORT_DEPTH - 0.3))
+
+
+def test_the_bow_guns_slide_runs_back_to_the_forecastles_edge(hull, solved):
+    """As the kit's does: the carriage can recoil almost the whole platform."""
+    m = solved[0]
+    edge = HULL.decks[0].end * HULL.length
+    rail = m.deck + 0.5 * m.carriage.slide.neck_height
+    assert hull.is_inside(Vector(edge - BOW_SLIDE_SHORT - 0.5, 0.0, rail))
+    assert not hull.is_inside(Vector(edge - BOW_SLIDE_SHORT + 0.5, 0.0, rail))

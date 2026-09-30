@@ -17,10 +17,15 @@ All four are the hand-faired curves and supersede the raw `SHEER_TOP`,
 `CHINE_BOTTOM`, `SHEER_PROFILE` and `BASE_PROFILE` entities, which are the
 original scan output and still carry its artefacts.
 
-The faired bottom is deliberately flat -- one constant height between the two
-ends, which curve up to the rail over the last few hundred millimetres. There is
-no rocker to interpolate, which is both true to the scow form and what makes the
-toy sit flat on a printer bed.
+The faired bottom is deliberately flat -- one constant height, with no rocker to
+interpolate, which is both true to the scow form and what makes the toy sit flat
+on a printer bed. Forward of where `FAIR_BASE_PROFILE` begins, the bottom sweeps
+up to the stem; that curve is not drawn but made in `hull.py`, so the chine
+height clamps there and should not be read as the bottom.
+
+The lines are the planking's, and end where it meets the stem. The stem stands
+`STEM_DEPTH` forward of that, and X = 0 is its front, so the curves start
+`STEM_DEPTH` aft of the bow.
 """
 
 from __future__ import annotations
@@ -42,6 +47,10 @@ PROFILE_OFFSET = -3200.0
 
 # Flattening tolerance when sampling SPLINE entities, in mm at 1:1.
 SPLINE_TOLERANCE = 2.0
+
+# How far the stem's head stands forward of where the planking's lines end, in
+# mm at 1:1. It is what was cut off the lines when the stem came out of them.
+STEM_DEPTH = 134.0
 
 
 @dataclass(frozen=True)
@@ -140,8 +149,13 @@ class HullLines:
 
     @property
     def length(self) -> float:
-        """Overall length, bow to the aft end of the sheer."""
+        """Overall length, the front of the stem to the aft end of the sheer."""
         return self.sheer_half_width.span[1]
+
+    @property
+    def span(self) -> tuple[float, float]:
+        """The whole boat, stem included: what lengthwise fractions are of."""
+        return 0.0, self.length
 
     @property
     def beam(self) -> float:
@@ -158,14 +172,14 @@ def _turned(curve: Curve, pivot: float) -> Curve:
 
 
 def load() -> HullLines:
-    """Read the DXF and return the faired lines plan, bow at X = 0.
+    """Read the DXF and return the faired lines plan, the stem's front at X = 0.
 
     The drawing runs from the transom, so each curve is mirrored. All four turn
-    about the same point -- the ends of the sheer -- so they stay aligned with
-    one another.
+    about the same point -- the ends of the sheer, set forward by the stem -- so
+    they stay aligned with one another.
     """
     sheer = read_layer("FAIR_TOP")
-    pivot = sum(sheer.span)
+    pivot = sum(sheer.span) + STEM_DEPTH
     return HullLines(
         sheer_half_width=_turned(sheer, pivot),
         chine_half_width=_turned(read_layer("FAIR_BOTTOM"), pivot),
