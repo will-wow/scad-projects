@@ -9,6 +9,7 @@ would leak a boat that floats perfectly well in every other respect.
 
 from __future__ import annotations
 
+import math
 import os
 
 import pytest
@@ -19,7 +20,7 @@ os.environ.setdefault("PREVIEW", "1")
 import awning as awnings  # noqa: E402
 import details  # noqa: E402
 import rig as rigging  # noqa: E402
-from awning import BAR, BOSS_HEIGHT, FLOOR, SOCKET_DEPTH, Awning, frame  # noqa: E402
+from awning import BAR, BOSS_HEIGHT, FLOOR, KNEE, SOCKET_DEPTH, Awning, frame  # noqa: E402
 from hull import Deck, HullSpec  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
 
@@ -33,6 +34,24 @@ def shape(lines):
 def part(lines):
     """Print-ready: rolled over, roof on the bed."""
     return awnings.awning_part(HULL, lines, AWNING, RIG)
+
+
+@pytest.fixture(scope="module")
+def upright(lines):
+    """Standing in the boat, which is where its corners are easiest to reason about."""
+    return awnings.upright_frame(HULL, lines, AWNING, RIG)
+
+
+def _bars_at(shape, index: int, side: float) -> list[float]:
+    """The bearing of every bar one leg runs into: its crossbar, then its rails."""
+    foot = shape.feet[index]
+    bearings = [-90.0 * side]
+    for other in (index - 1, index + 1):
+        if 0 <= other < len(shape.nodes):
+            run = shape.nodes[other][0] - foot.station
+            across = side * (shape.nodes[other][1] - foot.half)
+            bearings.append(math.degrees(math.atan2(across, run)))
+    return bearings
 
 
 class TestFrame:
@@ -92,6 +111,41 @@ class TestFrame:
         for foot in shape.feet:
             at = Vector(foot.station, 0.0, shape.roof)
             assert upright.is_inside(at), f"no crossbar over the legs at {foot.station:.0f}mm"
+
+    def test_every_leg_is_kneed_into_the_bars_it_meets(self, upright, shape):
+        """The leg's root under the bars is what broke when the boat was dropped.
+        Every corner gets a triangle: inboard along the crossbar, and along each
+        rail the leg has. An end leg has one rail, which is why it is the leg
+        that wants them.
+
+        Probed a hair past the corner of the leg's own square, so it is the knee
+        answering and not the column.
+        """
+        step = BAR / 2.0 * math.sqrt(2.0) + 0.2
+        for index, foot in enumerate(shape.feet):
+            ends = index in (0, len(shape.feet) - 1)
+            for side in (-1.0, 1.0):
+                bearings = _bars_at(shape, index, side)
+                assert len(bearings) == (2 if ends else 3)
+                for bearing in bearings:
+                    at = Vector(
+                        foot.station + step * math.cos(math.radians(bearing)),
+                        side * foot.half + step * math.sin(math.radians(bearing)),
+                        shape.roof - BAR / 2.0 - 0.2,
+                    )
+                    assert upright.is_inside(at), (
+                        f"no knee {bearing:.0f} degrees off the leg at {foot.station:.0f}mm"
+                    )
+
+    def test_a_knee_is_a_taper_rather_than_a_block(self, upright, shape):
+        """Its hypotenuse leans 45 degrees, so laid roof-down each layer of it is
+        smaller than the one beneath and there is nothing to bridge. Checked on a
+        rail knee, which is the one that gets the full reach."""
+        foot = shape.feet[2]
+        reach = KNEE + BAR / 2.0
+        for step, deep, wanted in ((0.45 * reach, 0.45, True), (0.55 * reach, 0.55, False)):
+            at = Vector(foot.station - step, foot.half, shape.roof - BAR / 2.0 - deep * reach)
+            assert upright.is_inside(at) == wanted, f"the taper is wrong {step:.1f}mm along"
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the leg's centre; the leg has to run
@@ -153,6 +207,12 @@ class TestCanvas:
         assert shape.roof + BAR / 2.0 + RIG.sail_thickness < rigged.bounding_box().max.Z
         middle = Vector(0.5 * (shape.bars[0] + shape.bars[-1]), 0.0, shape.roof + BAR / 2.0)
         assert not rigged.is_inside(middle), "the plate is sitting in the bars"
+
+    def test_the_end_crossbars_knees_leave_the_eyes_their_room(self, upright, rigged):
+        """A necked crossbar has only the square between the leg and the eye to
+        put a knee in: the canvas's ring comes down round the neck, and a knee of
+        the full reach would fill the place it sits."""
+        assert (upright & rigged).volume < 1e-6
 
     def test_the_necks_are_what_the_eyes_were_cut_for(self, shape, lines):
         """Taken from rig.neck_radius, not copied."""

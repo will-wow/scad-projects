@@ -94,8 +94,7 @@ class CarriageSpec:
     # The bar, pressed through both brackets with the barrel fixed on it between
     # them. What sets `cheek` is not how the bracket looks but what the hole needs
     # over it: the hole is a diamond, so its apex stands 1.82mm above the axis,
-    # and the bracket left over that apex is the one ligament a press fit could
-    # split.
+    # and the bracket left over that apex is the one ligament the fit could split.
     cheek: float = 3.0  # how far a bracket stands over the trunnion axis
 
     quoin_width: float = 2.6  # about half the gun's diameter
@@ -176,17 +175,18 @@ class CarriageSpec:
     def breech_drop(self) -> float:
         """How far below the axis the breech reaches with the muzzle at `elevation`.
 
-        The base ring is the widest thing aft and the cascabel's button the
+        The base ring is the widest thing aft and the cascabel's dome the
         furthest; whichever the tilt carries lower.
         """
         gun = self.gun
         tilt = math.radians(self.elevation)
         cal = gun.calibre * gun.scale
+        radius = gun.cascabel * cal / 2
         ring = gun.length * gun.scale - trunnion_height(gun)
-        button = ring + (gun.base_of_breech + gun.cascabel_neck + gun.button / 2) * cal
+        dome = ring + (gun.base_of_breech + gun.cascabel_length) * cal + radius
         return max(
             ring * math.sin(tilt) + base_ring_radius(gun) * math.cos(tilt),
-            button * math.sin(tilt) + gun.button / 2 * cal * math.cos(tilt),
+            dome * math.sin(tilt) + radius * math.cos(tilt),
         )
 
     @property
@@ -361,8 +361,10 @@ def carriage(spec: CarriageSpec) -> Part:
         raise ValueError("the clamps have no room to spread over the slide's head")
     if rail_top + min(h for _, h in spec.steps) <= spec.bed_top:
         raise ValueError("the brackets' after steps are below the bed")
-    if spec.pegs.bore > spec.pegs.side:
-        raise ValueError("the brackets' holes are wider than the bar; it would not press in")
+    if spec.pegs.bore >= spec.pegs.socket:
+        raise ValueError(
+            "the brackets' holes grip no harder than the barrel's; nothing would hold the bar in"
+        )
     if spec.roof_over_the_bar < 1.0:
         raise ValueError(
             f"only {spec.roof_over_the_bar:.2f}mm of bracket over the bar's hole; raise the cheek"

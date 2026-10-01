@@ -557,9 +557,11 @@ bar -= at * Box(2.0 * width, rig.clip_length, 1.2 * width)
 bar += at * (lengthwise * Cylinder(radius, rig.clip_length))
 ```
 
-That is a 2.5mm bridge with a square shoulder at each end rather than a
+That is a 4.6mm bridge with a square shoulder at each end rather than a
 cantilever, and the shoulders double as what stops a sail sliding along the
-yard. It also fixed something that was quietly broken: when the clip was a
+yard. It was 2.5mm until the eyes that clip onto it were widened; `clip_inset`
+moved from 0.08 to 0.11 at the same time, to keep the outboard shoulder on the
+topsail's head yard, which is the shortest and so the tight one. It also fixed something that was quietly broken: when the clip was a
 shallow groove turned into a round yard, the groove's floor was _narrower_ than
 a sail's mouth, so nothing held the sail on at all. Clipping onto the full neck
 diameter, the mouth has to spring over it.
@@ -606,6 +608,37 @@ a ring on top and nothing overhangs. Its mouth opens **upward** -- away from the
 bed while printing, and square to the sail once rigged, so it presses onto both
 yards at once. Mouths facing up on one yard and down on the other would need the
 sail to stretch to reach both.
+
+### And then the lips broke off
+
+The patches below fixed the plate folding at the post. What that left was the C
+itself: the lips of the eye snapped off in play, which is the same lesson as the
+carriage clip two schemes back, arrived at from the other end.
+
+Take one lip as a curved cantilever -- mid-radius 1.95mm, 0.8mm wall, spanning
+some 55 degrees from its root at the bore's equator. Springing it over the neck
+deflects its tip by δ, and its peak strain at the root is
+
+    ε = δ·t·sinα / (2·r²·J(α))        J(α) = ∫₀^α (sinα − sinθ)² dθ
+
+At the old mouth of 0.9 of the neck's diameter, δ was (2.507 − 2.256)/2 =
+0.126mm and ε came to **5.7%** -- an upper bound, since it assumes the rest of
+the ring is rigid, but three or four percent either way. The root section is a
+layer interface, and PLA gives up interlayer somewhere between one and two
+percent. They were loaded several times past breaking, and they broke.
+
+The first instinct was to make the eyes wider, and 1.9mm is absurdly small for
+something a child pulls on. But **ε has no width in it**. Widening multiplies
+the force to clip on and the area at the break by the same factor and leaves the
+strain exactly where it was: the load is a deflection, not a force. What moves
+the strain is δ, and δ is `mouth`. At 0.98 it is 0.025mm and ε about 1.3%, with
+the clip-on force down from roughly 22N a lip to 9.
+
+So both: `mouth` 0.9 to 0.98 for the strain, and the eye 1.9mm to 4.0 for the
+bonded area at the root and for being pulled off askew, which is how a child
+takes a sail off. What holds a sail on afterwards is 0.05mm of interference
+across the mouth plus whatever the printer leaves in the slot, which is why
+`PRINTING.md` now says to watch hole compensation on these two parts.
 
 ### Flush posts, patches and a bolt rope, because the posts snapped
 
@@ -746,6 +779,31 @@ columns. Following the sheer would leave one end of the roof standing 5mm off
 the bed with its crossbar hanging in air.
 
 The side rails are a polyline through the leg tops.
+
+### Knees, because a dropped boat snapped a leg off
+
+A leg is 3.4mm square and up to 30mm long, and its root is where the bars stop:
+a sharp step, at a layer interface, bending across the layers. Section modulus
+6.55mm³, so the tip breaks at about 7N and stores some 6mJ of elastic energy
+first. A metre drop of a 33g boat is 320mJ. The arithmetic says plainly that no
+version of this leg survives a direct hit on the frame, so the object is to
+raise the threshold rather than to reach it.
+
+A 6mm knee in each corner does two things, and the smaller of them is the length
+it saves -- moving the worst section from 28.7mm out to 22.7. The larger is the
+step: a sharp re-entrant corner in bending runs a stress concentration around
+two, and a 45 degree taper runs about one. Together it is roughly 2.7 times the
+force and, since energy goes as force squared, about seven times the drop. The
+knees also triangulate the corners, so racking the frame loads them along their
+length instead of bending the legs.
+
+Equal-legged, and reaching from the leg's centreline rather than its face, so
+each one overlaps both members and the fuse has something to bite on. Laid
+roof-down every layer of a knee is smaller than the one beneath it, which is the
+whole reason it is a triangle and not a block: the hypotenuse carries itself.
+The two necked crossbars are the exception -- the canvas's eye comes down into
+that square, so those knees stop at the neck's end and are a chamfer rather than
+a brace. The stress concentration was most of the benefit anyway.
 
 ## Part 12: the guns
 
@@ -962,14 +1020,34 @@ degrees from the gun's, which would lean one of its roof faces 49 degrees.
 of clearance over one upper face of the bar, 0.17mm at its widest, and the gun's
 weight goes down into the two faces under the bar, which are whole.
 
-The fits are what the pin taught. The brackets' holes are drawn nominal, the
-printer's undersize being the grip. The barrel's is drawn 0.05 over, since it is
-the longest of the three and the bar has to slide through it; whatever of that
-survives printing is play, and play in a keyed square is droop -- about 1.2
-degrees per 0.05 -- which matters because the barrel clears its rail by about a
-third of a millimetre a degree. The bar's long edges are relieved a quarter of a
+The fits are what the pin taught, and then the first built boat taught one
+more. The barrel's hole is drawn 0.05 over, since it is the longest of the three
+and the bar has to slide through it; whatever of that survives printing is play,
+and play in a keyed square is droop -- about 1.2 degrees per 0.05 -- which
+matters because the barrel clears its rail by about a third of a millimetre a
+degree. The brackets' holes were drawn nominal, the printer's undersize being
+the grip, and that came out gripping too well: the bar wanted a vice rather than
+a thumb. They are now drawn 0.04 over as well, which is the whole budget there
+is -- the brackets have to end up tighter than the barrel or nothing holds the
+bar in, and the barrel's 0.05 cannot grow. It is still the printer supplying the
+press; `press` goes back to 0.0 if a print ever comes out loose. The bar's long edges are relieved a quarter of a
 millimetre, because a diamond's corners print a little filled and a sharp corner
 would jam there before the faces met. It prints lying on a face.
+
+### The cascabel was accurate and snapped off
+
+The one place the gun departs from the piece. A real cascabel is a ball on a
+slender neck, and at 1:55 that is a 1.5mm neck under a 2.9mm knob: 0.32mm³ of
+section modulus, on one layer interface, carrying a lever two millimetres long.
+A five-newton knock breaks it, which is a flick of a finger, and it broke.
+
+It is a plain stub now, 1.2 calibres through with a dome on its end -- the
+rounded tube a real gun does not have. Same reach aft, a fifth of a millimetre
+narrower at its widest, and 1.63mm³ of section: five times in bending, nearly
+three in area. The dome is also the only round on the piece that faces away from
+the bed, so it is a full quarter circle rather than a teardrop, and
+`_teardrop_onto` -- which existed to put the ball's chamfer on the neck that
+carried it -- folded back into `_teardrop` with the ball.
 
 ## Part 13: the joinery
 
@@ -1049,6 +1127,25 @@ before the side. That is the same shape at a quarter of the cost. A groove runs
 out past a platform's open edge rather than ending on the face of its bulkhead.
 All three decks' grooves are cut in one boolean.
 
+The floors of the two open wells are grooved out of the same function, from
+`Well` rather than `Deck`, because a well is only a cavity with its floor
+further down. Two things make it not a deck. Its floor is not declared: it is
+wherever the inside of the bottom is, read off `_outline` -- the same place the
+cavity takes it from, and not the chine's curve, which clamps where the bottom
+sweeps up to the stem instead of rising with it. And one groove is cut at one
+height, so `_well_floor` refuses a stretch whose floor is not flat to within a
+seam's depth rather than averaging it into a groove that would surface in the
+middle of a ramp. Amidships, where both wells are, it is a single number.
+
+The other difference is what stands on it. A deck's first plank is centred on
+the centreline; a well's centreline is occupied -- the keelson down all of it,
+the mast's tube in the forward one -- so `Well.clear` places the innermost seam
+instead, `Seams.clearance` outboard of whichever is wider. [`main.py`](main.py)
+solves that from the parts themselves, the way `_forecastle_tabs` already solves
+a deck's tabs from the mast's bar, and gets 6.06mm: the tube's 4.81 plus 1.25.
+Inboard of it the floor reads as one wide plank with the keelson on it, which is
+what a ceiling looks like anyway.
+
 Anything standing across the seams is where this gets fragile. A knee's
 footprint cut nearly across the strip of deck between two grooves, leaving a
 neck 0.3mm wide. OCCT's mesher dropped the whole strip, and the export had a
@@ -1077,8 +1174,8 @@ If you want to do this for a different boat:
 2. **Point [`lines.py`](lines.py) at your layer names** and set `PROFILE_OFFSET`
    to however far apart you drew the two views.
 3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `decks`,
-   `bulge`, and any joinery -- `knees`, `benches`, `keelson`, and a
-   plank width per deck with `seams`.
+   `bulge`, and any joinery -- `knees`, `benches`, `keelson`, a plank width per
+   deck with `seams`, and `wells` for the floors they leave over.
 4. **Run `just watch`** and tune by eye.
 
 If your boat has a _rounded_ bilge rather than a hard chine, `_side_profile` is

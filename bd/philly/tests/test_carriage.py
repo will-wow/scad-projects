@@ -182,9 +182,11 @@ class TestCarriage:
         assert truck.is_inside(Vector(0, y, low - 0.3)), "metal under it"
 
     def test_the_bracket_grips_and_the_barrel_holds_the_angle(self):
-        """The whole fit in three sizes across the flats: the brackets' holes no
-        bigger than the bar, and the barrel's only `key_fit` bigger."""
-        assert PEGS.bore <= PEGS.side < PEGS.socket
+        """The whole fit in three sizes across the flats. Both holes are drawn a
+        few hundredths over the bar, since a printed one comes out under and
+        nominal took more force than a hand should need; the brackets' stay the
+        tighter of the two, which is what holds the bar in."""
+        assert PEGS.side < PEGS.bore < PEGS.socket
         assert PEGS.side - PEGS.bore == pytest.approx(PEGS.press)
         assert PEGS.socket - PEGS.side == pytest.approx(PEGS.key_fit)
 
