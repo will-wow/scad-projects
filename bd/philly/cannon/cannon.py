@@ -17,7 +17,8 @@ Parts are named as an 18th-century gunfounder would, muzzle to breech:
     base ring      the ring at the very back of the barrel
     base of the breech
                    the rounded back end behind the base ring
-    cascabel       the knob on the back: a short neck carrying the button
+    cascabel       the stub on the back, with a dome on its end; the real piece
+                   carries a ball on a slender neck there
 
 A real gun steps out in diameter at each reinforce ring. This one is a single
 gentle taper with the rings standing proud of it -- the toy reads the same and
@@ -95,16 +96,19 @@ class CannonSpec:
     # Along the axis, in calibres.
     lip: float = 0.2  # the straight band at the muzzle face, before the swell curves in
     muzzle: float = 1.3  # muzzle face to the neck
-    base_of_breech: float = 0.5  # base ring to the cascabel's neck
-    cascabel_neck: float = 0.3  # length of the neck carrying the button
+    base_of_breech: float = 0.5  # base ring to the cascabel
+    cascabel_length: float = 1.0  # the stub, base of the breech to the dome on its end
     # How far the bore is sunk from the muzzle face. A real gun is bored nearly
     # its whole length; this one stops short so the trunnion sockets bear on
     # solid metal.
     bore_length: float = 3.0
 
-    # The cascabel, as diameters in calibres.
-    cascabel_neck_diameter: float = 0.7
-    button: float = 1.35
+    # The cascabel's diameter, in calibres. A real gun carries a ball on a
+    # slender neck, which is what this drew first: a 1.5mm neck under a 2.9mm
+    # knob, one layer interface holding a lever two millimetres long. It snapped
+    # off in play. A plain stub with a dome on it stands as far aft and is a
+    # fifth of a millimetre narrower, at five times the section in bending.
+    cascabel: float = 1.2
 
     # Rings along the chase and reinforces, measured off the scan rather than
     # laid out by the founders' rule the first version used -- which put the
@@ -132,8 +136,8 @@ class CannonSpec:
     trunnions_at: float = 0.57
 
     # Steepest the underside of anything may lean, degrees from vertical. The
-    # gun prints muzzle-down, so every ring and the button get a straight
-    # chamfer underneath instead of the full round.
+    # gun prints muzzle-down, so every ring gets a straight chamfer underneath
+    # instead of the full round. The cascabel's dome faces the other way.
     max_overhang: float = 45.0
 
 
@@ -146,26 +150,14 @@ def _teardrop(start: tuple[float, float], radius: float, overhang: float) -> tup
     degrees from vertical. The chamfer starts at `start`, and the round ends on
     top, back at the same x it started from.
     """
-    return _teardrop_onto(start, start[0], radius, overhang)
-
-
-def _teardrop_onto(
-    start: tuple[float, float], cx: float, radius: float, overhang: float
-) -> tuple[float, float]:
-    """As _teardrop, but the round is centred on x = cx rather than on `start`.
-
-    The cascabel's button needs this: it is centred on the axis, while its
-    chamfer starts out on the neck that carries it.
-    """
     lean = math.radians(overhang)
     x0, y0 = start
     # The chamfer meets the circle where the circle's own slope matches it.
-    tangent_x = cx + radius * math.cos(lean)
-    cy = y0 + (tangent_x - x0) / math.tan(lean) + radius * math.sin(lean)
-    tangent = (tangent_x, cy - radius * math.sin(lean))
-    top = (cx, cy + radius)
+    tangent = (x0 + radius * math.cos(lean), y0 + radius * math.cos(lean) / math.tan(lean))
+    cy = tangent[1] + radius * math.sin(lean)
+    top = (x0, cy + radius)
     Line(start, tangent)
-    ThreePointArc(tangent, (cx + radius, cy), top)
+    ThreePointArc(tangent, (x0 + radius, cy), top)
     return top
 
 
@@ -286,14 +278,19 @@ def cannon(spec: CannonSpec) -> Part:
                 here = _teardrop((barrel(y), y), radius, spec.max_overhang)
 
                 # The base of the breech, domed, closing in to the cascabel.
-                cascabel_r = spec.cascabel_neck_diameter * cal / 2
+                cascabel_r = spec.cascabel * cal / 2
                 breech_top = (cascabel_r, here[1] + spec.base_of_breech * cal)
                 SagittaArc(here, breech_top, -0.2 * spec.base_of_breech * cal)
 
-                # The cascabel: its neck, then the button, closing on the axis.
-                neck_top = (cascabel_r, breech_top[1] + spec.cascabel_neck * cal)
-                Line(breech_top, neck_top)
-                here = _teardrop_onto(neck_top, 0, spec.button * cal / 2, spec.max_overhang)
+                # The cascabel: a stub with a dome on its end, closing on the
+                # axis. The dome is the one round on the piece that faces away
+                # from the bed, so it is the full quarter circle with no chamfer
+                # cut under it.
+                stub_top = (cascabel_r, breech_top[1] + spec.cascabel_length * cal)
+                Line(breech_top, stub_top)
+                corner = cascabel_r / math.sqrt(2)
+                here = (0.0, stub_top[1] + cascabel_r)
+                ThreePointArc(stub_top, (corner, stub_top[1] + corner), here)
 
                 # And back down the axis to where we started.
                 Line(here, (0, 0))

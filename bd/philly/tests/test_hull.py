@@ -20,6 +20,7 @@ from hull import (
     Deck,
     HullSpec,
     Seams,
+    Well,
     _bow,
     _cavity_span,
     _forefoot_positions,
@@ -259,6 +260,79 @@ class TestSeams:
     def test_a_plank_with_no_width_is_refused(self):
         with pytest.raises(ValueError, match="width"):
             Deck(0.0, 0.5, 0.5, plank=0.0)
+
+
+class TestWellSeams:
+    """The same grooves, on the floor of the open wells.
+
+    Two things make a well not a deck: its floor is found from the chine rather
+    than declared, and something stands on every one of them -- the keelson down
+    the middle, and the mast's tube in the forward well -- so the innermost seam
+    is placed clear of that rather than put half a plank out.
+    """
+
+    WELL = Well(plank=8.0, clear=6.0)
+
+    @pytest.fixture(scope="class")
+    def planked(self, lines):
+        spec = HullSpec(stations=STATIONS, decks=TestSeams.DECKS, seams=Seams(), wells=self.WELL)
+        return build(spec, lines)
+
+    @pytest.fixture(scope="class")
+    def bare_wells(self, lines):
+        return build(HullSpec(stations=STATIONS, decks=TestSeams.DECKS, seams=Seams()), lines)
+
+    def _floor(self, lines) -> float:
+        """Both wells' floors, which the flat bottom puts at one height."""
+        spec = HullSpec()
+        factor = spec.length / lines.length
+        return lines.chine_height.value(0.5 * lines.length) * factor + spec.wall
+
+    def _middles(self) -> list[float]:
+        return [HullSpec().length * 0.5 * (a + b) for a, b in open_stretches(list(DECKS))]
+
+    def test_a_seam_is_cut_into_every_wells_floor(self, planked, lines):
+        depth = Seams().depth
+        floor = self._floor(lines)
+        for x in self._middles():
+            for side in (-1.0, 1.0):
+                for y in (self.WELL.clear, self.WELL.clear + self.WELL.plank):
+                    at = Vector(x, side * y, floor - 0.5 * depth)
+                    assert not planked.is_inside(at), f"no seam {y:.1f} out at {x:.0f}mm"
+                    under = Vector(x, side * y, floor - 1.5 * depth)
+                    assert planked.is_inside(under), f"the seam {y:.1f} out went through the floor"
+
+    def test_the_floor_inboard_of_the_first_seam_is_left_whole(self, planked, lines):
+        """Where the keelson and the mast's tube stand. A seam closer than
+        `Seams.clearance` to either leaves a strip too thin for the mesher, and
+        the export a hole in the bottom of the boat."""
+        floor = self._floor(lines)
+        for x in self._middles():
+            for y in np.arange(0.0, self.WELL.clear - Seams().width, 0.25):
+                assert planked.is_inside(Vector(x, float(y), floor - 0.05)), (
+                    f"the floor is cut {y:.2f} out at {x:.0f}mm"
+                )
+
+    def test_the_grooves_are_the_only_material_taken(self, planked, bare_wells):
+        lost = bare_wells.volume - planked.volume
+        assert 0.0 < lost < 0.01 * bare_wells.volume
+
+    def test_bare_wells_are_the_default(self):
+        assert HullSpec().wells is None
+
+    def test_a_well_with_no_flat_floor_is_refused(self, lines):
+        """Forward of where the bottom sweeps up round the forefoot a well's
+        floor is a ramp, and one groove cut at one height would surface in the
+        middle of it."""
+        spec = HullSpec(
+            stations=STATIONS, decks=(Deck(0.5, 1.0, 0.3),), seams=Seams(), wells=self.WELL
+        )
+        with pytest.raises(ValueError, match="flat floor"):
+            build(spec, lines)
+
+    def test_a_plank_with_no_width_is_refused(self):
+        with pytest.raises(ValueError, match="width"):
+            Well(plank=0.0, clear=6.0)
 
 
 def test_overlapping_decks_are_refused(lines):

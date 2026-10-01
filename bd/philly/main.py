@@ -19,7 +19,7 @@ import lines as hull_lines
 import rig as rigging
 from cannon.cannon import NINE_POUNDER
 from cannon.carriage import CarriageSpec, carriage
-from hull import Bench, Bulge, Deck, HullSpec, Knee, Seams, build
+from hull import Bench, Bulge, Deck, HullSpec, Knee, Seams, Well, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -79,7 +79,21 @@ def _forecastle_tabs(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
     return replace(spec, decks=(replace(forecastle, tab=tab), *spec.decks[1:]))
 
 
-HULL = _forecastle_tabs(HULL, RIG)
+def _well_ceiling(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
+    """Plank the wells' floors, the innermost seam clear of what stands on them.
+
+    8.0mm to match the middle platform, which lies between the two wells. The
+    keelson runs down every well and the mast's tube stands in the forward one,
+    so the first seam is set outboard of whichever is wider.
+    """
+    assert spec.seams is not None
+    seat = rigging.step(spec, hull_lines.load(), rig)
+    keep = spec.seams.width / 2.0 + spec.seams.clearance
+    clear = max(joinery.KEELSON_WIDTH / 2.0, seat.tube_radius) + keep
+    return replace(spec, wells=Well(plank=8.0, clear=clear))
+
+
+HULL = _well_ceiling(_forecastle_tabs(HULL, RIG), RIG)
 
 AWNING = awnings.Awning()
 

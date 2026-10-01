@@ -157,19 +157,28 @@ alone went from 0.12 seconds to 7.5, and the whole build past eight minutes. It
 was still correct, just unusable, which is exactly the kind of failure that
 goes unnoticed.
 
-There was a `Planking` alongside this that cut a groove at each plank seam. It
-worked, and printed without overhangs, but it was the most intricate code here
-by some margin and read busier than the boat wants at 1:55. Removed in favour
-of a hull you can hold the whole of in your head; it is in the history if it is
-ever wanted back.
+The planks on the decks are grooves rather than geometry: `Seams` gives the one
+width and depth, a `Deck` its plank width, and `_seams` solves each groove's
+length against the inside of the hull instead of intersecting a comb with the
+cavity -- the same shape at a quarter of the cost. The floors of the open wells
+are grooved the same way, from `Well`; there the innermost seam is placed rather
+than centred, since the keelson runs down the middle of every well and the
+mast's tube stands in the forward one.
+
+The grooves are 0.2mm deep, which is shallow for a reason: `fit_guns` probes
+0.3mm under each corner of a carriage for deck, and a seam there must not read
+as a hole. `clear_of_seams` is the other half of that -- anything standing on a
+planked deck is moved until none of its edges is within a millimetre of a seam,
+because a strip thinner than that gets dropped by the mesher and the export ends
+up with a hole in the deck.
 
 ## The guns
 
 `cannon/cannon.py` turns the barrel as one solid of revolution: a half-profile
 sketched on `Plane.XZ` and revolved round Z, with the bore subtracted after.
 The parts carry their period names -- swell of the muzzle, neck, muzzle
-astragal, reinforce rings, base ring, base of the breech, cascabel and button
--- and the proportions are in calibres, the way the gunfounders wrote them, so
+astragal, reinforce rings, base ring, base of the breech and cascabel -- and
+the proportions are in calibres, the way the gunfounders wrote them, so
 the 12-pounder in the bow and the 9-pounders on the sides are one `CannonSpec`
 at two calibres.
 
@@ -196,10 +205,18 @@ just test tests/test_cannon.py
 ```
 
 It is built in print orientation: muzzle face down on the bed, bore up. Every
-ring and the cascabel's button is a half-round with its underside cut off as a
-chamfer at `max_overhang`, and the bore ends in a point at the same angle, so
-the gun prints standing on its muzzle with a brim and no support. The bore only
-goes a few calibres in, so the trunnion bar bears on solid metal.
+ring is a half-round with its underside cut off as a chamfer at `max_overhang`,
+and the bore ends in a point at the same angle, so the gun prints standing on
+its muzzle with a brim and no support. The bore only goes a few calibres in, so
+the trunnion bar bears on solid metal.
+
+The cascabel is the one place the toy departs from the piece. A real gun carries
+a ball on a slender neck, which is what this drew first -- and at 1:55 that is a
+1.5mm neck holding a 2.9mm knob, one printed layer interface carrying a lever two
+millimetres long. It snapped off in play. It is now a plain stub with a dome on
+its end, 1.2 calibres through: the same reach aft, a fifth of a millimetre
+narrower, and five times the section in bending. The dome is also the only round
+on the piece that faces away from the bed, so it needs no chamfer under it.
 
 ### Carriage and trunnions
 
@@ -213,6 +230,11 @@ stood on a corner, so the gun is fixed on it at the carriage's elevation and
 cannot turn. It is a press fit in the brackets, so the gun is captive as well:
 there is no way out of a hole the bar passes through. To take it apart, push the
 bar back out with a needle.
+
+The press is the printer's rather than the drawing's. All three holes are drawn
+a few hundredths _over_ the bar and come out under -- a printed hole shrinks --
+with the brackets' the tightest of them. Drawn nominal they were tight enough
+that the bar wanted a vice.
 
 That is the fifth scheme, and each of the four before it failed on the print bed.
 Separate pegs pressed into blind sockets, with a sliding cap square over each,

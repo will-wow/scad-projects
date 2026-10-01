@@ -30,7 +30,7 @@ def test_it_is_one_valid_solid(gun):
 
 def test_it_is_the_right_size(gun):
     box = gun.bounding_box()
-    # The muzzle face is on the bed, and the cascabel adds to the nominal length.
+    # The muzzle face is on the bed, and the breech and cascabel add to the length.
     assert abs(box.min.Z) < 1e-6
     barrel = SPEC.length * SPEC.scale
     assert barrel < box.size.Z < barrel + 3 * SPEC.calibre * SPEC.scale
@@ -51,6 +51,22 @@ def test_the_bore_opens_onto_the_muzzle_face_and_stops_short_of_the_trunnions(gu
     assert gun.is_inside(Vector(0, 0, top + 0.1)), "and is closed above that"
     below = trunnion_height(SPEC) + min(up for _, up in _hole()) - 0.2
     assert gun.is_inside(Vector(0, 0, below)), "solid between the bore and the bar's hole"
+
+
+def test_the_cascabel_is_a_stub_rather_than_a_ball_on_a_neck(gun):
+    """A ball on a slender neck is what the founders cast, and what snapped off
+    in play: a 1.5mm neck, one layer interface, carrying a lever two millimetres
+    long. The stub is one diameter from the breech to the dome on its end, which
+    is five times the section in bending and stands just as far aft."""
+    cal = SPEC.calibre * SPEC.scale
+    radius = SPEC.cascabel * cal / 2
+    breech = SPEC.length * SPEC.scale + SPEC.base_of_breech * cal
+    for z in (breech + 0.1, breech + SPEC.cascabel_length * cal - 0.1):
+        assert gun.is_inside(Vector(radius - 0.2, 0, z)), "the stub is thinner than it claims"
+        assert not gun.is_inside(Vector(radius + 0.2, 0, z)), "something stands off the stub"
+    tip = breech + SPEC.cascabel_length * cal + radius
+    assert gun.is_inside(Vector(0, 0, tip - 0.1)), "there is no dome on the end"
+    assert not gun.is_inside(Vector(0, 0, tip + 0.1)), "the cascabel runs on past its dome"
 
 
 def _hole() -> list[tuple[float, float]]:
@@ -87,7 +103,8 @@ def test_the_bars_hole_stops_short_of_the_first_reinforce_ring():
 
 @pytest.mark.parametrize("overhang", [45.0, 35.0])
 def test_nothing_overhangs_more_than_allowed(overhang):
-    """The rings, the button and the roof of the trunnion hole, all as printed."""
+    """The rings and the roof of the trunnion hole, as printed. The cascabel's
+    dome faces away from the bed, so it is not one of them."""
     gun = cannon(CannonSpec(max_overhang=overhang))
     assert steepest_overhang(gun) <= math.sin(math.radians(overhang)) + 1e-6
 

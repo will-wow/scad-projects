@@ -116,6 +116,37 @@ class Seams:
             raise ValueError(f"a seam must be shallower than 0.3mm, got {self.depth}")
 
 
+@dataclass(frozen=True)
+class Well:
+    """The ceiling on the floor of every open stretch, in millimetres of the model.
+
+    A well is not a deck -- its floor is found from the chine rather than
+    declared -- but it grooves the same way, since the faired bottom is flat and
+    so the floor is one height.
+    """
+
+    plank: float
+    """the width of its planks"""
+    clear: float
+    """how far out from the centreline the innermost seam stands
+
+    The floor is not bare: the keelson runs down the middle of it, and the
+    mast's tube stands on it in the forward well. Both are fitted after the hull
+    is built, so a seam has to keep `Seams.clearance` off them or the strip left
+    between is too thin for the mesher. Inboard of this the floor reads as one
+    wide plank with the keelson on it, which is what a ceiling looks like
+    anyway.
+    """
+
+    def __post_init__(self) -> None:
+        if self.plank <= 0.0:
+            raise ValueError(f"a plank must have some width, got {self.plank}")
+        if self.clear < 0.0:
+            raise ValueError(
+                f"the first seam cannot stand inboard of the centreline, got {self.clear}"
+            )
+
+
 def clear_of_seams(
     spec: HullSpec, deck: Deck, edges: tuple[float, ...], outboard: float = math.inf
 ) -> float:
@@ -220,6 +251,10 @@ class HullSpec:
     bulge: Bulge | None = None
     # The grooves cut into any deck that has a plank width.
     seams: Seams | None = None
+    # The same grooves on the floor of every open well, or None to leave them
+    # bare. Not a plank width on its own: something stands on every well's
+    # floor, so the innermost seam has to be placed clear of it.
+    wells: Well | None = None
     # The boat's joinery, which details.py fits once the hull is built: knees on
     # the platforms, benches along the sides and the keelson showing in the wells.
     knees: tuple[Knee, ...] = ()
@@ -698,17 +733,21 @@ def _seams(
     bounds: tuple[float, float],
     floor: float,
     plank: float,
+    first: float,
     seam: tuple[float, float, float],
     overrun: tuple[float, float],
     bulge: Bulge | None = None,
 ) -> list[Part]:
     """The grooves between one deck's planks, in the source's units like `_cut`.
 
-    Straight grooves with a plank centred on the centreline, each running only
-    where the deck is wide enough to keep it `margin` clear of the side -- so
-    they stop short wherever the hull closes in. `overrun` is how far each end
-    carries past the deck's own ends: out over an open edge, so the groove does
-    not end on the bulkhead's face, or short of a neighbouring deck.
+    Straight grooves from `first` out, each running only where the deck is wide
+    enough to keep it `margin` clear of the side -- so they stop short wherever
+    the hull closes in. `overrun` is how far each end carries past the deck's
+    own ends: out over an open edge, so the groove does not end on the
+    bulkhead's face, or short of a neighbouring deck.
+
+    `first` is where the innermost seam goes: half a plank out, so that a plank
+    is centred on the centreline, unless something stands there.
 
     `seam` is the width, depth and margin of `Seams`, in the source's units.
     Trimming each groove to the deck rather than intersecting a comb with the
@@ -724,7 +763,7 @@ def _seams(
     ) - (margin + 0.5 * width)
 
     grooves: list[Part] = []
-    for y in np.arange(0.5 * plank, float(room.max()), plank):
+    for y in np.arange(first, float(room.max()), plank):
         fits = along[room >= y]
         low = float(fits.min()) - (overrun[0] if fits.min() <= start else 0.0)
         high = float(fits.max()) + (overrun[1] if fits.max() >= end else 0.0)
@@ -738,6 +777,35 @@ def _seams(
     return grooves
 
 
+def _well_floor(
+    lines: HullLines,
+    wall: float,
+    bounds: tuple[float, float],
+    depth: float,
+    bow: Bow | None = None,
+) -> float:
+    """The inside of the bottom over an open stretch, in the source's units.
+
+    One height, because a groove is cut at one: the faired bottom is flat, so
+    amidships this is a constant. Where it is not -- forward of `bow.start`,
+    where the bottom sweeps up round the forefoot -- it is refused rather than
+    averaged, since a straight groove at one height would surface in the middle
+    of the ramp. Read off `_outline` for that reason, which is where the cavity
+    takes its own floor from; the chine's curve alone clamps there instead of
+    rising.
+    """
+    heights = [
+        _outline(lines, float(x), bow).z_chine + wall
+        for x in np.linspace(bounds[0], bounds[1], SEAM_SAMPLES)
+    ]
+    if max(heights) - min(heights) > depth:
+        raise ValueError(
+            f"the well from {bounds[0]:.0f} to {bounds[1]:.0f} has no flat floor to groove: "
+            f"it rises {(max(heights) - min(heights)) / depth:.0f} times a seam's depth across it"
+        )
+    return max(heights)
+
+
 def _hollow(
     hull: Part,
     lines: HullLines,
@@ -748,6 +816,7 @@ def _hollow(
     seams: Seams | None = None,
     factor: float = 1.0,
     bow: Bow | None = None,
+    wells: Well | None = None,
 ) -> Part:
     """Hollow the undecked stretches to the bottom, and each deck to its height."""
     x0, x1 = lines.span
@@ -772,15 +841,31 @@ def _hollow(
     hollowed = hull
     grooves: list[Part] = []
     for stretch in stretches:
+        bounds = clip(*stretch)
         hollowed = _cut(
             hollowed,
             lines,
             stations,
             wall,
-            clip(*stretch),
+            bounds,
             lambda x: None,
             bulge,
             bow,
+        )
+        if seams is None or wells is None or bounds[1] - bounds[0] <= 1e-6:
+            continue
+        # A well abuts a deck at each end, so `overrun` pulls its grooves short
+        # of both bulkheads rather than running them onto their faces.
+        grooves += _seams(
+            lines,
+            wall,
+            bounds,
+            _well_floor(lines, wall, bounds, seams.depth / factor, bow),
+            wells.plank / factor,
+            wells.clear / factor,
+            (seams.width / factor, seams.depth / factor, seams.margin / factor),
+            (overrun(stretch[0], list(ordered)), overrun(stretch[1], list(ordered))),
+            bulge,
         )
 
     for deck in ordered:
@@ -808,6 +893,7 @@ def _hollow(
             clip(deck.start, deck.end),
             floor,
             deck.plank / factor,
+            0.5 * deck.plank / factor,
             (seams.width / factor, seams.depth / factor, seams.margin / factor),
             (overrun(deck.start, others), overrun(deck.end, others)),
             bulge,
@@ -974,6 +1060,7 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
             spec.seams,
             factor,
             bow,
+            spec.wells,
         )
 
     return as_part(scale(hull, factor), "scaling")

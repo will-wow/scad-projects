@@ -6,6 +6,10 @@ one bar, bored right through the piece and pressed into both brackets -- the way
 a wheelwright hangs a wheel, not the way a founder cast a gun, but it is what
 makes the thing survive a child.
 
+The press is the printer's rather than the drawing's: all three holes are drawn
+a few hundredths over the bar and come out under, the brackets' the tightest of
+them. See `press`.
+
 The bar is square and every hole it goes through is a diamond, the square stood
 on a corner, so the gun does not turn on it. That fixes two things at once. A
 round pin let the gun pivot, and the printed gun is not breech-heavy the way the
@@ -56,10 +60,14 @@ class TrunnionSpec:
     length: float = 12.9
 
     stand_off: float = 1.2  # barrel surface to a bracket's inner face
-    # How much smaller than the bar a bracket's hole is drawn. Nothing: a printed
-    # hole comes out a tenth or two under size already, and that is the grip. If
-    # a print will not take the bar, make this negative.
-    press: float = 0.0
+    # How much smaller than the bar a bracket's hole is drawn. Negative, because
+    # a printed hole comes out a tenth or two under size and drawn nominal the
+    # bar took more force than a fit assembled by hand should: it is the
+    # printer, not the drawing, that supplies the grip. This is the whole budget
+    # there is, since the brackets have to end up tighter than the barrel and
+    # `key_fit` cannot grow without letting the muzzle droop into its rail. Put
+    # it back to 0.0 if a print comes out loose enough for the bar to walk.
+    press: float = -0.04
     # How much larger than the bar the barrel's hole is drawn. A little, since it
     # is the longest of the three fits and the bar has to slide through it; the
     # printer takes most of it back. Every 0.05 of it that survives is about 1.2

@@ -94,14 +94,29 @@ class Rig:
     The topsail's foot yard is as long as the course's, so the two sails meet
     edge to edge, and the topsail narrows toward its head.
     """
-    clip_inset: float = 0.08
-    """how far in from a yard's tip a sail clips on, as a fraction of its half-length"""
-    clip_length: float = 2.5
-    """the length of the necked section, which is what locates a sail fore and aft"""
+    clip_inset: float = 0.11
+    """how far in from a yard's tip a sail clips on, as a fraction of its half-length
+
+    Far enough in that the square shoulder outboard of the neck survives the
+    eye's width. The neck is `clip_length` long, and at 0.08 a 4.6mm one left
+    the topsail's head yard 0.38mm of tip to hold a sail against.
+    """
+    clip_length: float = 4.6
+    """the length of the necked section, which is what locates a sail fore and aft
+
+    It is also the eye's width, less a clearance at each end. At 2.5 the eye
+    was 1.9mm across and its lips broke off in play. Widening does not lower
+    the strain that cracks them -- that is set by how far they spring -- but it
+    doubles the layer bonded at the root and takes being pulled off askew.
+    """
     sail_thickness: float = 0.6
     """three layers at 0.2mm: thin enough to look like canvas, thick enough to survive"""
     loop_wall: float = 0.8
-    """material around a sail's corner bore"""
+    """material around a sail's corner bore
+
+    Thin on purpose: a lip's strain when it springs over a neck runs with its
+    thickness, so a heavier ring is a more brittle one, not a stronger one.
+    """
     rope_width: float = 1.5
     """the bolt rope's width: a raised edge round the whole sail, tying its corners together"""
     rope_thickness: float = 1.2
@@ -121,10 +136,16 @@ class Rig:
     """
     mast_clearance: float = 1.0
     """how far a sail must stay clear of the mast it hangs in front of"""
-    mouth: float = 0.9
+    mouth: float = 0.98
     """a corner eye's opening, as a fraction of the neck's diameter
 
-    Under 1.0 so the sail clips on and stays put rather than falling off.
+    Under 1.0 so the sail clips on and stays put rather than falling off, and
+    only just under. This is what sets how far each lip has to spread, and a
+    lip bends across the printed layers, where PLA gives up somewhere around
+    one to two percent of strain. At 0.9 each one sprang 0.126mm and reached
+    some five percent, which is why they snapped off; at 0.98 it is 0.025mm and
+    about one and a third, and what holds a sail on is those last few
+    hundredths plus whatever the printer leaves in the slot.
     """
 
     def __post_init__(self) -> None:
@@ -290,7 +311,7 @@ def _yard(rig: Rig, width: float, half: float) -> Part:
     whole 72mm of its length, with nothing underneath it.
 
     Where a sail clips on, a short length is turned down to a round neck. That
-    is a 2.5mm bridge between two square shoulders rather than an overhang, and
+    is a 4.6mm bridge between two square shoulders rather than an overhang, and
     the shoulders are what stop a sail sliding along the yard.
     """
     radius = rig.neck_width * width / 2.0

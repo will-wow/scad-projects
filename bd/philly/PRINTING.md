@@ -35,7 +35,7 @@ Two worth noting:
   (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
 The fittings barely register: mast, sails, awning and its canvas together are
-34.7 cm³, so at 15% infill they add 6.4 g and about a third of a millimetre of
+36.0 cm³, so at 15% infill they add 6.7 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their three trunnion
 bars are 14.4 cm³, about 18 g, and another 1.2mm of draft.
@@ -51,9 +51,9 @@ orientation and a different profile. The rig and the hull:
 | -------------------------------- | --------------------- | -------------------------- | --------------------------------- |
 | `philadelphia-hull.3mf`          | 300 x 84.5 x 31.2mm   | as exported, bottom down   | the watertightness settings below |
 | `philadelphia-mast.3mf`          | 200.8 x 93.0 x 5.0mm  | as exported, lying flat    | needs a 200mm bed axis            |
-| `philadelphia-sails.3mf`         | 69 x 178 x 6.6mm      | as exported, flat          | two separate sails in one file    |
+| `philadelphia-sails.3mf`         | 69 x 174.5 x 6.5mm    | as exported, flat          | two separate sails in one file    |
 | `philadelphia-awning.3mf`        | 148.3 x 72.1 x 34.7mm | as exported, **roof down** | legs point up; do not flip it     |
-| `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.7mm  | as exported, flat          | print it with the sails' settings |
+| `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.6mm  | as exported, flat          | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
 `gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` bar for each of
@@ -87,9 +87,12 @@ same carriage clips to it.
 
 The brackets are cut right through with a diamond for the trunnion bar, and the
 bar is a press fit in them, so what matters here is flow and hole shrinkage: a
-printed hole comes out undersize, and that undersize is the grip. If the bar will
-not go in, ease it or drop `press` in `cannon/trunnion.py` -- do not put a file
-through a bracket. The bar itself prints lying on a face; print a spare. Once it
+printed hole comes out undersize, and that undersize is the grip. Drawn nominal
+it took more force than a fit assembled by hand should, so the holes are now
+drawn 0.04mm over the bar and the printer takes that back. If the bar still will
+not go in, drop `press` in `cannon/trunnion.py` further -- do not put a file
+through a bracket. If it goes in loose enough to walk back out, put `press` to
+0.0. The bar itself prints lying on a face; print a spare. Once it
 is in, the gun does not come off, or tip, until somebody pushes the bar back out
 with a needle.
 
@@ -102,7 +105,9 @@ The yards used to be round and thinner than the mast, which looked better and
 did not print -- each one hung 1.25mm clear of the bed along its whole length
 with nothing underneath. Square and mast-width, they lie on it. The only thing left
 off the bed is the short necked section at each tip where a sail clips on, and
-that is a 2.5mm bridge with a square shoulder holding each end.
+that is a 4.6mm bridge with a square shoulder holding each end. It used to be
+2.5mm, and grew with the eyes that clip onto it; `clip_inset` moved inboard to
+keep the outboard shoulder, which on the topsail's head yard is the tight one.
 
 The sails and the awning's canvas are 0.6mm thick -- three layers at 0.2mm --
 with a 1.2mm bolt rope round the edges and 1.6mm patches at the corners.
@@ -110,6 +115,19 @@ They want the _opposite_ of the hull's profile: no extra walls, no solid infill,
 and no brim that would weld the corner loops to the bed. They should stay
 slightly flexible, since clipping one on means springing each eye over its
 neck.
+
+**The corner eyes are the part that broke.** They are 4mm wide now rather than
+1.9, and their mouths open to 2.457mm against a 2.507mm neck, so each lip
+springs 0.025mm going on rather than the 0.126 it used to. That is the whole
+change that matters: a lip bends across the printed layers, where PLA gives up
+around one to two percent of strain, and 0.126mm on a two-millimetre arm came
+to some five percent. The width is for the layer bonded at the root and for
+being pulled off askew, not for the strain, which does not depend on it.
+
+Because the snap is now only those last few hundredths, **hole and outer-wall
+compensation matter**: if a printed eye comes out so tight it has to be forced,
+or so loose it drops off the yard, that is the slot's width, and `mouth` in
+`rig.py` is the number to move.
 
 If you have PETG, print the sails and canvas in it. They get pulled off and
 clipped back on far more than anything else on the boat, and PETG takes
@@ -122,9 +140,16 @@ layer -- one connected grid, well stuck to the bed -- and the ten legs rise
 off it as plain columns with nothing to bridge. Flipped the other way up, the
 legs print first as thin towers and the entire roof has to span between them.
 
-The legs are the thing to watch: 3.4mm square and up to 28mm tall, eight of them
+The legs are the thing to watch: 3.4mm square and up to 30mm tall, ten of them
 standing free. Slow the outer walls down, and if the tops ring or lean, print
 them with a bit more cooling rather than adding supports.
+
+Each one now carries **knees** where it meets the bars -- a 6mm triangle into
+the crossbar and into each rail -- because a dropped boat snapped a leg off at
+that corner. They cost 1.4 cm³ and print as part of the leg: laid roof-down
+every layer of a knee is smaller than the one beneath it, so the 45 degree
+hypotenuse carries itself. The knees on the two necked crossbars are cut short,
+since the canvas's eye comes down into that square.
 
 The bar across the forward well **bridges about 34.4mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would
@@ -179,6 +204,12 @@ The open wells hollow to the bottom, so their floors sit 2mm above the hull's
 bottom — **at or below the external waterline** at any usual infill. That is normal for a boat,
 but it means a hull leak floods the boat directly rather than merely wetting
 the infill. Worth a sink test before painting.
+
+Their floors are planked like the decks, which takes 0.029 cm³ in all. The
+grooves are 0.2mm deep and cut on the _inside_ only, leaving 1.8mm of floor and
+not touching the skin the water sees; with 5–6 bottom layers and three wall
+loops there is still no infill path through it. The seams start 6mm out from the
+centreline, clear of the keelson and of the mast's tube.
 
 ## Recomputing these numbers
 

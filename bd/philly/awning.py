@@ -21,7 +21,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
-from build123d import Axis, Box, Cylinder, Part, Pos, Rot, fillet
+from build123d import (
+    Axis,
+    Box,
+    BuildPart,
+    BuildSketch,
+    Cylinder,
+    Part,
+    Plane,
+    Polygon,
+    Pos,
+    Rot,
+    extrude,
+    fillet,
+)
 
 from details import bench_top
 from hull import Deck, HullSpec, as_part, clear_of_seams, inner_half_width
@@ -30,6 +43,9 @@ from rig import TOLERANCE, Rig, neck_radius, sail
 
 # Square section for every member. The frame is handled, so nothing thinner.
 BAR = 3.4
+
+# How far a knee reaches along a bar and down a leg from the corner they make.
+KNEE = 6.0
 
 # The pad each upright steps on, and how far the socket is bored into it.
 BOSS = 7.0
@@ -224,6 +240,31 @@ def _span(
     return as_part(middle * (Rot(0.0, 0.0, bearing) * bar), "a bar")
 
 
+def _knee(at: tuple[float, float, float], bearing: float, section: float, reach: float) -> Part:
+    """A triangular knee in a corner a leg makes with a bar, pointing along it.
+
+    `at` is the corner -- the leg's centreline at the bar's underside -- and
+    `reach` is measured from there, so a knee overlaps both members rather than
+    sitting on their faces and the fuse has something to bite on.
+
+    Right-angled and equal-legged. Laid roof-down every layer of it is smaller
+    than the one beneath, so the hypotenuse carries itself at 45 degrees and
+    there is nothing to bridge.
+
+    The corner is what broke. A leg is a 3.4mm column whose root is a sharp step
+    under the bars, it bends across the printed layers, and a dropped boat
+    snapped one off. A knee moves the worst section down the leg and rounds that
+    step out into a taper, which is most of what it is for: the step's own
+    stress concentration costs more than the length it saves.
+    """
+    with BuildPart() as knee:
+        with BuildSketch(Plane.XZ.offset(-section / 2.0)):
+            Polygon((0.0, 0.0), (reach, 0.0), (0.0, -reach), align=None)
+        extrude(amount=section)
+    assert knee.part is not None
+    return as_part(Pos(*at) * (Rot(0.0, 0.0, bearing) * knee.part), "a knee")
+
+
 def _crossbar(shape: Frame, station: float, edge: float, clip: float | None) -> Part:
     """One crossbar, necked where the canvas clips on, if it does.
 
@@ -256,7 +297,17 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     necked = {shape.bars[0]: shape.clips[0], shape.bars[-1]: shape.clips[1]}
     parts += [_crossbar(shape, x, awning.edge, necked.get(x)) for x in shape.bars]
 
-    for foot in shape.feet:
+    # A necked crossbar leaves a knee only the square between the leg and the
+    # eye that clips on: the canvas's ring comes down round the neck and its
+    # outboard face stands `clip_length / 2` short of the leg's centreline.
+    def inboard(station: float) -> float:
+        clip = necked.get(station)
+        room = KNEE + BAR / 2.0
+        if clip is None:
+            return room
+        return min(room, shape.half_at(station) - clip - shape.clip_length / 2.0)
+
+    for index, foot in enumerate(shape.feet):
         for side in (-1.0, 1.0):
             # Up to the bars' tops, not just the roof's middle plane: the rails
             # and crossbars both stop at the leg's centre, and the leg is what
@@ -273,6 +324,19 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
                 Pos(foot.station, side * foot.half, foot.base - peg / 2.0)
                 * Cylinder(BAR / 2.0, peg)
             )
+
+            # Knees into every bar the leg runs into: the crossbar, inboard, and
+            # each rail it has. An end leg has one rail, which is why it is the
+            # one that wants them.
+            corner = (foot.station, side * foot.half, shape.roof - BAR / 2.0)
+            parts.append(_knee(corner, -90.0 * side, BAR, inboard(foot.station)))
+            for other in (index - 1, index + 1):
+                if not 0 <= other < len(shape.nodes):
+                    continue
+                run = shape.nodes[other][0] - foot.station
+                across = side * (shape.nodes[other][1] - foot.half)
+                bearing = float(np.degrees(np.arctan2(across, run)))
+                parts.append(_knee(corner, bearing, BAR, KNEE + BAR / 2.0))
 
     whole = parts[0]
     for extra in parts[1:]:
