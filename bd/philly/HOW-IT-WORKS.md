@@ -1316,7 +1316,7 @@ If your boat has a _rounded_ bilge rather than a hard chine, `_side_profile` is
 the place to change — it's the only function that decides what a section looks
 like between its corners. Everything downstream just consumes points.
 
-If your boat has genuine tumblehome (topsides curving back inward), `Bulge`
+If your boat has genuine tumbling home (topsides curving back inward), `Bulge`
 won't express it, and you'd want per-station section data. The architecture
 takes that without much disruption: keep the four curves as the _envelope_ and
 add a normalized offset-from-chord function interpolated between drawn

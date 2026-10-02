@@ -134,7 +134,7 @@ Every transverse section is centreline to chine along the flat bottom, then out
 and up to the rail. Straight out and up gives a flat-panelled box; the scan's
 topsides visibly swell, so `Bulge` carries the side out of that chord and back.
 
-It is not tumblehome -- nothing on this boat curves back inward -- which is why
+It is not tumbling home -- nothing on this boat curves back inward -- which is why
 one parameter does the job and there is no need to draw station sections and
 fair them. `amount` is the height of the swell as a fraction of the side's own
 slant height, so it tapers with the hull instead of staying a fixed millimetre

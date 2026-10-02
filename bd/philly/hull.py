@@ -212,7 +212,7 @@ class Bench:
 class Bulge:
     """
     Bow the sides outward between the chine and the rail.
-    Simple convex swell, good enough for this boat without tumblehome.
+    Simple convex swell, good enough for this boat without tumbling home.
     """
 
     amount: float = 0.06
