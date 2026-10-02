@@ -146,9 +146,11 @@ them with a bit more cooling rather than adding supports.
 
 Each one now carries **knees** where it meets the bars -- a 6mm triangle into
 the crossbar and into each rail -- because a dropped boat snapped a leg off at
-that corner. They cost 1.4 cm³ and print as part of the leg: laid roof-down
+that corner. They cost 0.9 cm³ and print as part of the leg: laid roof-down
 every layer of a knee is smaller than the one beneath it, so the 45 degree
-hypotenuse carries itself. The knees on the two necked crossbars are cut short,
+hypotenuse carries itself. Each is 2.2mm wide rather than the bar's 3.4, which
+is the flat between the bar's rounded edges: as wide as the bar, a knee stood
+its outer lip on the round with nothing under it. The knees on the two necked crossbars are cut short,
 since the canvas's eye comes down into that square.
 
 Each leg now runs into its socket at full section rather than stepping down to a

@@ -47,6 +47,23 @@ BAR = 3.4
 # How far a knee reaches along a bar and down a leg from the corner they make.
 KNEE = 6.0
 
+
+def knee_section(edge: float) -> float:
+    """How wide a knee is: the flat of the bar it sits under, between its fillets.
+
+    As wide as the bar, a knee stood its outer edge on the bar's rounded corner
+    and left a lip hanging over nothing. Narrowing it to the flat fixes a second
+    thing for free. Knees meet at a leg from the directions its bars run, and
+    two slabs of half-width w crossing at an angle t overlap out to w / sin(t/2)
+    from the leg's centre. The tightest angle in this frame is 64 degrees, where
+    a rail meets the crossbar on the trapezoid stretch aft: at the bar's full
+    width that reaches 3.2mm, past the leg's 2.4mm half-diagonal, so the two
+    hypotenuses crossed in open air and left a spike. At the flat's width it
+    reaches 2.07mm and the crossing is buried inside the leg.
+    """
+    return BAR - 2.0 * edge
+
+
 # The step each upright is socketed into, and how far the socket is bored down
 # through it. Square, like the socket and the leg it takes: a round pad leaves
 # only 0.7mm over a square hole's corners, where a square one leaves 1.8 all
@@ -288,6 +305,8 @@ def _knee(at: tuple[float, float, float], bearing: float, section: float, reach:
     meeting them on a face. Right-angled and equal-legged, so laid roof-down
     every layer of it is smaller than the one beneath and the hypotenuse carries
     itself. A dropped boat snapped a leg off that corner; see HOW-IT-WORKS.md.
+
+    `section` is the bar's flat, not the bar: see `KNEE_SECTION`.
     """
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
@@ -326,6 +345,8 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     necked = {shape.bars[0]: shape.clips[0], shape.bars[-1]: shape.clips[1]}
     parts += [_crossbar(shape, x, awning.edge, necked.get(x)) for x in shape.bars]
 
+    section = knee_section(awning.edge)
+
     # A necked crossbar leaves a knee only the square between the leg and the
     # eye that clips on: the canvas's ring comes down round the neck and its
     # outboard face stands `clip_length / 2` short of the leg's centreline.
@@ -362,14 +383,14 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             # each rail it has. An end leg has one rail, which is why it is the
             # one that wants them.
             corner = (foot.station, side * foot.half, shape.roof - BAR / 2.0)
-            parts.append(_knee(corner, -90.0 * side, BAR, inboard(foot.station)))
+            parts.append(_knee(corner, -90.0 * side, section, inboard(foot.station)))
             for other in (index - 1, index + 1):
                 if not 0 <= other < len(shape.nodes):
                     continue
                 run = shape.nodes[other][0] - foot.station
                 across = side * (shape.nodes[other][1] - foot.half)
                 bearing = float(np.degrees(np.arctan2(across, run)))
-                parts.append(_knee(corner, bearing, BAR, KNEE + BAR / 2.0))
+                parts.append(_knee(corner, bearing, section, KNEE + BAR / 2.0))
 
     whole = parts[0]
     for extra in parts[1:]:
