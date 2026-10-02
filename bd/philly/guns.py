@@ -169,8 +169,8 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     outside. The bow gun's run-out is the scan's, and is only checked.
     """
     at = Scaled(spec, lines)
-    truck = gun.carriage
-    rig = truck.slide
+    carriage = gun.carriage
+    slide = carriage.slide
     platform = deck_at(spec, gun.station)
     if platform is None:
         raise ValueError(f"the gun at {gun.station:.3f} stands over open bilge")
@@ -179,11 +179,11 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     inside, sheer = at.inside, at.sheer
 
     if gun.side == 0:
-        front = station + truck.fore
-        chock = front - rig.chock
-        if inside(front, deck) < truck.half_width + CLEARANCE:
+        front = station + carriage.fore
+        chock = front - slide.chock
+        if inside(front, deck) < carriage.half_width + CLEARANCE:
             raise ValueError(f"the bow gun's carriage does not fit the forecastle at {front:.1f}mm")
-        if inside(chock, deck - rig.sink) < rig.reach + CLEARANCE:
+        if inside(chock, deck - slide.sink) < slide.reach + CLEARANCE:
             raise ValueError(f"the bow gun's chock does not fit the forecastle at {chock:.1f}mm")
         return Mount(
             gun=gun,
@@ -198,11 +198,11 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
 
     # The carriage spans its own width along the boat, and the hull is not
     # quite parallel-sided over it: take the tightest.
-    span = np.linspace(station - truck.half_width, station + truck.half_width, 5)
+    span = np.linspace(station - carriage.half_width, station + carriage.half_width, 5)
     inner = min(inside(float(x), deck) for x in span)
-    under = min(inside(float(x), deck - rig.sink) for x in span)
-    front = min(inner - CLEARANCE, under + spec.wall - SKIN - rig.chock)
-    reach = front + truck.fore
+    under = min(inside(float(x), deck - slide.sink) for x in span)
+    front = min(inner - CLEARANCE, under + spec.wall - SKIN - slide.chock)
+    reach = front + carriage.fore
     rail_inside = min(inside(float(x), sheer(float(x))) for x in span)
     rail_outside = lines.sheer_half_width.value(station / at.factor) * at.factor
     top = max(sheer(float(x)) for x in span)
@@ -246,13 +246,13 @@ def fit_guns(hull: Part, spec: HullSpec, lines: HullLines, guns: tuple[Gun, ...]
     for m in solved:
         fitted = as_part(fitted + m.slide(), "laying a gun's slide")
     for m in solved:
-        truck = m.carriage
+        carriage = m.carriage
         for recoil in (0.0, m.travel):
             place = m.location(recoil)
-            for x in (truck.fore, truck.aft):
-                for y in (-truck.half_width, truck.half_width):
+            for x in (carriage.fore, carriage.aft):
+                for y in (-carriage.half_width, carriage.half_width):
                     below = (place * Pos(x, y, -0.3)).position
-                    above = (place * Pos(x, y, truck.slide.height + 0.5)).position
+                    above = (place * Pos(x, y, carriage.slide.height + 0.5)).position
                     if not fitted.is_inside(below) or fitted.is_inside(above):
                         raise RuntimeError(
                             f"the gun at {m.gun.station:.3f} has no clear deck under "
