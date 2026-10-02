@@ -112,7 +112,7 @@ just viewer     # start the browser viewer on port 3939
 just watch      # live-reload model files into the viewer
 just run        # render once, in a fresh process
 just format     # ruff format + fix
-just check      # ruff format --check, ruff check, pyright
+just check      # ruff format --check, ruff check, ty check
 ```
 
 ## Exporting and testing

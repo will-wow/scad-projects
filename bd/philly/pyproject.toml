@@ -11,9 +11,9 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "pyright>=1.1.414",
     "pytest>=9.1.1",
     "ruff>=0.16.8",
+    "ty>=0.0.84",
     "watchfiles>=1.2.0",
 ]
 
@@ -35,14 +35,13 @@ ignore = [
     "SIM117", # build123d's BuildPart/BuildSketch/BuildLine nesting is idiomatic, not incidental
 ]
 
-[tool.pyright]
-include = ["."]
+[tool.ty.environment]
+# typings/ holds the one stub the project needs; see typings/lib3mf.
+extra-paths = ["typings"]
+
+[tool.ty.src]
 # Standalone: run with its own dependencies, which the project does not carry.
-exclude = ["designs/measure_scan.py", ".venv"]
-venvPath = "."
-venv = ".venv"
-pythonVersion = "3.14"
-typeCheckingMode = "standard"
+exclude = ["designs/measure_scan.py"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

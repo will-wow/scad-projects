@@ -1,0 +1,46 @@
+"""What `export.py` uses of lib3mf.
+
+The real binding (`lib3mf/Lib3MF.py`) is 14,000 lines of generated ctypes
+wrappers with no annotations, so a type checker learns nothing from it and ty
+0.0.84 takes 23 seconds over a single attribute on one of its enums. These are
+the dozen names the 3MF writer actually touches, typed.
+"""
+
+from collections.abc import Sequence
+from enum import IntEnum
+
+class ModelUnit(IntEnum):
+    MicroMeter = 0
+    MilliMeter = 1
+    CentiMeter = 2
+    Inch = 3
+    Foot = 4
+    Meter = 5
+
+class Position:
+    def __init__(self, Coordinates: tuple[float, float, float]) -> None: ...
+
+class Triangle:
+    def __init__(self, Indices: tuple[int, int, int]) -> None: ...
+
+class Transform: ...
+
+class Writer:
+    def WriteToFile(self, Filename: str) -> None: ...
+
+class MeshObject:
+    def SetName(self, Name: str) -> None: ...
+    def SetGeometry(self, Vertices: Sequence[Position], Indices: Sequence[Triangle]) -> None: ...
+    def IsManifoldAndOriented(self) -> bool: ...
+
+class Model:
+    def SetUnit(self, Unit: ModelUnit) -> None: ...
+    def AddMeshObject(self) -> MeshObject: ...
+    def AddBuildItem(self, Object: MeshObject, Transform: Transform) -> object: ...
+    def QueryWriter(self, WriterClass: str) -> Writer: ...
+
+class Wrapper:
+    def CreateModel(self) -> Model | None: ...
+    def GetIdentityTransform(self) -> Transform: ...
+
+def get_wrapper() -> Wrapper: ...

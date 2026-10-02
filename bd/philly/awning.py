@@ -355,8 +355,8 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             )
             # The foot chamfered, so a frame dropped in a little out of place
             # finds its holes instead of standing on their rims.
-            leg = chamfer(leg.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
-            parts.append(leg)
+            footed = chamfer(leg.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
+            parts.append(as_part(footed, "a leg"))
 
             # Knees into every bar the leg runs into: the crossbar, inboard, and
             # each rail it has. An end leg has one rail, which is why it is the

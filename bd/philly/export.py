@@ -20,9 +20,9 @@ import lib3mf
 import numpy as np
 from build123d import Part, export_step, export_stl
 
-# OCP is compiled and ships no stubs, so pyright cannot see into it.
-from OCP.BRepMesh import BRepMesh_IncrementalMesh  # pyright: ignore[reportAttributeAccessIssue]
-from OCP.BRepTools import BRepTools  # pyright: ignore[reportAttributeAccessIssue]
+# OCP is compiled and ships no stubs, so a type checker cannot see into it.
+from OCP.BRepMesh import BRepMesh_IncrementalMesh  # ty: ignore[unresolved-import]
+from OCP.BRepTools import BRepTools  # ty: ignore[unresolved-import]
 
 from preview import load_model
 
