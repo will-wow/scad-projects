@@ -35,7 +35,7 @@ Two worth noting:
   (182.6 g at 15% infill) it settles to 10.9mm and stays there.
 
 The fittings barely register: mast, sails, awning and its canvas together are
-36.0 cm³, so at 15% infill they add 6.7 g and about a third of a millimetre of
+36.4 cm³, so at 15% infill they add 6.7 g and about a third of a millimetre of
 draft. The guns weigh more than their size suggests, because parts that small
 print as nearly all wall: three barrels, three carriages and their three trunnion
 bars are 14.4 cm³, about 18 g, and another 1.2mm of draft.
@@ -52,7 +52,7 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-hull.3mf`          | 300 x 84.5 x 31.2mm   | as exported, bottom down   | the watertightness settings below |
 | `philadelphia-mast.3mf`          | 200.8 x 93.0 x 5.0mm  | as exported, lying flat    | needs a 200mm bed axis            |
 | `philadelphia-sails.3mf`         | 69 x 174.5 x 6.5mm    | as exported, flat          | two separate sails in one file    |
-| `philadelphia-awning.3mf`        | 148.3 x 72.1 x 34.7mm | as exported, **roof down** | legs point up; do not flip it     |
+| `philadelphia-awning.3mf`        | 148.3 x 72.1 x 37.0mm | as exported, **roof down** | legs point up; do not flip it     |
 | `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.6mm  | as exported, flat          | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
@@ -140,8 +140,8 @@ layer -- one connected grid, well stuck to the bed -- and the ten legs rise
 off it as plain columns with nothing to bridge. Flipped the other way up, the
 legs print first as thin towers and the entire roof has to span between them.
 
-The legs are the thing to watch: 3.4mm square and up to 30mm tall, ten of them
-standing free. Slow the outer walls down, and if the tops ring or lean, print
+The legs are the thing to watch: 3.4mm square and up to 28.5mm standing free
+above their bosses, ten of them. Slow the outer walls down, and if the tops ring or lean, print
 them with a bit more cooling rather than adding supports.
 
 Each one now carries **knees** where it meets the bars -- a 6mm triangle into
@@ -150,6 +150,12 @@ that corner. They cost 1.4 cm³ and print as part of the leg: laid roof-down
 every layer of a knee is smaller than the one beneath it, so the 45 degree
 hypotenuse carries itself. The knees on the two necked crossbars are cut short,
 since the canvas's eye comes down into that square.
+
+Each leg now runs into its socket at full section rather than stepping down to a
+round peg, and **its foot is chamfered 0.8mm** so the frame finds its holes when
+it is dropped in slightly askew. The feet are the last thing the printer lays,
+at the top of the part, so the chamfer faces up and asks nothing of it -- but it
+does mean the very tips are small and want the same slow walls the leg tops do.
 
 The bar across the forward well **bridges about 34.4mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would

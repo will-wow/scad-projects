@@ -32,6 +32,7 @@ from build123d import (
     Polygon,
     Pos,
     Rot,
+    chamfer,
     extrude,
     fillet,
 )
@@ -47,10 +48,20 @@ BAR = 3.4
 # How far a knee reaches along a bar and down a leg from the corner they make.
 KNEE = 6.0
 
-# The pad each upright steps on, and how far the socket is bored into it.
+# The step each upright is socketed into, and how far the socket is bored down
+# through it. Square, like the socket and the leg it takes: a round pad leaves
+# only 0.7mm over a square hole's corners, where a square one leaves 1.8 all
+# round. Tall, because up is the only direction a socket can grow in -- see
+# SIDE_FLOOR -- and what steadies the frame is how much of a leg is gripped, not
+# how far down the hole reaches. All but half a millimetre of it is in the boss,
+# and that half is only so the cut does not end on the deck's own face.
 BOSS = 7.0
-BOSS_HEIGHT = 3.0
-SOCKET_DEPTH = 5.0
+BOSS_HEIGHT = 8.0
+SOCKET_DEPTH = 8.5
+
+# How far the chamfer on a leg's foot runs back up it, so the leg finds its
+# socket when the frame is dropped in slightly out of place.
+FOOT_CHAMFER = 0.8
 
 # The least an upright stands off the inside of the hull.
 SIDE_GAP = 0.3
@@ -59,6 +70,15 @@ SIDE_GAP = 0.3
 # the hull up, so a socket's floor is also the hull's bottom, and anything
 # thinner than a wall there is a leak waiting to happen.
 FLOOR = 2.0
+
+# Planking that must be left outboard of a socket, which is the real limit on
+# how deep one can go. The side closes in as it falls and the uprights stand
+# close to it, so every millimetre a hole drops below the deck costs about a
+# fifth of one off the planking beside it. At the bottom of the hull the inside
+# is 3 to 4.5mm narrower than where the legs step, so a socket bored to the
+# bilge would come out through the side. Dropping 2mm below the deck, as they
+# used to, left 0.67mm beside the aft pair.
+SIDE_FLOOR = 1.0
 
 
 @dataclass(frozen=True)
@@ -78,8 +98,16 @@ class Awning:
     pair 1.1mm outboard there, which the upright has room for. At 0.90 it had
     none, and the pair was pulled 1.6mm inboard instead.
     """
-    rise: float = 0.40
-    """roof clearance above the highest rail under it, as a fraction of the hull's depth"""
+    headroom: float = 1828.8
+    """standing room under the roof, in real-world millimetres: six feet
+
+    Measured over the deck rather than as a clearance over the rail, because
+    standing room is the thing it is for. Philadelphia II, the full-size
+    recreation, carries her awning high enough to stand under amidships. Taken
+    over the highest deck a pair of legs stands on -- the middle platform --
+    since the benches aft are to sit on, not to stand on, and the quarterdeck
+    they stand on is lower still.
+    """
     inset: float = 2.5
     """how far inboard of the hull's inside face an upright's centreline stands"""
     edge: float = 0.6
@@ -93,6 +121,8 @@ class Awning:
                 raise ValueError(f"the leg at {leg} is off the boat")
         if list(self.legs) != sorted(set(self.legs)):
             raise ValueError("the legs are not in order bow to stern")
+        if self.headroom <= 0.0:
+            raise ValueError(f"an awning needs some headroom under it, got {self.headroom}")
 
 
 @dataclass(frozen=True)
@@ -154,6 +184,11 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
     whatever they step on -- the narrowest the inside gets over an upright's length,
     since the side flares outward going up. Measuring at the rail instead would
     put the feet through the planking.
+
+    Two things can pull a pair further in than `inset` alone: the socket under
+    it, which is below the deck where the side has closed in further (see
+    `SIDE_FLOOR`), and the seams on a bare deck, which its boss must not end
+    hard by.
     """
     rig = rig or Rig()
     factor = spec.length / lines.length
@@ -163,6 +198,7 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
         return x0 + (x1 - x0) * fraction
 
     feet: list[Foot] = []
+    decks: list[float] = []
     for leg in awning.legs:
         deck = _deck_at(spec, leg)
         if deck is None:
@@ -171,27 +207,40 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
             )
         at = source(leg)
         seat = bench_top(spec, lines, leg)
-        height = deck.height * lines.depth * factor if seat is None else seat
+        standing = deck.height * lines.depth * factor
+        decks.append(standing)
+        height = standing if seat is None else seat
         # The tightest the inside gets along the upright's own length: toward the
         # transom the hull closes in fast enough that its after face is nearer
         # the side than its middle.
         along = [at + offset / factor for offset in (-BAR / 2.0, 0.0, BAR / 2.0)]
 
-        def tightest(z: float, along: list[float] = along) -> float:
+        def tightest(z: float, wall: float = spec.wall, along: list[float] = along) -> float:
             return factor * min(
-                inner_half_width(lines, x, spec.wall / factor, z / factor, spec.bulge)
-                for x in along
+                inner_half_width(lines, x, wall / factor, z / factor, spec.bulge) for x in along
             )
 
         inside = tightest(height)
         half = inside - awning.inset
+        # And no further out than the socket under it can go. The side closes in
+        # as it falls and the socket's floor is below the deck, so it is the
+        # floor, not the deck, that decides how far outboard a leg may stand if
+        # `SIDE_FLOOR` of planking is to be left outboard of the hole.
+        cap = (
+            tightest(height + BOSS_HEIGHT - SOCKET_DEPTH, SIDE_FLOOR)
+            - (BAR + 2.0 * TOLERANCE) / 2.0
+        )
+        room = cap - half
         if seat is None:
             # On bare deck the boss must not end hard by a seam, and dodging one
             # must not push the upright into the side where it rises off the
-            # boss -- the boss itself is meant to merge into the planking.
-            room = tightest(height + BOSS_HEIGHT) - SIDE_GAP - BAR / 2.0 - half
+            # boss -- the boss itself is meant to merge into the planking -- nor
+            # past what the socket under it allows. A negative `room` is the cap
+            # already breached, and asks the dodge for a move inboard.
+            room = min(tightest(height + BOSS_HEIGHT) - SIDE_GAP - BAR / 2.0 - half, room)
             edges = (half - BOSS / 2.0, half + BOSS / 2.0)
             half += clear_of_seams(spec, deck, edges, outboard=room)
+        half = min(half, cap)
         feet.append(
             Foot(
                 station=at * factor,
@@ -201,11 +250,19 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
             )
         )
 
-    # The roof clears the highest rail under it, not the average one, so it
-    # stands clear of the sheer everywhere rather than only amidships.
+    # Headroom over the deck, so the roof is set by what it is for rather than
+    # by a clearance over the rail. It still has to clear the rail: the sheer
+    # rises toward the transom under the frame, and the check is against the
+    # highest of it, not the average, so the roof stands clear everywhere rather
+    # than only amidships.
+    roof = max(decks) + awning.headroom * factor
     stations = np.linspace(source(awning.legs[0]), source(awning.legs[-1]), 200)
     highest = float(max(lines.sheer_height.value(float(x)) for x in stations)) * factor
-    roof = highest + awning.rise * lines.depth * factor
+    if roof < highest + BAR:
+        raise ValueError(
+            f"a roof {roof:.1f}mm up does not clear the rail at {highest:.1f}mm; "
+            "raise the awning's headroom"
+        )
 
     # Each neck just inboard of the rail, with a bar's half-width of square
     # shoulder between them so the canvas cannot slide along into the corner.
@@ -309,21 +366,25 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
 
     for index, foot in enumerate(shape.feet):
         for side in (-1.0, 1.0):
-            # Up to the bars' tops, not just the roof's middle plane: the rails
-            # and crossbars both stop at the leg's centre, and the leg is what
-            # fills the corner they leave, so the roof prints flat to the end.
-            height = shape.roof + BAR / 2.0 - foot.base
-            leg = Pos(foot.station, side * foot.half, foot.base + height / 2.0) * Box(
+            # One square column from the bars' tops to the socket's floor. Up to
+            # the tops rather than the roof's middle plane because the rails and
+            # crossbars both stop at the leg's centre, and the leg is what fills
+            # the corner they leave, so the roof prints flat to the end.
+            #
+            # Down into the socket at full section, where it used to step to a
+            # round peg at the boss. That step was the weakest thing in the
+            # frame -- 3.9mm^3 of section against the leg's 6.6, with a sharp
+            # shoulder on it where the bending is worst -- and the feet snapped
+            # off it. The socket is a square hole now, so there is nothing to
+            # step down to, and the leg beds on the hole's floor.
+            height = shape.roof + BAR / 2.0 - foot.socket_floor
+            leg = Pos(foot.station, side * foot.half, foot.socket_floor + height / 2.0) * Box(
                 BAR, BAR, height
             )
-            # Shy of the socket's bottom, so the leg seats on the boss rather
-            # than standing on the tip of its own peg.
-            peg = SOCKET_DEPTH - TOLERANCE
+            # The foot chamfered, so a frame dropped in a little out of place
+            # finds its holes instead of standing on their rims.
+            leg = chamfer(leg.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
             parts.append(leg)
-            parts.append(
-                Pos(foot.station, side * foot.half, foot.base - peg / 2.0)
-                * Cylinder(BAR / 2.0, peg)
-            )
 
             # Knees into every bar the leg runs into: the crossbar, inboard, and
             # each rail it has. An end leg has one rail, which is why it is the
@@ -419,13 +480,22 @@ def fit_awning(
 ) -> Part:
     """Add the bosses to the decks and bore the sockets.
 
-    The bosses stand the sockets up off the decks. A deck is solid down to the
-    outside of the hull, so a socket bored straight into it would take most of
-    its depth out of the bottom; in a boss, most of the hole is above the deck
-    and the hull under it keeps its thickness. A pair standing on a bench gets
-    its boss on the seat, so the bench has to be fitted first.
+    The bosses stand the sockets up off the decks, and that is the only
+    direction a socket can grow in. A deck is solid down to the outside of the
+    hull, so there is no bilge under one to reach; what a deeper hole runs into
+    is the side, which closes in as it falls while the uprights stand close to
+    it. See `SIDE_FLOOR`, which is checked here. In a boss, the extra depth is
+    above the deck instead, where the hull is wider, and the planking outboard
+    of the hole is untouched.
+
+    A pair standing on a bench gets its boss on the seat, so the bench has to be
+    fitted first.
+
+    The holes are square, like the legs: a round one needed the leg to step down
+    to a round peg, and the peg was the weakest section in the frame.
     """
     shape = frame(spec, lines, awning, rig)
+    factor = spec.length / lines.length
     bore = BAR + 2.0 * TOLERANCE
 
     fitted = hull
@@ -435,11 +505,26 @@ def fit_awning(
                 f"the socket at {foot.station:.0f}mm leaves only "
                 f"{foot.socket_floor - foot.bottom:.2f}mm of hull under it"
             )
+        # The planking left outboard of it, offset perpendicular to the side the
+        # way the hull measures its own wall. Taken at the socket's floor, which
+        # is where the side has closed in the furthest.
+        room = factor * inner_half_width(
+            lines,
+            foot.station / factor,
+            SIDE_FLOOR / factor,
+            foot.socket_floor / factor,
+            spec.bulge,
+        )
+        if foot.half + bore / 2.0 > room:
+            raise RuntimeError(
+                f"the socket at {foot.station:.0f}mm reaches "
+                f"{foot.half + bore / 2.0 - room:.2f}mm past the {SIDE_FLOOR}mm of planking it "
+                "must leave outboard of it"
+            )
         for side in (-1.0, 1.0):
             at = (foot.station, side * foot.half)
             fitted = as_part(
-                fitted
-                + Pos(*at, foot.deck + BOSS_HEIGHT / 2.0) * Cylinder(BOSS / 2.0, BOSS_HEIGHT),
+                fitted + Pos(*at, foot.deck + BOSS_HEIGHT / 2.0) * Box(BOSS, BOSS, BOSS_HEIGHT),
                 "setting an awning boss",
             )
     for foot in shape.feet:
@@ -449,7 +534,7 @@ def fit_awning(
             fitted = as_part(
                 fitted
                 - Pos(foot.station, side * foot.half, foot.socket_floor + depth / 2.0)
-                * Cylinder(bore / 2.0, depth),
+                * Box(bore, bore, depth),
                 "boring an awning socket",
             )
     return fitted

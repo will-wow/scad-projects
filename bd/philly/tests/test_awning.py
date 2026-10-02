@@ -20,8 +20,18 @@ os.environ.setdefault("PREVIEW", "1")
 import awning as awnings  # noqa: E402
 import details  # noqa: E402
 import rig as rigging  # noqa: E402
-from awning import BAR, BOSS_HEIGHT, FLOOR, KNEE, SOCKET_DEPTH, Awning, frame  # noqa: E402
-from hull import Deck, HullSpec  # noqa: E402
+from awning import (  # noqa: E402
+    BAR,
+    BOSS_HEIGHT,
+    FLOOR,
+    FOOT_CHAMFER,
+    KNEE,
+    SIDE_FLOOR,
+    SOCKET_DEPTH,
+    Awning,
+    frame,
+)
+from hull import Deck, HullSpec, inner_half_width  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
 
 
@@ -254,9 +264,58 @@ class TestSockets:
         bare = built_hull.bounding_box()
         assert pytest.approx(bare.max.Y, abs=1e-6) == fitted.bounding_box().max.Y
 
-    def test_a_peg_fits_its_socket_with_clearance(self):
-        """Loose enough to lift out, which is the point of the whole part."""
+    def test_a_leg_fits_its_socket_with_clearance(self):
+        """Loose enough to lift out, which is the point of the whole part. The
+        leg goes in at full section: it used to step down to a round peg here,
+        and the peg -- 3.9mm^3 of section against the leg's 6.6, with a sharp
+        shoulder on it -- is what snapped off."""
         assert (
             pytest.approx(rigging.TOLERANCE, abs=1e-9)
             == (BAR + 2.0 * rigging.TOLERANCE) / 2.0 - BAR / 2.0
         )
+
+    def test_the_socket_takes_its_depth_out_of_the_boss(self):
+        """Up is the only direction it can grow in. Every millimetre below the
+        deck costs planking outboard of the hole, since the side closes in as it
+        falls and the legs stand close to it."""
+        assert SOCKET_DEPTH - BOSS_HEIGHT <= 1.0, "the socket drops into the side"
+        assert SOCKET_DEPTH > BAR, "too little of a leg gripped to steady the frame"
+
+    def test_a_socket_leaves_planking_outboard_of_it(self, shape, lines):
+        """The guard that `fit_awning` enforces, checked against the hull itself.
+        Bored 2mm below the deck, as they were, the aft pair left 0.67mm."""
+        factor = HULL.length / lines.length
+        bore = BAR + 2.0 * rigging.TOLERANCE
+        for foot in shape.feet:
+            room = factor * inner_half_width(
+                lines,
+                foot.station / factor,
+                SIDE_FLOOR / factor,
+                foot.socket_floor / factor,
+                HULL.bulge,
+            )
+            assert foot.half + bore / 2.0 <= room, (
+                f"the socket at {foot.station:.0f}mm is too near the planking"
+            )
+
+    def test_a_foot_is_chamfered_so_it_finds_its_hole(self, part, shape):
+        """Printed roof down the feet are the last thing laid, so the chamfer
+        faces up and costs nothing. Probed on the laid-down part, where the feet
+        are at the top."""
+        top = part.bounding_box().max.Z
+        probed = 0
+        for foot in shape.feet:
+            if abs(shape.roof + BAR / 2.0 - foot.socket_floor - top) > 0.01:
+                continue
+            probed += 1
+            for side in (-1.0, 1.0):
+                # A tenth off the end, the chamfer has taken all but a tenth of
+                # itself off each face.
+                edge = BAR / 2.0 - FOOT_CHAMFER + 0.1
+                here = Vector(foot.station, side * foot.half, top - 0.1)
+                inside = Vector(foot.station + edge - 0.05, side * foot.half, top - 0.1)
+                outside = Vector(foot.station + edge + 0.05, side * foot.half, top - 0.1)
+                assert part.is_inside(here), "no foot at the top of the laid frame"
+                assert part.is_inside(inside), "the foot is chamfered away to nothing"
+                assert not part.is_inside(outside), "the foot's end was not chamfered"
+        assert probed, "no foot stands at the top of the laid frame to check"

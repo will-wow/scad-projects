@@ -759,18 +759,54 @@ of the quarterdeck's benches, which carries the frame nearly to the transom as
 the museum's model does. The two pairs before it stand on the benches, and are
 measured at the seat instead (see Part 13).
 
-### A boss keeps the socket out of the bottom
+### A boss keeps the socket out of the bottom, and out of the side
 
 The obvious thing is to bore the socket straight into the deck. But a deck is
 modelled solid from the bottom up, so the floor of that socket is the boat's
 bottom, below the waterline. On the quarterdeck there is 8.3mm of solid; a 5mm
-socket would take most of it.
+socket would take most of it. So each leg steps on a boss and the socket is
+bored into that, where the hull under the hole keeps its thickness. `fit_awning`
+refuses to build a frame whose sockets come within `FLOOR` of the outside, and a
+test checks the same thing from the other end.
 
-So each leg steps on a 3mm boss and the socket is bored into that, leaving over
-6mm of floor. `fit_awning` refuses to build a frame whose sockets come within
-2mm of the outside, and a test checks the same thing from the other end.
+That was only half the answer, and the half that is easy to see. Deepening the
+sockets to hold the frame more steadily, the obvious move was to take them down
+toward the bilge -- and there is no bilge to reach, because the deck is solid.
+What a deeper hole actually runs into is the **side**, which closes in as it
+falls while the uprights stand 2.5mm off it. At the bottom of the hull the
+inside is 3 to 4.5mm narrower than where the legs step: a socket bored to the
+bilge would come out through the planking at every one of them. Nearer to hand,
+sockets dropping 2mm below the deck -- which is what they did -- left **0.67mm**
+of planking beside the aft pair and 0.99 beside the second, in a 2mm hull, right
+where a leg levers against its hole.
 
-### The roof is planar on purpose
+So the depth went up instead of down. The boss is 8mm and the socket 8.5, which
+is 8mm of leg gripped against the 5 it had and leaves all but half a millimetre
+of the hole above the deck, where the hull is at its widest. The planking
+outboard of the worst socket went from 0.67mm to 1.9, no leg moved, and because
+the boss grew as much as the roof did the legs ended up *shorter* than before.
+`SIDE_FLOOR` is the rule now, enforced twice: `frame` caps how far outboard a
+pair may stand by what its socket allows -- the same cap bounding the seam dodge
+that already moves the bare-deck pairs -- and `fit_awning` refuses to bore a hole
+that breaks it.
+
+### Square holes, because the pegs snapped off
+
+A leg used to step down to a round peg at the boss, since the socket was bored
+with a cylinder. The step was the weakest section in the frame: 3.86mm³ against
+the leg's 6.55, with a sharp shoulder on it, at the one height where the bending
+is greatest. They snapped off in play.
+
+A square hole takes the leg itself, full section, with nothing to step down to
+-- the socket is a `Box` rather than a `Cylinder`, which is the whole change --
+so the weakest section of the leg is now the leg. The boss went square with it:
+a round pad leaves 0.7mm over a square hole's corners where a square one leaves
+1.8 all round, and it reads as a step rather than a turning. The foot is
+chamfered 0.8mm instead of tapered by a peg, which is what finds the hole when
+the frame is dropped in askew; printed roof-down the feet are the last thing
+laid, so that chamfer faces away from the bed and costs nothing.
+
+### The roof is planar on purpose, and set by standing room
 
 The sheer rises nearly 5mm toward the transom under the awning and the roof does
 not follow it — the legs absorb it instead. That is what lets the part print **roof down**, with the
@@ -778,11 +814,22 @@ roof as one flat connected first layer and the legs rising off it as plain
 columns. Following the sheer would leave one end of the roof standing 5mm off
 the bed with its crossbar hanging in air.
 
+How high it sits is `Awning.headroom`, and it is a real-world length rather than
+a fraction of anything: **six feet**, 1828.8mm at 1:1 and 33.5 here. Photographs
+of Philadelphia II, the full-size recreation, show people standing under her
+awning amidships, which is the thing the number is for. It is taken over the
+highest *deck* a pair of legs stands on -- the middle platform -- since the
+benches aft are to sit on and the quarterdeck is lower still. The roof came out
+at 44.6mm against the 41.1 a clearance over the rail used to give. Clearing the
+rail is still checked, against the highest of the sheer under the frame rather
+than its average, but it is now a guard rather than the rule.
+
 The side rails are a polyline through the leg tops.
 
 ### Knees, because a dropped boat snapped a leg off
 
-A leg is 3.4mm square and up to 30mm long, and its root is where the bars stop:
+A leg is 3.4mm square and stands up to 28.5mm free above its boss, and its root
+is where the bars stop:
 a sharp step, at a layer interface, bending across the layers. Section modulus
 6.55mm³, so the tip breaks at about 7N and stores some 6mJ of elastic energy
 first. A metre drop of a 33g boat is 320mJ. The arithmetic says plainly that no
