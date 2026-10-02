@@ -824,10 +824,16 @@ A square hole takes the leg itself, full section, with nothing to step down to
 -- the socket is a `Box` rather than a `Cylinder`, which is the whole change --
 so the weakest section of the leg is now the leg. The boss went square with it:
 a round pad leaves 0.7mm over a square hole's corners where a square one leaves
-1.8 all round, and it reads as a step rather than a turning. The foot is
-chamfered 0.8mm instead of tapered by a peg, which is what finds the hole when
-the frame is dropped in askew; printed roof-down the feet are the last thing
-laid, so that chamfer faces away from the bed and costs nothing.
+1.8 all round, and it reads as a step rather than a turning.
+
+The lead-in is in two halves, because ten legs have to find ten holes at once.
+The foot is chamfered 0.8mm, which printed roof-down is the last thing laid, so
+it faces away from the bed and costs nothing. The mouth of the socket is
+chamfered 0.6mm to meet it, which printed the hull's way up flares as it rises,
+so each layer of the boss sits on a wider one and there is nothing to bridge.
+The mouth's is the smaller of the two only because it is cut out of the boss's
+collar, which is 1.5mm thick to begin with and keeps 0.9 of that. Together they
+open the hole from 4.0mm to 5.2 and let a pair go in a millimetre out of true.
 
 ### The roof is planar on purpose, and set by standing room
 

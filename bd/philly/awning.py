@@ -30,6 +30,7 @@ from build123d import (
     Plane,
     Polygon,
     Pos,
+    Rectangle,
     Rot,
     chamfer,
     extrude,
@@ -78,9 +79,13 @@ BOSS = 7.0
 SOCKET_DEPTH = 8.5
 SOCKET_DROP = 0.5
 
-# How far the chamfer on a leg's foot runs back up it, so the leg finds its
-# socket when the frame is dropped in slightly out of place.
+# The two halves of the lead-in: how far the chamfer on a leg's foot runs back
+# up it, and how far the one round the mouth of its socket runs down. Between
+# them a pair dropped in a millimetre out of true still finds its holes rather
+# than standing on their rims. The mouth's is the smaller of the two because it
+# is cut out of the boss's collar, which is only 1.5mm thick to begin with.
 FOOT_CHAMFER = 0.8
+MOUTH_CHAMFER = 0.6
 
 # The least an upright stands off the inside of the hull.
 SIDE_GAP = 0.3
@@ -540,10 +545,13 @@ def fit_awning(
         for side in (-1.0, 1.0):
             # A hair proud of the boss so the cut does not end on its top face.
             depth = SOCKET_DEPTH + 1.0
-            fitted = as_part(
-                fitted
-                - Pos(foot.station, side * foot.half, foot.socket_floor + depth / 2.0)
-                * Box(bore, bore, depth),
-                "boring an awning socket",
+            place = (foot.station, side * foot.half)
+            hole = Pos(*place, foot.socket_floor + depth / 2.0) * Box(bore, bore, depth)
+            # And the mouth chamfered, which is the hull's half of the lead-in.
+            # It flares going up, so each layer of the boss sits on a wider one
+            # and there is nothing here for the printer to bridge.
+            mouth = Pos(*place, foot.base - MOUTH_CHAMFER) * extrude(
+                Rectangle(bore, bore), amount=MOUTH_CHAMFER, taper=-45.0
             )
+            fitted = as_part(fitted - hole - mouth, "boring an awning socket")
     return fitted

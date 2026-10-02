@@ -160,8 +160,9 @@ its outer lip on the round with nothing under it. The knees on the two necked cr
 since the canvas's eye comes down into that square.
 
 Each leg now runs into its socket at full section rather than stepping down to a
-round peg, and **its foot is chamfered 0.8mm** so the frame finds its holes when
-it is dropped in slightly askew. The feet are the last thing the printer lays,
+round peg, and **its foot is chamfered 0.8mm** against a **0.6mm chamfer round
+the mouth of each socket**, so the frame finds its holes when it is dropped in
+slightly askew. The feet are the last thing the printer lays,
 at the top of the part, so the chamfer faces up and asks nothing of it -- but it
 does mean the very tips are small and want the same slow walls the leg tops do.
 
