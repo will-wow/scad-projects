@@ -68,7 +68,9 @@ def knee_section(edge: float) -> float:
 # The step each upright is socketed into, how deep the socket is bored, and how
 # far it reaches below the deck. Square, like the socket and the leg it takes: a
 # round pad leaves only 0.7mm over a square hole's corners, where a square one
-# leaves 1.8 all round.
+# leaves 1.8 all round. Its upright corners are rounded off, which is kinder to
+# a hand and quicker to print, and which also buys back a little of the room the
+# side of the boat takes away from it -- see `_pad`.
 #
 # The depth is what steadies the frame; the drop is only so the cut does not end
 # on the deck's own face, because down is the one direction a socket cannot grow
@@ -76,6 +78,7 @@ def knee_section(edge: float) -> float:
 # deck it gives most of that depth itself, so a pair standing on one shows a
 # 1.8mm pad rather than an 8mm block, for exactly the same hold.
 BOSS = 7.0
+BOSS_ROUND = 1.0
 SOCKET_DEPTH = 8.5
 SOCKET_DROP = 0.5
 
@@ -89,6 +92,12 @@ MOUTH_CHAMFER = 0.6
 
 # The least an upright stands off the inside of the hull.
 SIDE_GAP = 0.3
+
+# How far inside the planking a boss must keep. Not `SIDE_FLOOR`, which is a
+# socket's rule: a hole takes material away and wants some left beside it, while
+# a boss puts material in and only has to stop short of the surface. A token
+# margin, so it beds into the planking rather than meeting it tangentially.
+SKIN = 0.2
 
 # Material that must be left under a socket. A deck is solid from the bottom of
 # the hull up, so a socket's floor is also the hull's bottom, and anything
@@ -109,7 +118,7 @@ SIDE_FLOOR = 1.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    legs: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82, 0.895)
+    legs: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82, 0.885)
     """where the pairs of uprights stand, which is also where the frame ends
 
     The first two pairs stand between the middle platform's knees, the second
@@ -118,9 +127,14 @@ class Awning:
     carries the frame nearly to the transom as the museum's model has it.
     Further aft the hull closes in fast -- the inside narrows from 15mm of
     half-width at 0.90 to 11mm at 0.92 -- and legs there pinch the frame to a
-    point. At 0.895 rather than 0.90: dodging the quarterdeck's seams moves the
-    pair 1.1mm outboard there, which the upright has room for. At 0.90 it had
-    none, and the pair was pulled 1.6mm inboard instead.
+    point. At 0.885 rather than 0.895 or 0.90, and the reason is the boss rather
+    than the upright. Dodging the quarterdeck's seams moves this pair outboard,
+    which the upright has room for at any of the three; the boss round its socket
+    does not, and at 0.895 its corner nearest the transom stood 1.1mm outside
+    the planking. Pulling the pair in instead is no good, because the next place
+    clear of the seams is 3.6mm in and pinches the frame. Three millimetres
+    forward costs nothing and the pair stays where it was, 13.6mm off the
+    centreline.
     """
     headroom: float = 1828.8
     """standing room under the roof, in real-world millimetres: six feet
@@ -209,6 +223,33 @@ class Frame:
         return float(np.interp(station, [n[0] for n in self.nodes], [n[1] for n in self.nodes]))
 
 
+# Points round the outboard half of a boss, for measuring it against the side.
+PAD_SAMPLES = 9
+
+
+def _pad(half: float, round_: float) -> list[tuple[float, float]]:
+    """The outboard edge of a boss in plan: a square with its corners rounded.
+
+    As (along, outboard) offsets from the socket's centre. Only the outboard
+    half, since that is the side the planking is on.
+
+    This is sampled rather than measured at one station because the side of the
+    boat falls away in plan as well as in section. The after pair stands where it
+    falls away fastest: its boss's corner nearest the transom reached 2.1mm
+    outside the planking and printed as a blister on the hull. Measured at the
+    station alone -- which is what the socket needs, being narrow -- the boss
+    looked as though it fitted.
+    """
+    straight = half - round_
+    edge = [(along, half) for along in np.linspace(-straight, straight, PAD_SAMPLES)]
+    for side in (-1.0, 1.0):
+        turn = np.linspace(0.0, np.pi / 2.0, PAD_SAMPLES)
+        edge += [
+            (side * (straight + round_ * np.sin(t)), straight + round_ * np.cos(t)) for t in turn
+        ]
+    return [(float(along), float(out)) for along, out in edge]
+
+
 def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     """One pair of uprights solved against the hull, with the height of its deck.
 
@@ -247,6 +288,16 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     # the deck, that decides how far outboard a leg may stand if `SIDE_FLOOR` of
     # planking is to be left outboard of the hole.
     cap = tightest(floor, SIDE_FLOOR) - (BAR + 2.0 * TOLERANCE) / 2.0
+    # The pad round the socket is wider than the hole and reaches further fore
+    # and aft, so it is the boss, not the socket, that the side of the boat
+    # catches first. Taken at the boss's own foot, the lowest it stands.
+    cap = min(
+        cap,
+        min(
+            hull.inside(station + along, step, SKIN) - out
+            for along, out in _pad(BOSS / 2.0, BOSS_ROUND)
+        ),
+    )
     room = cap - half
     if seat is None:
         # On bare deck the boss must not end hard by a seam, and dodging one must
@@ -508,6 +559,9 @@ def fit_awning(
 
     The holes are square, like the legs: a round one needed the leg to step down
     to a round peg, and the peg was the weakest section in the frame.
+
+    Nothing here is clipped to the hull: `frame` has already pulled each pair in
+    far enough that its boss fits. See `_pad`.
     """
     shape = frame(spec, lines, awning, rig)
     at = Scaled(spec, lines)
@@ -537,8 +591,10 @@ def fit_awning(
             )
         for side in (-1.0, 1.0):
             place = (foot.station, side * foot.half)
+            boss = Box(BOSS, BOSS, foot.boss)
+            boss = fillet(boss.edges().filter_by(Axis.Z), BOSS_ROUND)
             fitted = as_part(
-                fitted + Pos(*place, foot.step + foot.boss / 2.0) * Box(BOSS, BOSS, foot.boss),
+                fitted + Pos(*place, foot.step + foot.boss / 2.0) * boss,
                 "setting an awning boss",
             )
     for foot in shape.feet:
