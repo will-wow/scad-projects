@@ -53,15 +53,16 @@ KNEE_REACH = 15.6
 """how far the low arm runs inboard of the inside face"""
 KNEE_TAPER = 3.7
 """the low arm's last stretch, sloping down to the deck"""
-KNEE_THICK = (2.3, 1.6)
-"""the tall arm's thickness, at the foot of its curve and at its top"""
+KNEE_MOULDED = (2.3, 1.6)
+"""the tall arm, moulded, at the foot of its curve and at its top"""
 KNEE_SIDING = 1.6
-KNEE_RADIUS = 5.0
-"""the curve inside the elbow"""
+KNEE_THROAT = 5.0
+"""the radius of the curve at the throat, the knee's inside corner"""
 
 # The cross-beam across each end of a knee'd platform, flush with its edge.
-BEAM = 2.5
-BEAM_HEIGHT = 1.9
+# Sided fore and aft, moulded in depth, as any timber is.
+BEAM_SIDING = 2.5
+BEAM_MOULDED = 1.9
 
 # The quarterdeck benches: the scan puts the seat 340mm above the deck and
 # 420-540mm out from the side, which is 6.2 and 7.7-9.9 here.
@@ -104,21 +105,21 @@ def knee(hull: Scaled, x: float, side: int, platform: Deck) -> Part:
     deck = hull.deck(platform)
     top = hull.sheer(x) - KNEE_BELOW_RAIL
     arm = deck + KNEE_ARM
-    elbow = arm + KNEE_RADIUS
-    if top <= elbow:
+    throat = arm + KNEE_THROAT
+    if top <= throat:
         raise ValueError(f"the bulwark at {x:.1f}mm is too low for a knee")
 
-    def thickness(z: float) -> float:
-        return KNEE_THICK[0] + (KNEE_THICK[1] - KNEE_THICK[0]) * (z - elbow) / (top - elbow)
+    def moulded(z: float) -> float:
+        return KNEE_MOULDED[0] + (KNEE_MOULDED[1] - KNEE_MOULDED[0]) * (z - throat) / (top - throat)
 
     tall = [
-        (hull.inside(x, float(z)) - thickness(float(z)), float(z))
-        for z in np.linspace(top, elbow, SIDE_POINTS)
+        (hull.inside(x, float(z)) - moulded(float(z)), float(z))
+        for z in np.linspace(top, throat, SIDE_POINTS)
     ]
-    # The elbow's curve, from the tall arm's inside face round onto the low arm's top.
-    corner = tall[-1][0] - KNEE_RADIUS
+    # The throat's curve, from the tall arm's inside face round onto the low arm's top.
+    corner = tall[-1][0] - KNEE_THROAT
     curve = [
-        (corner + KNEE_RADIUS * np.cos(t), elbow + KNEE_RADIUS * np.sin(t))
+        (corner + KNEE_THROAT * np.cos(t), throat + KNEE_THROAT * np.sin(t))
         for t in np.linspace(0.0, -np.pi / 2.0, 7)[1:]
     ]
     face = hull.inside(x, deck)
@@ -138,13 +139,13 @@ def knee(hull: Scaled, x: float, side: int, platform: Deck) -> Part:
 
 
 def beam(hull: Scaled, x: float, deck: float) -> Part:
-    """A cross-beam from `x` aft by `BEAM`, side to side on the deck at height `deck`."""
-    top = deck + BEAM_HEIGHT
+    """A cross-beam from `x` aft by its siding, side to side on the deck at height `deck`."""
+    top = deck + BEAM_MOULDED
     # The narrower of its two faces, so it reaches into the side at both.
-    near = min((x, x + BEAM), key=lambda s: hull.inside(s, deck))
+    near = min((x, x + BEAM_SIDING), key=lambda s: hull.inside(s, deck))
     starboard = _side(hull, near, deck - SINK, top)
     profile = [*starboard, *((-y, z) for y, z in reversed(starboard))]
-    return _transverse(profile, x, 1, BEAM)
+    return _transverse(profile, x, 1, BEAM_SIDING)
 
 
 def bench(hull: Scaled, start: float, end: float, deck: float, side: int) -> Part:
@@ -190,8 +191,8 @@ def _platform_knees(hull: Scaled, spec: HullSpec) -> tuple[list[Part], list[tupl
         length = hull.station(1.0) - hull.station(0.0)
         for edge, inward in ((platform.start, 1.0), (platform.end, -1.0)):
             x = hull.station(edge)
-            beams.append(beam(hull, x if inward > 0 else x - BEAM, height))
-            middle = (x + inward * BEAM / 2.0 - hull.station(0.0)) / length
+            beams.append(beam(hull, x if inward > 0 else x - BEAM_SIDING, height))
+            middle = (x + inward * BEAM_SIDING / 2.0 - hull.station(0.0)) / length
             knees += [(Knee(middle, s), platform) for s in (-1, 1)]
     knees += [(k, _deck_at(spec, k.station)) for k in spec.knees]
     return beams, knees

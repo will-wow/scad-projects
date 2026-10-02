@@ -105,7 +105,7 @@ def test_each_end_of_the_platform_has_a_beam(hull, at):
     deck = at.deck(platform)
     for x in (at.station(platform.start) + 1.25, at.station(platform.end) - 1.25):
         assert _solid(hull, x, 0.0, deck + 1.5)
-        assert not _solid(hull, x, 0.0, deck + details.BEAM_HEIGHT + 0.3)
+        assert not _solid(hull, x, 0.0, deck + details.BEAM_MOULDED + 0.3)
 
 
 @pytest.mark.parametrize("side", [-1, 1])
