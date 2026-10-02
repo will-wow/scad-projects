@@ -30,6 +30,7 @@ from awning import (  # noqa: E402
     SOCKET_DEPTH,
     Awning,
     frame,
+    knee_section,
 )
 from hull import Deck, HullSpec, inner_half_width  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
@@ -133,12 +134,45 @@ class TestFrame:
                     at = corner + bar.normalized() * step
                     assert upright.is_inside(at), f"a bar at {foot.station:.0f}mm has no knee"
 
+    def test_a_knee_sits_on_the_flat_of_its_bar(self):
+        """As wide as the bar, a knee stood its outer edge on the bar's rounded
+        corner and left a lip hanging over nothing."""
+        assert knee_section(AWNING.edge) == pytest.approx(BAR - 2.0 * AWNING.edge, abs=1e-9)
+
+    def test_knees_cross_inside_their_leg_rather_than_in_the_air(self, shape):
+        """Two slabs of half-width w meeting at an angle t overlap out to
+        w / sin(t/2) from the leg's centre. Past the leg's half-diagonal that
+        crossing is in open air, and the two hypotenuses leave a spike where they
+        cut each other. The tightest angle here is 64 degrees, where a rail meets
+        the crossbar on the trapezoid stretch aft.
+        """
+        reach = knee_section(AWNING.edge) / 2.0
+        buried = BAR / 2.0 * math.sqrt(2.0)
+        nodes = list(shape.nodes)
+        for index, foot in enumerate(shape.feet):
+            for side in (-1.0, 1.0):
+                beside = [nodes[i] for i in (index - 1, index + 1) if 0 <= i < len(nodes)]
+                bearings = sorted(
+                    [-90.0 * side]
+                    + [
+                        math.degrees(math.atan2(side * (h - foot.half), x - foot.station))
+                        for x, h in beside
+                    ]
+                )
+                for lower, upper in zip(bearings, bearings[1:], strict=False):
+                    gap = upper - lower
+                    crossing = reach / math.sin(math.radians(gap) / 2.0)
+                    assert crossing <= buried, (
+                        f"knees {gap:.0f} degrees apart at {foot.station:.0f}mm "
+                        f"cross {crossing:.2f}mm out, past the leg's {buried:.2f}mm"
+                    )
+
     def test_a_knee_is_a_taper_rather_than_a_block(self, upright, shape):
         """Its hypotenuse leans 45 degrees, so laid roof-down each layer of it is
         smaller than the one beneath and there is nothing to bridge. Checked on a
         rail knee, which is the one that gets the full reach."""
         foot = shape.feet[2]
-        reach = KNEE + BAR / 2.0
+        reach = KNEE + BAR / 2.0  # probed down the bar's centreline, where the knee is
         for step, deep, wanted in ((0.45 * reach, 0.45, True), (0.55 * reach, 0.55, False)):
             at = Vector(foot.station - step, foot.half, shape.roof - BAR / 2.0 - deep * reach)
             assert upright.is_inside(at) == wanted, f"the taper is wrong {step:.1f}mm along"

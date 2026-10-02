@@ -853,6 +853,32 @@ The two necked crossbars are the exception -- the canvas's eye comes down into
 that square, so those knees stop at the neck's end and are a chamfer rather than
 a brace. The stress concentration was most of the benefit anyway.
 
+### How wide a knee is, and why that was two bugs
+
+As wide as the bar, which was the obvious thing, a knee is wider than the bar's
+*flat*: the bars are rounded 0.6mm along their long edges, so the outer 0.6 of
+the knee on each side stood on the round with nothing under it, and the first
+render showed the lip. Narrowing it to `BAR - 2 * edge`, 2.2mm, puts it on the
+flat.
+
+That fixed a second thing nobody had connected to it. Knees meet at a leg from
+the directions its bars run, and two slabs of half-width w crossing at an angle
+t overlap out to `w / sin(t/2)` from the leg's centre. The tightest angle in
+this frame is 64 degrees, where a rail meets the crossbar at the fourth pair,
+on the trapezoid stretch where the sides come in fast. At the bar's full width
+that overlap reaches 3.2mm -- past the leg's own half-diagonal of 2.4 -- so the
+two hypotenuses crossed in open air and left a spike standing off the post,
+5.9mm³ of it. At the flat's width it reaches 2.07mm and the whole crossing is
+buried inside the leg. One number, both symptoms.
+
+The cost is that a knee is a third thinner than it was, so it braces a little
+less than the full-width one did. The strips either side of it are not bare,
+though: that is exactly where the bar's own fillet is, which is the rounding
+that made the knee too wide in the first place.
+
+A test keeps it honest, because the margin is the frame's and not the knee's --
+2.07mm against 2.4 is 0.33mm to spare, and moving a pair of legs could spend it.
+
 ## Part 12: the guns
 
 [`guns.py`](guns.py) puts three guns in the boat: the 12-pounder in the bow,
