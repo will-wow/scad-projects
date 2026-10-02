@@ -781,15 +781,37 @@ sockets dropping 2mm below the deck -- which is what they did -- left **0.67mm**
 of planking beside the aft pair and 0.99 beside the second, in a 2mm hull, right
 where a leg levers against its hole.
 
-So the depth went up instead of down. The boss is 8mm and the socket 8.5, which
-is 8mm of leg gripped against the 5 it had and leaves all but half a millimetre
-of the hole above the deck, where the hull is at its widest. The planking
-outboard of the worst socket went from 0.67mm to 1.9, no leg moved, and because
-the boss grew as much as the roof did the legs ended up *shorter* than before.
-`SIDE_FLOOR` is the rule now, enforced twice: `frame` caps how far outboard a
-pair may stand by what its socket allows -- the same cap bounding the seam dodge
-that already moves the bare-deck pairs -- and `fit_awning` refuses to bore a hole
-that breaks it.
+So the depth went up instead of down. The socket is 8.5mm deep and drops only
+`SOCKET_DROP`, half a millimetre, below the deck -- just enough that the cut does
+not end on the deck's own face. Everything between that floor and whatever the
+pair stands on is boss. That is 8mm of leg gripped against the 5 it had; the
+planking outboard of the worst socket went from 0.67mm to 1.9, no leg moved, and
+because the boss grew as much as the roof did the legs ended up *shorter* than
+before. `SIDE_FLOOR` is the rule now, enforced twice: `frame` caps how far
+outboard a pair may stand by what its socket allows -- the same cap bounding the
+seam dodge that already moves the bare-deck pairs -- and `fit_awning` refuses to
+bore a hole that breaks it.
+
+### A bench is depth that costs nothing to show
+
+Two pairs stand on the quarterdeck's benches, and an 8mm block on a seat is a
+great deal more of the boat than an 8mm block on a deck: it starts 6.2mm higher
+up and there is nothing around it. They dominated the model.
+
+The fix is that a socket is bored from the **deck**, wherever the pair happens to
+step. On bare deck that is the whole 8mm of boss as before. On a bench, the
+bench's own 6.2mm of solid timber is the first 6.2mm of the hole, so the boss is
+only what is left over: **1.8mm**, a pad rather than a block, for exactly the
+same 8.5mm of grip. `Foot` carries both heights for this -- `deck`, which the
+socket is bored into, and `step`, which the pair stands on -- and `Foot.boss` is
+the difference.
+
+It is not free. The hole now bottoms at 9.33mm instead of 15.53, six millimetres
+lower, where the side has closed in; the cap pulls that pair 0.6mm inboard to
+keep `SIDE_FLOOR`, and their planking goes from 2.8mm to 1.4. And the leg is
+free for 28.47mm rather than 22.27, since it leaves its socket lower down --
+which is worth knowing but not worth much, because that is exactly the length the
+aft pair has always been. No leg is longer than the longest already was.
 
 ### Square holes, because the pegs snapped off
 

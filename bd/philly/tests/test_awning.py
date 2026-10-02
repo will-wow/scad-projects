@@ -22,12 +22,12 @@ import details  # noqa: E402
 import rig as rigging  # noqa: E402
 from awning import (  # noqa: E402
     BAR,
-    BOSS_HEIGHT,
     FLOOR,
     FOOT_CHAMFER,
     KNEE,
     SIDE_FLOOR,
     SOCKET_DEPTH,
+    SOCKET_DROP,
     Awning,
     frame,
     knee_section,
@@ -86,7 +86,8 @@ class TestFrame:
     def test_the_legs_stand_on_the_decks(self, shape):
         for foot in shape.feet:
             assert foot.deck > 0.0
-            assert foot.base - foot.deck == pytest.approx(BOSS_HEIGHT, abs=1e-9)
+            assert foot.step >= foot.deck, "a pair steps on its deck or on a bench over it"
+            assert foot.base - foot.socket_floor == pytest.approx(SOCKET_DEPTH, abs=1e-9)
 
     def test_a_leg_over_open_bilge_is_refused(self, lines):
         """There would be nothing to bore a socket into."""
@@ -274,7 +275,7 @@ class TestSockets:
         for foot in shape.feet:
             for side in (-1.0, 1.0):
                 bore = Vector(foot.station, side * foot.half, foot.base - SOCKET_DEPTH / 2.0)
-                beside = Vector(foot.station, side * foot.half + BAR, foot.deck + 1.0)
+                beside = Vector(foot.station, side * foot.half + BAR, foot.step + 1.0)
                 assert not fitted.is_inside(bore), "the socket was not bored"
                 assert fitted.is_inside(beside), "there is no boss around the socket"
 
@@ -294,12 +295,26 @@ class TestSockets:
             == (BAR + 2.0 * rigging.TOLERANCE) / 2.0 - BAR / 2.0
         )
 
-    def test_the_socket_takes_its_depth_out_of_the_boss(self):
-        """Up is the only direction it can grow in. Every millimetre below the
-        deck costs planking outboard of the hole, since the side closes in as it
-        falls and the legs stand close to it."""
-        assert SOCKET_DEPTH - BOSS_HEIGHT <= 1.0, "the socket drops into the side"
+    def test_a_socket_drops_only_far_enough_to_clear_the_deck(self):
+        """Down is the one direction it cannot grow in: every millimetre below
+        the deck costs planking beside the hole, since the side closes in as it
+        falls and the legs stand close to it. The drop is there only so the cut
+        does not end on the deck's own face."""
+        assert SOCKET_DROP < 1.0, "the socket drops into the side"
         assert SOCKET_DEPTH > BAR, "too little of a leg gripped to steady the frame"
+
+    def test_a_bench_gives_its_pair_most_of_their_socket(self, shape):
+        """A pair on a bench is socketed through it rather than onto it: the hole
+        is bored from the deck like every other, so the bench's own height is
+        depth that costs nothing to show. The boss is only what is left over, and
+        an 8mm block on the seat becomes a pad."""
+        on_bench = [f for f in shape.feet if f.step > f.deck]
+        on_deck = [f for f in shape.feet if f.step == f.deck]
+        assert on_bench and on_deck, "the frame should have some of each"
+        for foot in on_bench:
+            assert foot.boss < 0.5 * min(f.boss for f in on_deck), "the bench hides nothing"
+            assert foot.boss > 0.0, "the socket has no boss left to bore into"
+            assert foot.base - foot.socket_floor == pytest.approx(SOCKET_DEPTH, abs=1e-9)
 
     def test_a_socket_leaves_planking_outboard_of_it(self, shape, lines):
         """The guard that `fit_awning` enforces, checked against the hull itself.

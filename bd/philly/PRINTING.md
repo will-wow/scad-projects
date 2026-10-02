@@ -134,6 +134,12 @@ clipped back on far more than anything else on the boat, and PETG takes
 repeated bending much better than PLA, which whitens at the fold and then
 snaps.
 
+The two pairs of legs that land on the quarterdeck's benches are socketed
+through the bench rather than onto it, so their bosses show 1.8mm above the seat
+instead of 8: the bench is the rest of the hole. Those two sockets are bored
+deeper into the hull than the others, and leave about 1.4mm of planking beside
+them, so they are the ones to look at if a side ever prints thin there.
+
 The awning frame is exported **roof down**, which is the whole reason its roof
 is a flat plane rather than following the sheer. That way the roof is the first
 layer -- one connected grid, well stuck to the bed -- and the ten legs rise
