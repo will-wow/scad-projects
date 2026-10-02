@@ -835,6 +835,38 @@ The mouth's is the smaller of the two only because it is cut out of the boss's
 collar, which is 1.5mm thick to begin with and keeps 0.9 of that. Together they
 open the hole from 4.0mm to 5.2 and let a pair go in a millimetre out of true.
 
+### A boss has its own rule about the side
+
+`SIDE_FLOOR` is a socket's rule: a hole takes material away, so some has to be
+left beside it. A boss is the opposite -- it puts material in -- and it only has
+to stop short of the surface. `SKIN`, a fifth of a millimetre, is that: enough
+that a boss beds into the planking rather than meeting it tangentially.
+
+It needs its own check because a boss is wider than the socket inside it and
+reaches further fore and aft, and the side of the boat falls away in plan as
+well as in section. Measured at its station, as the narrow socket is, the after
+pair's boss looked as though it fitted; its corner nearest the transom stood
+1.1mm **outside** the planking and printed as a blister on the hull. So `_pad`
+samples round the boss's own outline instead, and `frame` caps the pair by the
+worst of it.
+
+The beam does not catch this. That pair stands nowhere near the widest part of
+the boat, so the blister left `max.Y` exactly where it was, and the test that
+had been watching the beam since the first socket was bored went on passing. The
+test now subtracts the bare hull's own outer loft, which is the only honest
+judge; a build cannot afford that loft, but a test can.
+
+Pulling the pair straight in was no good either. The quarterdeck's seams mean a
+boss has only certain places it can land -- see `clear_of_seams` -- and the next
+one clear of them is 3.6mm inboard, which pinches the frame to a point. Three
+millimetres **forward** instead, 0.895 to 0.885, costs nothing and leaves the
+pair 14.1mm off the centreline, half a millimetre wider than it was.
+
+The boss's upright corners are rounded 1mm along the way, which is kinder to a
+hand and quicker to print, and buys back 0.4mm of the room the side takes away.
+It does not solve it on its own -- even a fully round boss still wants 0.6mm --
+but it is worth having for its own sake.
+
 ### The roof is planar on purpose, and set by standing room
 
 The sheer rises nearly 5mm toward the transom under the awning and the roof does

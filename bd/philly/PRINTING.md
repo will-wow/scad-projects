@@ -134,6 +134,9 @@ clipped back on far more than anything else on the boat, and PETG takes
 repeated bending much better than PLA, which whitens at the fold and then
 snaps.
 
+The bosses' upright corners are rounded 1mm, which is one fewer sharp edge to
+handle and a little less for the slicer to walk round.
+
 The two pairs of legs that land on the quarterdeck's benches are socketed
 through the bench rather than onto it, so their bosses show 1.8mm above the seat
 instead of 8: the bench is the rest of the hole. Those two sockets are bored

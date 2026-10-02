@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import math
 import os
+from dataclasses import replace
 
 import pytest
 from build123d import Vector
@@ -23,6 +24,7 @@ import rig as rigging  # noqa: E402
 from awning import (  # noqa: E402
     BAR,
     BOSS,
+    BOSS_ROUND,
     FLOOR,
     FOOT_CHAMFER,
     KNEE,
@@ -34,7 +36,7 @@ from awning import (  # noqa: E402
     frame,
     knee_section,
 )
-from hull import Deck, HullSpec, inner_half_width  # noqa: E402
+from hull import Deck, HullSpec, build, inner_half_width  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
 
 
@@ -304,6 +306,37 @@ class TestSockets:
         mouth = BAR + 2.0 * rigging.TOLERANCE + 2.0 * MOUTH_CHAMFER
         assert (BOSS - mouth) / 2.0 >= 0.8, "the chamfer eats the boss's collar"
         assert MOUTH_CHAMFER < FOOT_CHAMFER
+
+    def test_nothing_it_adds_stands_outside_the_hull(self, fitted, lines):
+        """A boss is wider than its socket and reaches further fore and aft, and
+        the side of the boat falls away in plan as well as in section. The after
+        pair's boss put its corner nearest the transom 1.1mm outside the
+        planking, which prints as a blister on the outside of the hull.
+
+        The beam will not catch it: that pair stands nowhere near the widest part
+        of the boat, so the blister left `max.Y` untouched. The bare hull's own
+        outer loft is the only honest judge, and a test can afford to build one.
+        """
+        outline = build(replace(HULL, wall=0.0), lines)
+        assert (fitted - outline).volume == pytest.approx(0.0, abs=1e-6)
+
+    def test_a_boss_has_its_upright_corners_rounded(self, fitted, shape):
+        """Kinder to a hand and quicker to print, and it buys back a little of
+        the room the side of the boat takes away from the after pair."""
+        assert 0.0 < BOSS_ROUND < BOSS / 2.0
+        # A rounded corner's furthest point along the diagonal, per axis.
+        reach = BOSS / 2.0 - BOSS_ROUND * (1.0 - math.sqrt(0.5))
+        for foot in shape.feet:
+            for side in (-1.0, 1.0):
+                # Probed on the inboard corners: the outboard ones are buried in
+                # the side of the boat, where everything reads as solid.
+                middle = foot.step + foot.boss / 2.0
+                corner = Vector(
+                    foot.station + reach + 0.1, side * (foot.half - reach - 0.1), middle
+                )
+                flat = Vector(foot.station, side * (foot.half - BOSS / 2.0 + 0.1), middle)
+                assert not fitted.is_inside(corner), "the boss still has a square corner"
+                assert fitted.is_inside(flat), "the rounding ate the boss's flat"
 
     def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, built_hull):
         assert fitted.is_valid
