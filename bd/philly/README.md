@@ -5,7 +5,10 @@ A 3D-printable model of the Continental gunboat USS Philadelphia, built with
 
 For a tour of how the model is put together -- and how to point it at a
 different boat -- see [HOW-IT-WORKS.md](HOW-IT-WORKS.md). For slicer settings,
-flotation and ballast, see [PRINTING.md](PRINTING.md).
+flotation and ballast, see [PRINTING.md](PRINTING.md). The parts are named as an
+18th-century shipwright named them: [vocabulary.md](vocabulary.md) is what this
+boat calls things, and [SHIPWRIGHTS-GLOSSARY.md](SHIPWRIGHTS-GLOSSARY.md) is the
+fuller glossary behind it.
 
 ## Setup
 

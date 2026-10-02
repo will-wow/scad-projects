@@ -14,6 +14,10 @@ Read this before naming anything new. If a word is not here and you are unsure,
 prefer plain English over a nautical-sounding guess — the false friends below are
 all words that *sound* right and are not.
 
+This file is the decided house style for *this* boat. The fuller reference, with
+the ship-scale terms she never had, the rigging and sailmaking vocabulary, the
+lofting words and the dates, is [SHIPWRIGHTS-GLOSSARY.md](SHIPWRIGHTS-GLOSSARY.md).
+
 ## Confidence
 
 | Code | Meaning |

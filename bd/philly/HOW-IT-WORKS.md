@@ -1340,6 +1340,8 @@ stations. `_side_profile` stays the only thing that changes.
 | [`assembly.py`](assembly.py) | the parts put together, for looking at |
 | [`tests/`](tests) | geometry assertions |
 | [`PRINTING.md`](PRINTING.md) | slicer settings, flotation, ballast |
+| [`vocabulary.md`](vocabulary.md) | what this boat's parts are called, and why |
+| [`SHIPWRIGHTS-GLOSSARY.md`](SHIPWRIGHTS-GLOSSARY.md) | the fuller 18th-c. glossary, for the next model |
 
 Line links point at the current commit and will drift; the function names are
 the durable part.
