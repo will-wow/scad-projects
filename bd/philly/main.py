@@ -24,7 +24,7 @@ from preview import preview_mode
 
 HULL = HullSpec(
     length=300.0,  # printed length, mm (source data is the real 16.4m boat)
-    wall=2.0,  # wall thickness, mm
+    planking=2.0,  # planking thickness, mm
     # Sections in the loft. Only smoothness depends on this -- the hull's
     # dimensions and its solid bow and stern plugs are solved from the geometry
     # -- so a preview can afford far fewer and still show the real shape.

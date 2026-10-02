@@ -67,7 +67,7 @@ def open_hull(lines):
 @pytest.fixture(scope="session")
 def solid_hull(lines):
     """No cavity at all -- the outer loft on its own."""
-    return build(HullSpec(stations=STATIONS, wall=0.0), lines)
+    return build(HullSpec(stations=STATIONS, planking=0.0), lines)
 
 
 @pytest.fixture(scope="session")

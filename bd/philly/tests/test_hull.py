@@ -104,8 +104,8 @@ def test_wall_is_the_thickness_asked_for(open_hull, lines):
         y_chine = lines.chine_half_width.value(source) * factor
         z_chine = lines.chine_height.value(source) * factor
         slant = float(np.hypot(y_sheer - y_chine, z_sheer - z_chine))
-        # A U of wall thickness t: the floor, both sides, less the corners.
-        expected = (2 * y_chine + 2 * slant) * spec.wall - 2 * spec.wall**2
+        # A U of planking thickness t: the floor, both sides, less the corners.
+        expected = (2 * y_chine + 2 * slant) * spec.planking - 2 * spec.planking**2
         assert _section_area(open_hull, x) == pytest.approx(expected, rel=0.06)
 
 
@@ -117,13 +117,13 @@ def test_cavity_ends_do_not_move_with_the_station_count(lines):
     moving with a setting that is supposed to be cosmetic."""
     spec = HullSpec()
     factor = spec.length / lines.length
-    wall = spec.wall / factor
+    planking = spec.planking / factor
     bow = _bow(lines)
     x0, x1 = lines.span
     spans = set()
     for count in (8, 12, 24, 48):
         stations = _station_positions(x0, x1, count)
-        first, last = _cavity_span(lines, wall, float(stations[0]), float(stations[-1]), bow)
+        first, last = _cavity_span(lines, planking, float(stations[0]), float(stations[-1]), bow)
         spans.add((round(first, 3), round(last, 3)))
     assert len(spans) == 1, f"cavity extent moved with the station count: {spans}"
 
@@ -142,7 +142,7 @@ class TestDecks:
             rail = lines.sheer_height.value(x / factor) * factor
             floor = lines.chine_height.value(x / factor) * factor
             top = _top_of_material(decked_hull, x, rail)
-            assert top == pytest.approx(floor + HullSpec().wall, abs=0.5)
+            assert top == pytest.approx(floor + HullSpec().planking, abs=0.5)
 
     def test_each_deck_sits_at_its_own_height(self, decked_hull, lines):
         """The three platforms are at three heights, not one shared drop.
@@ -244,7 +244,9 @@ class TestSeams:
         factor = spec.length / lines.length
         for deck in self.DECKS:
             x, z = self._deck(lines, deck)
-            inside = inner_half_width(lines, x / factor, spec.wall / factor, z / factor) * factor
+            inside = (
+                inner_half_width(lines, x / factor, spec.planking / factor, z / factor) * factor
+            )
             for y in np.arange(inside - Seams().margin + 0.05, inside, 0.05):
                 assert seamed.is_inside(Vector(x, float(y), z - 0.05))
 
@@ -286,7 +288,7 @@ class TestWellSeams:
         """Both wells' floors, which the flat bottom puts at one height."""
         spec = HullSpec()
         factor = spec.length / lines.length
-        return lines.chine_height.value(0.5 * lines.length) * factor + spec.wall
+        return lines.chine_height.value(0.5 * lines.length) * factor + spec.planking
 
     def _middles(self) -> list[float]:
         return [HullSpec().length * 0.5 * (a + b) for a, b in open_stretches(list(DECKS))]
@@ -421,7 +423,7 @@ class TestBulge:
         """
         spec = HullSpec(stations=STATIONS, bulge=self.SPEC)
         factor = spec.length / lines.length
-        wall = spec.wall / factor
+        planking = spec.planking / factor
         x0, x1 = lines.span
 
         for fraction in (0.3, 0.5, 0.7):
@@ -431,7 +433,7 @@ class TestBulge:
             run = lines.sheer_half_width.value(x) - y_chine
             rise = lines.sheer_height.value(x) - z_chine
             chord = float(np.hypot(run, rise))
-            cavity = _inner_section(lines, x, wall, None, self.SPEC)
+            cavity = _inner_section(lines, x, planking, None, self.SPEC)
             assert cavity is not None
 
             for vertex in cavity.vertices():
@@ -443,12 +445,12 @@ class TestBulge:
                 outer = y_chine + run * at + self.SPEC.at(at) * self.SPEC.amount * chord
                 # Both surfaces are displaced horizontally by the same amount,
                 # so the horizontal gap between them is untouched by the swell.
-                # It is not the wall, though: across a side leaning `flare` off
-                # vertical it measures wall / cos(flare), some 7% over. Lay it
-                # back down on the chord's normal to recover the wall itself.
+                # It is not the planking, though: across a side leaning `flare` off
+                # vertical it measures planking / cos(flare), some 7% over. Lay it
+                # back down on the chord's normal to recover the planking itself.
                 gap = (outer - vertex.Y) * factor * rise / chord
-                assert gap == pytest.approx(spec.wall, abs=0.02), (
-                    f"wall is {gap:.3f}mm at t={at:.2f}"
+                assert gap == pytest.approx(spec.planking, abs=0.02), (
+                    f"planking is {gap:.3f}mm at t={at:.2f}"
                 )
 
     def test_a_bowed_and_decked_hull_is_still_one_solid(self, lines):
@@ -533,7 +535,7 @@ def test_the_forecastles_corners_run_on_along_the_sides(built_hull, lines):
     top = deck.height * lines.depth * factor
     z = top - 1.5
     # The side flares, so where it stands is taken at the probes' own height.
-    face = inner_half_width(lines, edge / factor, spec.wall / factor, z / factor, spec.bulge)
+    face = inner_half_width(lines, edge / factor, spec.planking / factor, z / factor, spec.bulge)
     face *= factor
 
     def at(aft: float, inboard: float, side: float) -> Vector:

@@ -70,16 +70,16 @@ class TestFitting:
         assert len(fitted.solids()) == 1
 
     def test_the_thwart_does_not_break_out_through_the_side(self, fitted, lines):
-        """It is deliberately run into the wall, so this is the check that it
+        """It is deliberately run into the planking, so this is the check that it
         stops there. Measured at the thwart's top, the inside of the hull is at its
         widest over its depth, which leaves the thwart overlapping into the
-        wall lower down -- by less than the wall is thick, or it would show."""
+        planking lower down -- by less than the planking is thick, or it would show."""
         bare = build(SPEC, lines).bounding_box()
         assert pytest.approx(bare.max.Y, abs=1e-6) == fitted.bounding_box().max.Y
         assert pytest.approx(bare.min.Y, abs=1e-6) == fitted.bounding_box().min.Y
 
     def test_the_thwart_reaches_the_hull_on_both_sides(self, fitted, lines):
-        """Probing just inboard of the wall, at the thwart's height, off the tube."""
+        """Probing just inboard of the planking, at the thwart's height, off the tube."""
         seat = step(SPEC, lines)
         z = seat.thwart_top - seat.thwart_siding / 2.0
         for side in (-1.0, 1.0):

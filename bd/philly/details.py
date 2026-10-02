@@ -16,7 +16,7 @@ lines, the way the mast step and the gun slides are:
 Everything is merged into the hull, so it prints with it. A piece that meets
 the side reaches `OVERLAP` into the planking -- the side flares, so it follows
 the inside face up rather than standing square -- and one that stands on a
-deck is sunk `SINK` into it. Both are well under the wall, so nothing shows
+deck is sunk `SINK` into it. Both are well under the planking, so nothing shows
 through outside.
 
 Millimetres of the finished model throughout, as in rig.py.
@@ -219,8 +219,8 @@ def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
             pieces.append(bench(at, at.station(b.start), at.station(b.end), at.deck(deck), side))
 
     if spec.keelson:
-        wall = spec.wall / at.factor
-        first, last = _cavity_span(lines, wall, *lines.span)
+        planking = spec.planking / at.factor
+        first, last = _cavity_span(lines, planking, *lines.span)
         for a, b in open_stretches(sorted(spec.decks, key=lambda d: d.start)):
             # Into the bulkhead at each end, or as far as the hull has a floor.
             start = max(at.station(a) - OVERLAP, first * at.factor)

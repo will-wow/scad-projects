@@ -201,7 +201,7 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     span = np.linspace(station - carriage.half_width, station + carriage.half_width, 5)
     inner = min(inside(float(x), deck) for x in span)
     under = min(inside(float(x), deck - slide.sink) for x in span)
-    front = min(inner - CLEARANCE, under + spec.wall - SKIN - slide.chock)
+    front = min(inner - CLEARANCE, under + spec.planking - SKIN - slide.chock)
     reach = front + carriage.fore
     rail_inside = min(inside(float(x), sheer(float(x))) for x in span)
     rail_outside = lines.sheer_half_width.value(station / at.factor) * at.factor

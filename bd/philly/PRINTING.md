@@ -196,7 +196,7 @@ These are about watertightness, not flotation.
 The stem's foot stands on the bed and its front leaves it at about 50 degrees,
 so the bow needs no supports.
 
-Do not use vase mode — it would discard the decks, the bulwarks and the wall.
+Do not use vase mode — it would discard the decks, the bulwarks and the planking.
 
 ## Ballast and the waterline
 
@@ -232,7 +232,7 @@ centreline, clear of the keelson and of the mast's tube.
 ## Recomputing these numbers
 
 They come from the model, so they move when the spec does. The envelope is
-`build(replace(spec, wall=0.0))` — the outer loft with no cavity — and
+`build(replace(spec, planking=0.0))` — the outer loft with no cavity — and
 displacement at a draft is the volume of its intersection with a box that deep
 from the bottom up; bisect on the draft until that matches the mass. Mass is
 the part volume times infill fraction times 1.24 g/cm³.

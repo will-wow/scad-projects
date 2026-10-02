@@ -67,7 +67,7 @@ def test_nothing_reaches_through_the_planking(lines, bare):
     On the joinery alone: the mast's tube stands above the rail on purpose.
     """
     joined = details.fit_details(bare, HULL, lines)
-    outline = build(replace(HULL, wall=0.0), lines)
+    outline = build(replace(HULL, planking=0.0), lines)
     outside = (joined - outline).volume
     assert outside == pytest.approx(0.0, abs=1e-3), f"{outside:.4f}mm3 outside the hull"
 

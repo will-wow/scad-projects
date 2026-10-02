@@ -317,7 +317,7 @@ class TestSockets:
         of the boat, so the blister left `max.Y` untouched. The bare hull's own
         outer loft is the only honest judge, and a test can afford to build one.
         """
-        outline = build(replace(HULL, wall=0.0), lines)
+        outline = build(replace(HULL, planking=0.0), lines)
         assert (fitted - outline).volume == pytest.approx(0.0, abs=1e-6)
 
     def test_a_boss_has_its_upright_corners_rounded(self, fitted, shape):

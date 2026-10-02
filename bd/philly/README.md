@@ -72,7 +72,7 @@ centreline to chine along the flat bottom, then straight out and up to the rail.
 The solid is a loft through those sections, hollowed with OCCT's thick-solid
 operation with the deck face removed.
 
-Scale and wall thickness live in `HullSpec` (`main.py` sets them). The source
+Scale and planking thickness live in `HullSpec` (`main.py` sets them). The source
 data is the real 16.4m boat; the default prints it at 300mm, or about 1:55.
 
 All four curves are the hand-faired layers: `FAIR_TOP` and `FAIR_BOTTOM` in the
@@ -143,7 +143,7 @@ widest. Both ends are pinned to zero, so the lines plan still decides where the
 chine and the rail go.
 
 The swell is applied to the cavity's sections too, at the same height and by the
-same distance, so the wall survives without a real polyline offset and without
+same distance, so the planking survives without a real polyline offset and without
 the self-intersection that offsetting into a curve invites. That only works
 because it displaces horizontally: moving points along the surface normal
 carries them down the side as well as out, the two swells end up offset in z,

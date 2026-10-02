@@ -101,7 +101,7 @@ SKIN = 0.2
 
 # Material that must be left under a socket. A deck is solid from the bottom of
 # the hull up, so a socket's floor is also the hull's bottom, and anything
-# thinner than a wall there is a leak waiting to happen.
+# thinner than the planking there is a leak waiting to happen.
 FLOOR = 2.0
 
 # Planking that must be left outboard of a socket, which is the real limit on
@@ -279,8 +279,8 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     # The tightest the inside gets along the upright's own length: toward the
     # transom the hull closes in fast enough that its after face is nearer the
     # side than its middle.
-    def tightest(z: float, wall: float | None = None) -> float:
-        return min(hull.inside(station + d, z, wall) for d in (-BAR / 2.0, 0.0, BAR / 2.0))
+    def tightest(z: float, planking: float | None = None) -> float:
+        return min(hull.inside(station + d, z, planking) for d in (-BAR / 2.0, 0.0, BAR / 2.0))
 
     half = tightest(step) - awning.inset
     # And no further out than the socket under it can go. The side closes in as
@@ -580,7 +580,7 @@ def fit_awning(
                 f"{foot.socket_floor - foot.bottom:.2f}mm of hull under it"
             )
         # The planking left outboard of it, offset perpendicular to the side the
-        # way the hull measures its own wall. Taken at the socket's floor, which
+        # way the hull measures its own planking. Taken at the socket's floor, which
         # is where the side has closed in the furthest.
         room = at.inside(foot.station, foot.socket_floor, SIDE_FLOOR)
         if foot.half + bore / 2.0 > room:

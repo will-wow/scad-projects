@@ -196,6 +196,11 @@ class Step:
     """the top of the tube, one siding proud of the rail"""
     bore_radius: float
     wall: float
+    """the tube's own wall, which is given the planking's thickness
+
+    Not planking itself: the tube is a modelling device, where the real boat had
+    a step mortised into the keelson. It borrows the number, not the name.
+    """
 
     @property
     def socket(self) -> float:
@@ -232,8 +237,8 @@ def step(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Step:
         thwart_top=thwart_top,
         thwart_siding=siding,
         # Measured at the thwart's top, which is the widest the inside gets over
-        # its depth. The side flares, so the thwart then overlaps into the wall
-        # at its lower edge -- by less than the wall is thick, so it meets the
+        # its depth. The side flares, so the thwart then overlaps into the planking
+        # at its lower edge -- by less than the planking is thick, so it meets the
         # hull all the way down without breaking through.
         thwart_half_length=hull.inside(station, thwart_top),
         floor=hull.floor(station),
@@ -242,7 +247,7 @@ def step(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Step:
         # enough that the boat still looks like a boat with the mast out.
         top=rail + siding,
         bore_radius=mast_width(spec, lines) / 2.0 + TOLERANCE,
-        wall=spec.wall,
+        wall=spec.planking,
     )
 
 

@@ -251,7 +251,7 @@ into the planking so the two overlap rather than touch, and its front is the
 face offset outward by `STEM_DEPTH` along its normal, so the board has the same
 rectangular section from foot to head. Where the offset would run below the
 bottom it is cut flat, which stands the foot on the bed; the head is cut flat at
-the rail. It is fused before the hollowing, and the cavity keeps a wall aft of
+the rail. It is fused before the hollowing, and the cavity keeps the planking's thickness aft of
 the face at the height of its own floor, so it never cuts into the board.
 
 `stations` is purely a smoothness/speed dial — 12 while you're iterating, 48
@@ -279,20 +279,20 @@ it:
 
 ```python
 # Inward normal of the side, and the side's own direction.
-base_y = y_chine - wall * rise / length
-base_z = z_chine + wall * run / length
+base_y = y_chine - planking * rise / length
+base_z = z_chine + planking * run / length
 
 # Where the offset side meets the offset floor.
-bottom = z_chine + wall
+bottom = z_chine + planking
 floor_z = bottom if floor_z is None else max(floor_z, bottom)
 s_floor = (floor_z - base_z) * length / rise
 floor_y = base_y + s_floor * run / length
 ```
 
-The floor moves straight up by `wall`. The flared side has to move
+The floor moves straight up by `planking`. The flared side has to move
 **perpendicular to itself**. The new chine corner is where those two offset
 lines _intersect_ — not either endpoint moved by a fixed amount. Move the
-corner straight inward instead and a 2mm request measures 2.8mm of side wall,
+corner straight inward instead and a 2mm request measures 2.8mm of side planking,
 because the side's lean turns a horizontal offset into a smaller perpendicular
 one.
 
@@ -300,8 +300,8 @@ If you take one thing from this file, take that: **offsetting a polygon is
 about offsetting its edges and re-intersecting them**, never about moving its
 vertices.
 
-The cavity is also carried one wall thickness _above_ the rail
-(`top_z = z_sheer + wall`), which is what makes the subtraction remove the
+The cavity is also carried one planking thickness _above_ the rail
+(`top_z = z_sheer + planking`), which is what makes the subtraction remove the
 section's closed top edge and leave an open boat.
 
 ## Part 5: decks and bulwarks
@@ -351,7 +351,7 @@ each corner, with a quarter circle cut out of its inboard aft corner. `main.py`
 makes the forecastle's reach half-way from its edge to the mast's thwart, so it
 follows either of them if they move. [`_tabs`](hull.py)
 draws each one oversize in plan, solid to the bilge, and trims it to a cavity
-half a wall larger than the real one, so it fits the flared side and the floor
+half the planking's thickness larger than the real one, so it fits the flared side and the floor
 exactly without anyone having to work out where they are.
 
 Each `loft` caps its own ends, so **every cut leaves a bulkhead** where it
@@ -371,7 +371,7 @@ plausible volume. Three patterns are worth stealing.
 that the open spans are actually open by asking whether a point is solid:
 
 ```python
-z = lines.sheer_height.value(x) - 0.5 * wall
+z = lines.sheer_height.value(x) - 0.5 * planking
 if hull.is_inside(Vector(x, 0.0, z)):
     raise RuntimeError(f"the span {span.start:.2f}..{span.end:.2f} is still decked over")
 ```
@@ -381,7 +381,7 @@ _inside the band the deck skin would occupy_ — a probe lower down finds air
 whether or not the deck was removed, which is a test that always passes.
 
 **Solve for geometry rather than sampling it.** Near each end the hull is
-narrower than two walls, so the cavity has to stop and leave the ends solid.
+narrower than twice the planking, so the cavity has to stop and leave the ends solid.
 Letting that happen wherever the stations land makes the solid plugs an
 artefact of the station count — a plug's length moves by the better part of a
 metre (full size) purely with `stations`, quietly changing print weight. [`_cavity_span`](hull.py#L341)
@@ -389,7 +389,7 @@ bisects for the true boundary instead:
 
 ```python
 def holds_cavity(x: float) -> bool:
-    return _inner_section(lines, x, wall) is not None
+    return _inner_section(lines, x, planking) is not None
 ```
 
 Now `stations` controls smoothness and nothing else.
@@ -413,7 +413,7 @@ largest piece unconditionally would turn "the cavity escaped through the side
 and cut the boat in two" into a quiet success.
 
 The same instinct runs through [`tests/`](tests): assertions measure the built
-solid (volumes, wall thicknesses, probe points, tessellated face normals)
+solid (volumes, planking thicknesses, probe points, tessellated face normals)
 rather than checking that the code ran.
 
 ## Part 7: units, and scaling exactly once
@@ -428,8 +428,8 @@ return as_part(scale(hull, factor), "scaling")
 ```
 
 Everything upstream works in source units, and anything expressed in finished
-millimetres (`wall`) is divided by `factor` on the
-way in. Mixing the two is a rich source of bugs — a wall that's 55× too thick
+millimetres (`planking`) is divided by `factor` on the
+way in. Mixing the two is a rich source of bugs — a planking that's 55× too thick
 produces a completely solid hull that looks fine until you weigh it.
 
 ## Part 8: the surrounding tooling
@@ -506,8 +506,8 @@ thwart_half_length = hull.inside(station, thwart_top)
 ```
 
 Measured at the thwart's **top**, because the side flares: the inside is widest
-there, so the thwart overlaps into the wall at its lower edge rather than leaving a
-gap. The overlap is 0.73mm into a 2mm wall, and a test asserts the fitted hull
+there, so the thwart overlaps into the planking at its lower edge rather than leaving a
+gap. The overlap is 0.73mm into 2mm of planking, and a test asserts the fitted hull
 is no wider than the bare one -- which is what catches a thwart that punches
 through.
 
@@ -1197,7 +1197,7 @@ Each piece is a union with the hull, so it prints as part of it. A union that
 only _touches_ the hull is the thing to avoid: coincident faces make fragile
 booleans, and a piece that stops a hair short leaves a crack that the slicer
 reads as two parts. So every piece reaches `OVERLAP` (0.3mm) into the planking
-and is sunk `SINK` into the deck, both well under the 2mm wall.
+and is sunk `SINK` into the deck, both well under the 2mm planking.
 
 The side flares, which is why nothing here is a box against it. A knee's back,
 a bench's back and a beam's ends all follow `hull.inner_half_width` up from the
@@ -1307,7 +1307,7 @@ If you want to do this for a different boat:
    closing lines on their own layer or omit them.
 2. **Point [`lines.py`](lines.py) at your layer names** and set `PROFILE_OFFSET`
    to however far apart you drew the two views.
-3. **Set the spec** in [`main.py`](main.py): `length`, `wall`, `decks`,
+3. **Set the spec** in [`main.py`](main.py): `length`, `planking`, `decks`,
    `bulge`, and any joinery -- `knees`, `benches`, `keelson`, a plank width per
    deck with `seams`, and `wells` for the floors they leave over.
 4. **Run `just watch`** and tune by eye.

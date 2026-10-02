@@ -13,13 +13,13 @@ needing compound-curved surfaces.
 Hollowing lofts a second, inset set of sections and subtracts them. OCCT's
 thick-solid operation is the obvious alternative and was used here first, but
 it costs about 9 seconds against 0.6 for this -- 94% of the build -- for the
-same 2.01mm wall. It also has to be told which face to leave open, and picking
+same 2.01mm planking. It also has to be told which face to leave open, and picking
 that face is its own bug: the deck is not reliably the highest one. Insetting
 the sections opens the top by construction, so there is no face to choose.
 
 Getting the inset right is the whole trick. Shifting a section's rail straight
 up to clear the deck also pushes the flared side outward, which measures 2.8mm
-of wall for a 2mm request; the side has to move perpendicular to itself, and
+of planking for a 2mm request; the side has to move perpendicular to itself, and
 the new chine corner is where the offset side and offset floor intersect.
 """
 
@@ -238,7 +238,7 @@ class HullSpec:
     # (a 16.4m boat), so this is the toy scale-down.
     length: float = 300.0
     # Wall thickness of the hollow hull.
-    wall: float = 2.0
+    planking: float = 2.0
     # Transverse sections in the loft. Cosine-spaced, so they bunch up toward the
     # bow and stern where the curves bend hardest.
     stations: int = 48
@@ -266,7 +266,7 @@ class HullSpec:
 
     @property
     def deck_open(self) -> bool:
-        return self.wall > 0.0
+        return self.planking > 0.0
 
 
 @dataclass(frozen=True)
@@ -468,7 +468,7 @@ def on_the_bed(part: Part, what: str) -> Part:
 def _assert_open(
     hull: Part,
     lines: HullLines,
-    wall: float,
+    planking: float,
     spans: list[tuple[float, float]],
     x0: float,
     x1: float,
@@ -490,9 +490,9 @@ def _assert_open(
             continue
         x = 0.5 * (start + end)
         # Sample inside the band the deck skin would occupy: from the rail down
-        # by one wall thickness. Below that band there is air either way, which
+        # by one planking thickness. Below that band there is air either way, which
         # is a check that always passes -- as an earlier version of this did.
-        z = lines.sheer_height.value(x) - 0.5 * wall
+        z = lines.sheer_height.value(x) - 0.5 * planking
         if hull.is_inside(Vector(x, 0.0, z)):
             raise RuntimeError(f"the span {low:.2f}..{high:.2f} is still decked over")
 
@@ -500,7 +500,7 @@ def _assert_open(
 def inner_half_width(
     lines: HullLines,
     x: float,
-    wall: float,
+    planking: float,
     z: float,
     bulge: Bulge | None = None,
     bow: Bow | None = None,
@@ -508,7 +508,7 @@ def inner_half_width(
     """How far the cavity's side stands from the centreline at height `z`.
 
     This is the inside face of the hull, and it is not the outside minus the
-    wall. The side is flared, so it has to be offset perpendicular to itself;
+    planking. The side is flared, so it has to be offset perpendicular to itself;
     the line that results is what `_inner_section` builds its sections from and
     what anything fitted against the inside of the hull -- the mast's thwart, say
     -- has to reach. One function so there is one answer.
@@ -524,9 +524,9 @@ def inner_half_width(
         raise ValueError(f"the hull has no depth at station {x}")
     chord = float(np.hypot(rise, run))
 
-    # The side offset inward by `wall`, as a point on it and its slope.
-    base_y = y_chine - wall * rise / chord
-    base_z = z_chine + wall * run / chord
+    # The side offset inward by `planking`, as a point on it and its slope.
+    base_y = y_chine - planking * rise / chord
+    base_z = z_chine + planking * run / chord
     y = base_y + (z - base_z) * run / rise
 
     if bulge is not None:
@@ -561,10 +561,10 @@ class Scaled:
         x0, x1 = self.lines.span
         return (x0 + (x1 - x0) * fraction) * self.factor
 
-    def inside(self, x: float, z: float, wall: float | None = None) -> float:
-        """The inside face of the planking at height `z`, or of a wall this thick."""
+    def inside(self, x: float, z: float, planking: float | None = None) -> float:
+        """The inside face of the planking at height `z`, or of a skin this thick."""
         factor = self.factor
-        thick = (self.spec.wall if wall is None else wall) / factor
+        thick = (self.spec.planking if planking is None else planking) / factor
         return inner_half_width(self.lines, x / factor, thick, z / factor, self.spec.bulge) * factor
 
     def sheer(self, x: float) -> float:
@@ -577,7 +577,7 @@ class Scaled:
 
     def floor(self, x: float) -> float:
         """The inside of the bottom, where no deck covers it."""
-        return self.bottom(x) + self.spec.wall
+        return self.bottom(x) + self.spec.planking
 
     def deck(self, deck: Deck) -> float:
         """A platform's height."""
@@ -587,30 +587,30 @@ class Scaled:
 def _inner_section(
     lines: HullLines,
     x: float,
-    wall: float,
+    planking: float,
     floor_z: float | None = None,
     bulge: Bulge | None = None,
     bow: Bow | None = None,
 ):
-    """The cavity's section at station `x`: the outer one, offset inward by `wall`.
+    """The cavity's section at station `x`: the outer one, offset inward by `planking`.
 
     Offsetting a trapezoid is not the same as shrinking it. The floor moves up by
-    `wall`, but the flared side has to move perpendicular to itself, and the new
+    `planking`, but the flared side has to move perpendicular to itself, and the new
     chine corner is where those two offset lines meet -- not either endpoint
     moved by a fixed amount. Getting this wrong is what made an earlier version
-    measure 2.8mm of side wall for a 2mm request.
+    measure 2.8mm of side planking for a 2mm request.
 
-    The rail is carried one wall above the deck so the subtraction opens the top.
+    The rail is carried the planking's thickness above the deck so the subtraction opens the top.
     `floor_z` places the cavity's bottom outright, which is how a deck is made:
     put the floor part-way up and the hull's own sides carry on past it as
     bulwarks. It is never allowed below the inside of the hull's bottom.
 
     A bowed side is followed by displacing the cavity's side by the same amount
-    at the same height, so the two surfaces move together and the wall survives
+    at the same height, so the two surfaces move together and the planking survives
     without a genuine polyline offset. The two curves are then a constant
     distance apart measured along the chord's normal; perpendicular to the
     surface itself that is short by cos(local lean), which at the default swell
-    is under 2% of the wall.
+    is under 2% of the planking.
 
     Returns None where the section is too small to hold a cavity, which leaves
     the stem and transom solid.
@@ -622,13 +622,13 @@ def _inner_section(
         return None
 
     # Where the offset side meets the offset floor.
-    bottom = z_chine + wall
+    bottom = z_chine + planking
     floor_z = bottom if floor_z is None else max(floor_z, bottom)
-    floor_y = inner_half_width(lines, x, wall, floor_z, None, bow)
+    floor_y = inner_half_width(lines, x, planking, floor_z, None, bow)
 
     # Carry the same line up past the rail.
-    top_z = z_sheer + wall
-    top_y = inner_half_width(lines, x, wall, top_z, None, bow)
+    top_z = z_sheer + planking
+    top_y = inner_half_width(lines, x, planking, top_z, None, bow)
 
     if floor_y <= 1e-6 or top_y < floor_y or top_z <= floor_z:
         return None
@@ -653,11 +653,11 @@ def _inner_section(
 
 
 def _cavity_span(
-    lines: HullLines, wall: float, x0: float, x1: float, bow: Bow | None = None
+    lines: HullLines, planking: float, x0: float, x1: float, bow: Bow | None = None
 ) -> tuple[float, float]:
     """The first and last station that can hold a cavity, found by bisection.
 
-    Near the stem and the transom the hull is narrower than two walls, so the
+    Near the stem and the transom the hull is narrower than twice the planking, so the
     cavity has to stop and leave those ends solid. Letting that happen wherever
     the stations happen to land makes the solid plugs an artefact of sampling:
     a plug's length would move by the better part of a metre (full size)
@@ -667,21 +667,21 @@ def _cavity_span(
     controls smoothness and nothing else.
 
     In the forefoot the bottom is the stem's face, which leans forward as it
-    rises, so the cavity also has to stay a wall aft of that face at the height
+    rises, so the cavity also has to stay the planking's thickness aft of that face at the height
     of its own floor.
     """
 
     def holds_cavity(x: float) -> bool:
-        if _inner_section(lines, x, wall, None, None, bow) is None:
+        if _inner_section(lines, x, planking, None, None, bow) is None:
             return False
         if bow is None or x >= bow.start:
             return True
-        floor = _outline(lines, x, bow).z_chine + wall
-        return x - wall >= _face_x(lines, bow, floor)
+        floor = _outline(lines, x, bow).z_chine + planking
+        return x - planking >= _face_x(lines, bow, floor)
 
     middle = 0.5 * (x0 + x1)
     if not holds_cavity(middle):
-        raise RuntimeError("wall is too thick to hollow this hull amidships")
+        raise RuntimeError("the planking is too thick to hollow this hull amidships")
 
     def boundary(solid_end: float) -> float:
         """Bisect between an end that can't hold a cavity and the middle that can."""
@@ -744,7 +744,7 @@ def _cut(
     hull: Part,
     lines: HullLines,
     stations: np.ndarray,
-    wall: float,
+    planking: float,
     bounds: tuple[float, float],
     floor_z: float | None,
     bulge: Bulge | None = None,
@@ -772,7 +772,7 @@ def _cut(
     for run in runs:
         faces = [
             f
-            for f in (_inner_section(lines, x, wall, floor_z, bulge, bow) for x in run)
+            for f in (_inner_section(lines, x, planking, floor_z, bulge, bow) for x in run)
             if f is not None
         ]
         if len(faces) < 2:
@@ -791,7 +791,7 @@ SEAM_SAMPLES = 200
 
 def _seams(
     lines: HullLines,
-    wall: float,
+    planking: float,
     bounds: tuple[float, float],
     floor: float,
     plank: float,
@@ -821,7 +821,7 @@ def _seams(
         return []
     along = np.linspace(start, end, SEAM_SAMPLES)
     room = np.array(
-        [inner_half_width(lines, float(x), wall, floor - depth, bulge) for x in along]
+        [inner_half_width(lines, float(x), planking, floor - depth, bulge) for x in along]
     ) - (margin + 0.5 * width)
 
     grooves: list[Part] = []
@@ -841,7 +841,7 @@ def _seams(
 
 def _well_floor(
     lines: HullLines,
-    wall: float,
+    planking: float,
     bounds: tuple[float, float],
     depth: float,
     bow: Bow | None = None,
@@ -857,7 +857,7 @@ def _well_floor(
     rising.
     """
     heights = [
-        _outline(lines, float(x), bow).z_chine + wall
+        _outline(lines, float(x), bow).z_chine + planking
         for x in np.linspace(bounds[0], bounds[1], SEAM_SAMPLES)
     ]
     if max(heights) - min(heights) > depth:
@@ -877,13 +877,13 @@ def _hollow(
     bow: Bow | None = None,
 ) -> Part:
     """Hollow the undecked stretches to the bottom, and each deck to its height."""
-    wall = spec.wall / factor
+    planking = spec.planking / factor
     bulge, seams, wells = spec.bulge, spec.seams, spec.wells
     x0, x1 = lines.span
     # Where the hull is wide enough to hold a cavity at all; a stretch reaching
     # past that is clipped rather than refused, so "open to the bow" means as
     # far forward as the stem allows.
-    first, last = _cavity_span(lines, wall, x0, x1, bow)
+    first, last = _cavity_span(lines, planking, x0, x1, bow)
 
     def clip(a: float, b: float) -> tuple[float, float]:
         return max(first, x0 + (x1 - x0) * a), min(last, x0 + (x1 - x0) * b)
@@ -892,11 +892,11 @@ def _hollow(
     stretches = open_stretches(ordered)
 
     def overrun(edge: float, others: list[Deck]) -> float:
-        """Past an open edge, a wall's width; up against another deck, a margin short."""
+        """Past an open edge, a planking's width; up against another deck, a margin short."""
         if seams is None:
             return 0.0
         abutting = any(abs(d.start - edge) < 1e-9 or abs(d.end - edge) < 1e-9 for d in others)
-        return -seams.margin / factor if abutting else wall
+        return -seams.margin / factor if abutting else planking
 
     def grooves_for(
         bounds: tuple[float, float],
@@ -909,7 +909,7 @@ def _hollow(
         assert seams is not None
         return _seams(
             lines,
-            wall,
+            planking,
             bounds,
             floor,
             plank / factor,
@@ -923,14 +923,14 @@ def _hollow(
     grooves: list[Part] = []
     for stretch in stretches:
         bounds = clip(*stretch)
-        hollowed = _cut(hollowed, lines, stations, wall, bounds, None, bulge, bow)
+        hollowed = _cut(hollowed, lines, stations, planking, bounds, None, bulge, bow)
         if seams is None or wells is None or bounds[1] - bounds[0] <= 1e-6:
             continue
         # A well abuts a deck at each end, so `overrun` pulls its grooves short
         # of both bulkheads rather than running them onto their faces.
         grooves += grooves_for(
             bounds,
-            _well_floor(lines, wall, bounds, seams.depth / factor, bow),
+            _well_floor(lines, planking, bounds, seams.depth / factor, bow),
             wells.plank,
             wells.clear,
             (overrun(stretch[0], list(ordered)), overrun(stretch[1], list(ordered))),
@@ -943,7 +943,7 @@ def _hollow(
         # share.
         floor = deck.height * lines.depth
         bounds = clip(deck.start, deck.end)
-        hollowed = _cut(hollowed, lines, stations, wall, bounds, floor, bulge, bow)
+        hollowed = _cut(hollowed, lines, stations, planking, bounds, floor, bulge, bow)
         if seams is None or deck.plank is None:
             continue
         others = [d for d in ordered if d is not deck]
@@ -958,7 +958,7 @@ def _hollow(
         abutting = any(abs(d.start - deck.end) < 1e-9 for d in ordered)
         if deck.tab > 0.0 and deck.end < 1.0 and not abutting:
             edge = x0 + (x1 - x0) * deck.end
-            for tab in _tabs(lines, wall, deck, edge, factor, bulge, bow):
+            for tab in _tabs(lines, planking, deck, edge, factor, bulge, bow):
                 hollowed = as_part(hollowed + tab, "adding a deck's tab")
 
     if grooves:
@@ -966,8 +966,10 @@ def _hollow(
         hollowed = as_part(hollowed - Part(Compound(grooves).wrapped), "cutting the seams")
 
     if hollowed.volume >= 0.95 * hull.volume:
-        raise RuntimeError("hollowing removed nothing -- check the wall thickness and the decks")
-    _assert_open(hollowed, lines, wall, stretches, x0, x1, first, last)
+        raise RuntimeError(
+            "hollowing removed nothing -- check the planking thickness and the decks"
+        )
+    _assert_open(hollowed, lines, planking, stretches, x0, x1, first, last)
     return hollowed
 
 
@@ -981,7 +983,7 @@ TAB_SAMPLES = 12
 
 def _tabs(
     lines: HullLines,
-    wall: float,
+    planking: float,
     deck: Deck,
     edge: float,
     factor: float,
@@ -994,14 +996,14 @@ def _tabs(
     `TAB_WIDTH` of that in from the inside of the side, with a quarter circle
     `TAB_NOTCH` as large cut out of its inboard aft corner. Like the deck it is
     solid down to the bilge. It is drawn oversize in plan and trimmed to a
-    cavity half a wall larger than the real one, so it fits the side and floor
+    cavity half the planking's thickness larger than the real one, so it fits the side and floor
     exactly and overlaps them rather than meeting them on a surface.
     """
     reach = deck.tab / factor
     width = TAB_WIDTH * reach
     notch = TAB_NOTCH * reach
     top = deck.height * lines.depth
-    face = inner_half_width(lines, edge, wall, top, bulge, bow)
+    face = inner_half_width(lines, edge, planking, top, bulge, bow)
     inner = face - width
 
     cut = [
@@ -1009,14 +1011,14 @@ def _tabs(
         for t in np.linspace(np.pi / 2.0, np.pi, TAB_SAMPLES)
     ]
     plan = [
-        (edge - wall, face + 3.0 * wall),
-        (edge + reach, face + 3.0 * wall),
+        (edge - planking, face + 3.0 * planking),
+        (edge + reach, face + 3.0 * planking),
         *cut,
-        (edge - wall, inner),
+        (edge - planking, inner),
     ]
 
-    stations = np.linspace(edge - wall, edge + reach + wall, 4)
-    sections = [_inner_section(lines, float(x), 0.5 * wall, None, bulge, bow) for x in stations]
+    stations = np.linspace(edge - planking, edge + reach + planking, 4)
+    sections = [_inner_section(lines, float(x), 0.5 * planking, None, bulge, bow) for x in stations]
     room = loft([f for f in sections if f is not None])
 
     tabs = []
@@ -1034,7 +1036,7 @@ STEM_SAMPLES = 48
 STEM_LIFT = 0.2
 # How far the stem's back reaches into the planking, printed mm, so the two
 # overlap rather than meeting on a surface. Fixed rather than a share of the
-# wall, so the stem is the same board however thick the hull is.
+# planking, so the stem is the same board however thick the hull is.
 STEM_OVERLAP = 1.0
 
 
