@@ -20,7 +20,7 @@ os.environ.setdefault("PREVIEW", "1")
 import details  # noqa: E402
 from awning import frame  # noqa: E402
 from export import write_3mf  # noqa: E402
-from hull import Bench, Knee, build, open_stretches  # noqa: E402
+from hull import Bench, Knee, Scaled, build, open_stretches  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
 
 
@@ -36,7 +36,7 @@ def bare(built_hull):
 
 @pytest.fixture(scope="module")
 def at(lines):
-    return details._Hull(HULL, lines)
+    return Scaled(HULL, lines)
 
 
 def _solid(part, x: float, y: float, z: float) -> bool:

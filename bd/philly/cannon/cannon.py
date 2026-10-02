@@ -52,19 +52,17 @@ from build123d import (
     Mode,
     Part,
     Plane,
-    Polygon,
     Polyline,
     SagittaArc,
     ThreePointArc,
     add,
-    extrude,
     make_face,
     revolve,
     scale,
 )
 from ocp_vscode import show_object
 
-from cannon.trunnion import TrunnionSpec, diamond
+from cannon.trunnion import TrunnionSpec, diamond, through
 
 
 @dataclass(frozen=True)
@@ -211,29 +209,15 @@ def _socket(spec: CannonSpec, pegs: TrunnionSpec) -> Part:
     this is a horizontal hole, and stood on a corner every face of it leans 45
     degrees and carries itself, with nothing round to sag. Square because the bar
     is, so the gun is fixed on it rather than turning -- a printed gun is heavier
-    at the muzzle than the model says, and on a round pin it tipped forward. It
-    goes right through, which is what holds the bar; the blind sockets of the
-    first scheme let their pegs fall out.
+    at the muzzle than the model says, and on a round pin it tipped forward.
 
     In printed millimetres, like the bar it takes, and so cut after the gun has
     been scaled: scaling a cut this fine afterwards shrinks the sliver where the
     apex pierces the barrel below what OCCT will mesh into a closed surface.
-
-    Returns a part to subtract rather than cutting the caller's, because a
-    builder only nests into its parent when both are opened in the same Python
-    frame: a BuildSketch opened down here would quietly go nowhere.
     """
     height = trunnion_height(spec)
-    reach = barrel_radius(spec, spec.trunnions_at) + 1
     corners = [(x, height + z) for x, z in diamond(pegs.socket, 0.0, spec.max_overhang)]
-
-    with BuildPart() as cutter:
-        with BuildSketch(Plane.XZ.offset(-reach)):
-            Polygon(*corners, align=None)
-        extrude(amount=2 * reach)
-
-    assert cutter.part is not None
-    return cutter.part
+    return through(corners, barrel_radius(spec, spec.trunnions_at) + 1)
 
 
 def cannon(spec: CannonSpec) -> Part:

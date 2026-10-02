@@ -26,7 +26,7 @@ from cannon.assembly import assembly
 from cannon.cannon import outline, trunnion_height
 from cannon.carriage import CarriageSpec
 from cannon.slide import slide
-from hull import Deck, HullSpec, as_part, inner_half_width
+from hull import HullSpec, Scaled, as_part, deck_at
 from lines import HullLines
 
 # How far a carriage, run out, stands off the inside of the planking.
@@ -160,13 +160,6 @@ class Mount:
         return least
 
 
-def _deck_at(spec: HullSpec, fraction: float) -> Deck:
-    deck = next((d for d in spec.decks if d.start <= fraction <= d.end), None)
-    if deck is None:
-        raise ValueError(f"the gun at {fraction:.3f} stands over open bilge")
-    return deck
-
-
 def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     """Solve a gun against the hull, refusing one that cannot fire over its rail.
 
@@ -175,19 +168,15 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     it is narrowest -- or until its outer chock would come within `SKIN` of the
     outside. The bow gun's run-out is the scan's, and is only checked.
     """
-    factor = spec.length / lines.length
-    x0, x1 = lines.span
-    wall = spec.wall / factor
+    at = Scaled(spec, lines)
     truck = gun.carriage
     rig = truck.slide
-    deck = _deck_at(spec, gun.station).height * lines.depth * factor
-    station = (x0 + (x1 - x0) * gun.station) * factor
-
-    def inside(x: float, z: float) -> float:
-        return inner_half_width(lines, x / factor, wall, z / factor, spec.bulge) * factor
-
-    def sheer(x: float) -> float:
-        return lines.sheer_height.value(x / factor) * factor
+    platform = deck_at(spec, gun.station)
+    if platform is None:
+        raise ValueError(f"the gun at {gun.station:.3f} stands over open bilge")
+    deck = at.deck(platform)
+    station = at.station(gun.station)
+    inside, sheer = at.inside, at.sheer
 
     if gun.side == 0:
         front = station + truck.fore
@@ -202,7 +191,8 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
             outboard=(-1.0, 0.0),
             deck=deck,
             rail=tuple(
-                (station - float(x), sheer(float(x))) for x in np.linspace(x0 * factor, front, 40)
+                (station - float(x), sheer(float(x)))
+                for x in np.linspace(at.station(0.0), front, 40)
             ),
         )
 
@@ -214,7 +204,7 @@ def mount(gun: Gun, spec: HullSpec, lines: HullLines) -> Mount:
     front = min(inner - CLEARANCE, under + spec.wall - SKIN - rig.chock)
     reach = front + truck.fore
     rail_inside = min(inside(float(x), sheer(float(x))) for x in span)
-    rail_outside = lines.sheer_half_width.value(station / factor) * factor
+    rail_outside = lines.sheer_half_width.value(station / at.factor) * at.factor
     top = max(sheer(float(x)) for x in span)
     return Mount(
         gun=gun,
@@ -251,7 +241,7 @@ def fit_guns(hull: Part, spec: HullSpec, lines: HullLines, guns: tuple[Gun, ...]
     solved = mounts(spec, lines, guns)
     for m in solved:
         if m.gun.side == 0:
-            head = lines.sheer_height.value(lines.span[0]) * spec.length / lines.length
+            head = Scaled(spec, lines).sheer(0.0)
             fitted = as_part(fitted - m.gunport(head), "cutting the bow's gunport")
     for m in solved:
         fitted = as_part(fitted + m.slide(), "laying a gun's slide")

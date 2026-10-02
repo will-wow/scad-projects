@@ -335,11 +335,10 @@ No separate deck surface, no lids, no extra booleans.
 
 ```python
 for stretch in open_stretches(ordered):
-    hollowed = _cut(..., lambda x: lines.chine_height.value(x) + wall)
+    hollowed = _cut(..., floor_z=None)  # all the way down: a well
 
 for deck in ordered:
-    floor = deck.height * lines.depth
-    hollowed = _cut(..., lambda x, floor=floor: floor)
+    hollowed = _cut(..., floor_z=deck.height * lines.depth)
 ```
 
 Both loops call the same `_cut`. The only difference is where the floor goes —
@@ -354,12 +353,6 @@ follows either of them if they move. [`_tabs`](hull.py)
 draws each one oversize in plan, solid to the bilge, and trims it to a cavity
 half a wall larger than the real one, so it fits the flared side and the floor
 exactly without anyone having to work out where they are.
-
-Note `lambda x, floor=floor: floor`. Binding the loop variable as a default
-argument matters: a bare closure over `floor` would see whatever the variable
-held when the lambda was finally called. It happens to be safe here because
-`_cut` runs immediately, but it's the kind of thing that's safe until someone
-makes the call lazy.
 
 Each `loft` caps its own ends, so **every cut leaves a bulkhead** where it
 stops. You get transverse structure without modelling any.
@@ -497,11 +490,19 @@ platform. This is why `hull.open_stretches` is public.
 
 Everything else about the socket comes from the lines plan at that station --
 the rail height, the chine, and `hull.inner_half_width`, which is the one place
-that knows where the inside of a flared, bowed hull actually is. The bar is cut
-to reach it:
+that knows where the inside of a flared, bowed hull actually is.
+
+It is asked through **`hull.Scaled`**, which is the seam between the two unit
+systems. Everything in hull.py works in the source's 1:1 millimetres and scales
+once at the end; everything fitted to the hull afterwards -- the joinery, this
+socket, the awning's legs, the guns' slides -- works in printed millimetres.
+Each of them wants the same handful of answers (`station`, `inside`, `sheer`,
+`bottom`, `floor`, `deck`), and each of them used to divide by `factor` on the
+way in and multiply on the way out for itself. `Scaled` holds that conversion
+once, so a fitting asks rather than converts. The bar is cut to reach it:
 
 ```python
-bar_half_length = inner_half_width(lines, source_x, wall, bar_top / factor, spec.bulge) * factor
+bar_half_length = hull.inside(station, bar_top)
 ```
 
 Measured at the bar's **top**, because the side flares: the inside is widest
@@ -744,11 +745,11 @@ thickness, not the plate's, that has to clear the bars.
 
 ### Measure the hull where the leg actually is
 
-A leg's offset comes from `hull.inner_half_width` **at the height of the deck it
-stands on**, not at the rail:
+A leg's offset comes from the inside of the planking **at the height of the deck
+it stands on**, not at the rail:
 
 ```python
-inside = inner_half_width(lines, at, spec.wall / factor, height / factor, spec.bulge)
+half = hull.inside(station, height) - awning.inset
 ```
 
 The side flares outward going up, so the inside is narrowest down at the deck —

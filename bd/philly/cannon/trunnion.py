@@ -46,7 +46,18 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 
-from build123d import Align, Axis, Box, BuildPart, Part, chamfer
+from build123d import (
+    Align,
+    Axis,
+    Box,
+    BuildPart,
+    BuildSketch,
+    Part,
+    Plane,
+    Polygon,
+    chamfer,
+    extrude,
+)
 from ocp_vscode import show_object
 
 
@@ -127,6 +138,28 @@ def diamond(
         else (top[0] - left[0], top[1] - left[1])
     )
     return [right, _meet(right, rising, left, falling), left, bottom]
+
+
+def through(corners: list[tuple[float, float]], reach: float) -> Part:
+    """A hole of those `corners`, driven right across a part `reach` either side of it.
+
+    The corners are (along, up) in the part's own section, as `diamond` gives
+    them, and the prism runs athwartships -- the direction every hole the bar
+    goes through is drilled, in the gun and in its carriage alike. It goes right
+    through, which is what holds the bar: the blind sockets of the first scheme
+    let their pegs fall out.
+
+    A solid to subtract rather than a cut made here, because a builder only
+    nests into its parent when both are opened in the same Python frame: a
+    BuildSketch opened down here would quietly go nowhere.
+    """
+    with BuildPart() as cutter:
+        with BuildSketch(Plane.XZ.offset(-reach)):
+            Polygon(*corners, align=None)
+        extrude(amount=2 * reach)
+
+    assert cutter.part is not None
+    return cutter.part
 
 
 def trunnion(spec: TrunnionSpec) -> Part:

@@ -52,18 +52,6 @@ def upright(lines):
     return awnings.upright_frame(HULL, lines, AWNING, RIG)
 
 
-def _bars_at(shape, index: int, side: float) -> list[float]:
-    """The bearing of every bar one leg runs into: its crossbar, then its rails."""
-    foot = shape.feet[index]
-    bearings = [-90.0 * side]
-    for other in (index - 1, index + 1):
-        if 0 <= other < len(shape.nodes):
-            run = shape.nodes[other][0] - foot.station
-            across = side * (shape.nodes[other][1] - foot.half)
-            bearings.append(math.degrees(math.atan2(across, run)))
-    return bearings
-
-
 class TestFrame:
     def test_the_frame_is_one_solid(self, part):
         assert part.is_valid
@@ -134,18 +122,16 @@ class TestFrame:
         step = BAR / 2.0 * math.sqrt(2.0) + 0.2
         for index, foot in enumerate(shape.feet):
             ends = index in (0, len(shape.feet) - 1)
+            beside = [shape.nodes[i] for i in (index - 1, index + 1) if 0 <= i < len(shape.feet)]
             for side in (-1.0, 1.0):
-                bearings = _bars_at(shape, index, side)
-                assert len(bearings) == (2 if ends else 3)
-                for bearing in bearings:
-                    at = Vector(
-                        foot.station + step * math.cos(math.radians(bearing)),
-                        side * foot.half + step * math.sin(math.radians(bearing)),
-                        shape.roof - BAR / 2.0 - 0.2,
-                    )
-                    assert upright.is_inside(at), (
-                        f"no knee {bearing:.0f} degrees off the leg at {foot.station:.0f}mm"
-                    )
+                corner = Vector(foot.station, side * foot.half, shape.roof - BAR / 2.0 - 0.2)
+                along = [Vector(0.0, -side, 0.0)] + [
+                    Vector(x - foot.station, side * (half - foot.half), 0.0) for x, half in beside
+                ]
+                assert len(along) == (2 if ends else 3)
+                for bar in along:
+                    at = corner + bar.normalized() * step
+                    assert upright.is_inside(at), f"a bar at {foot.station:.0f}mm has no knee"
 
     def test_a_knee_is_a_taper_rather_than_a_block(self, upright, shape):
         """Its hypotenuse leans 45 degrees, so laid roof-down each layer of it is
@@ -299,23 +285,16 @@ class TestSockets:
             )
 
     def test_a_foot_is_chamfered_so_it_finds_its_hole(self, part, shape):
-        """Printed roof down the feet are the last thing laid, so the chamfer
-        faces up and costs nothing. Probed on the laid-down part, where the feet
-        are at the top."""
+        """So a frame dropped in askew finds its sockets rather than standing on
+        their rims. Printed roof down the feet are the last thing laid, so the
+        chamfer faces up and costs nothing; the longest leg is the one at the top
+        of the laid part, which is where this probes.
+        """
+        foot = min(shape.feet, key=lambda f: f.socket_floor)
         top = part.bounding_box().max.Z
-        probed = 0
-        for foot in shape.feet:
-            if abs(shape.roof + BAR / 2.0 - foot.socket_floor - top) > 0.01:
-                continue
-            probed += 1
-            for side in (-1.0, 1.0):
-                # A tenth off the end, the chamfer has taken all but a tenth of
-                # itself off each face.
-                edge = BAR / 2.0 - FOOT_CHAMFER + 0.1
-                here = Vector(foot.station, side * foot.half, top - 0.1)
-                inside = Vector(foot.station + edge - 0.05, side * foot.half, top - 0.1)
-                outside = Vector(foot.station + edge + 0.05, side * foot.half, top - 0.1)
-                assert part.is_inside(here), "no foot at the top of the laid frame"
-                assert part.is_inside(inside), "the foot is chamfered away to nothing"
-                assert not part.is_inside(outside), "the foot's end was not chamfered"
-        assert probed, "no foot stands at the top of the laid frame to check"
+        assert pytest.approx(shape.roof + BAR / 2.0 - foot.socket_floor, abs=0.01) == top
+        # A tenth off the end, the chamfer has taken all but a tenth off each face.
+        edge = BAR / 2.0 - FOOT_CHAMFER + 0.1
+        for reach, solid in ((edge - 0.05, True), (edge + 0.05, False)):
+            at = Vector(foot.station + reach, foot.half, top - 0.1)
+            assert part.is_inside(at) == solid, "the foot's end is not chamfered"

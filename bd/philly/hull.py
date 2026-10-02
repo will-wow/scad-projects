@@ -460,6 +460,11 @@ def as_part(shape: object, what: str) -> Part:
     return Part(largest.wrapped)
 
 
+def on_the_bed(part: Part, what: str) -> Part:
+    """Dropped until its lowest point sits on z = 0, where a printer wants it."""
+    return as_part(Pos(0.0, 0.0, -part.bounding_box().min.Z) * part, what)
+
+
 def _assert_open(
     hull: Part,
     lines: HullLines,
@@ -529,6 +534,54 @@ def inner_half_width(
         # same height -- see `Bulge`.
         y += bulge.at((z - z_chine) / rise) * bulge.amount * chord
     return y
+
+
+@dataclass(frozen=True)
+class Scaled:
+    """The hull's lines in millimetres of the finished model.
+
+    Everything in this module works in the source's own 1:1 millimetres and
+    scales once at the end. Everything fitted to the hull afterwards -- the
+    joinery, the mast's step, the awning's legs, the guns' slides -- works in
+    printed millimetres, and each of them wants the same handful of answers
+    about where the hull is. This is that handful, so a fitting asks rather
+    than converting for itself.
+    """
+
+    spec: HullSpec
+    lines: HullLines
+
+    @property
+    def factor(self) -> float:
+        """Printed millimetres to the source's."""
+        return self.spec.length / self.lines.length
+
+    def station(self, fraction: float) -> float:
+        """Along the boat, from a fraction of the overall length."""
+        x0, x1 = self.lines.span
+        return (x0 + (x1 - x0) * fraction) * self.factor
+
+    def inside(self, x: float, z: float, wall: float | None = None) -> float:
+        """The inside face of the planking at height `z`, or of a wall this thick."""
+        factor = self.factor
+        thick = (self.spec.wall if wall is None else wall) / factor
+        return inner_half_width(self.lines, x / factor, thick, z / factor, self.spec.bulge) * factor
+
+    def sheer(self, x: float) -> float:
+        """The top of the rail."""
+        return self.lines.sheer_height.value(x / self.factor) * self.factor
+
+    def bottom(self, x: float) -> float:
+        """The outside of the hull's bottom."""
+        return self.lines.chine_height.value(x / self.factor) * self.factor
+
+    def floor(self, x: float) -> float:
+        """The inside of the bottom, where no deck covers it."""
+        return self.bottom(x) + self.spec.wall
+
+    def deck(self, deck: Deck) -> float:
+        """A platform's height."""
+        return deck.height * self.lines.depth * self.factor
 
 
 def _inner_section(
@@ -659,6 +712,15 @@ def _ordered(decks: tuple[Deck, ...]) -> list[Deck]:
     return ordered
 
 
+def deck_at(spec: HullSpec, fraction: float) -> Deck | None:
+    """The deck covering `fraction` of the length, or None over open bilge.
+
+    What to do about open bilge is the caller's: a gun, a knee and an awning's
+    leg all want a deck under them and all have their own way of saying so.
+    """
+    return next((d for d in spec.decks if d.start <= fraction <= d.end), None)
+
+
 def open_stretches(decks: list[Deck]) -> list[tuple[float, float]]:
     """Everything the decks leave over: the stretches hollowed to the bottom.
 
@@ -684,15 +746,15 @@ def _cut(
     stations: np.ndarray,
     wall: float,
     bounds: tuple[float, float],
-    floor_z,
+    floor_z: float | None,
     bulge: Bulge | None = None,
     bow: Bow | None = None,
 ) -> Part:
-    """Subtract one cavity between `bounds`, with its floor placed by `floor_z`.
+    """Subtract one cavity between `bounds`, its floor at `floor_z`.
 
-    `floor_z` takes a station and returns the height for the cavity's bottom
-    there, or None for "all the way down". The loft caps its own ends, so each
-    cut leaves a bulkhead at its boundary.
+    None for a floor takes it all the way down to the inside of the bottom,
+    which is what makes a well. The loft caps its own ends, so each cut leaves a
+    bulkhead at its boundary.
     """
     start, end = bounds
     if end - start <= 1e-6:
@@ -710,7 +772,7 @@ def _cut(
     for run in runs:
         faces = [
             f
-            for f in (_inner_section(lines, x, wall, floor_z(x), bulge, bow) for x in run)
+            for f in (_inner_section(lines, x, wall, floor_z, bulge, bow) for x in run)
             if f is not None
         ]
         if len(faces) < 2:
@@ -808,17 +870,15 @@ def _well_floor(
 
 def _hollow(
     hull: Part,
+    spec: HullSpec,
     lines: HullLines,
     stations: np.ndarray,
-    wall: float,
-    decks: tuple[Deck, ...],
-    bulge: Bulge | None = None,
-    seams: Seams | None = None,
-    factor: float = 1.0,
+    factor: float,
     bow: Bow | None = None,
-    wells: Well | None = None,
 ) -> Part:
     """Hollow the undecked stretches to the bottom, and each deck to its height."""
+    wall = spec.wall / factor
+    bulge, seams, wells = spec.bulge, spec.seams, spec.wells
     x0, x1 = lines.span
     # Where the hull is wide enough to hold a cavity at all; a stretch reaching
     # past that is clipped rather than refused, so "open to the bow" means as
@@ -828,7 +888,7 @@ def _hollow(
     def clip(a: float, b: float) -> tuple[float, float]:
         return max(first, x0 + (x1 - x0) * a), min(last, x0 + (x1 - x0) * b)
 
-    ordered = _ordered(decks)
+    ordered = _ordered(spec.decks)
     stretches = open_stretches(ordered)
 
     def overrun(edge: float, others: list[Deck]) -> float:
@@ -838,34 +898,42 @@ def _hollow(
         abutting = any(abs(d.start - edge) < 1e-9 or abs(d.end - edge) < 1e-9 for d in others)
         return -seams.margin / factor if abutting else wall
 
+    def grooves_for(
+        bounds: tuple[float, float],
+        floor: float,
+        plank: float,
+        first: float,
+        ends: tuple[float, float],
+    ) -> list[Part]:
+        """One deck's or one well's seams, with the finished sizes put into the source's."""
+        assert seams is not None
+        return _seams(
+            lines,
+            wall,
+            bounds,
+            floor,
+            plank / factor,
+            first / factor,
+            (seams.width / factor, seams.depth / factor, seams.margin / factor),
+            ends,
+            bulge,
+        )
+
     hollowed = hull
     grooves: list[Part] = []
     for stretch in stretches:
         bounds = clip(*stretch)
-        hollowed = _cut(
-            hollowed,
-            lines,
-            stations,
-            wall,
-            bounds,
-            lambda x: None,
-            bulge,
-            bow,
-        )
+        hollowed = _cut(hollowed, lines, stations, wall, bounds, None, bulge, bow)
         if seams is None or wells is None or bounds[1] - bounds[0] <= 1e-6:
             continue
         # A well abuts a deck at each end, so `overrun` pulls its grooves short
         # of both bulkheads rather than running them onto their faces.
-        grooves += _seams(
-            lines,
-            wall,
+        grooves += grooves_for(
             bounds,
             _well_floor(lines, wall, bounds, seams.depth / factor, bow),
-            wells.plank / factor,
-            wells.clear / factor,
-            (seams.width / factor, seams.depth / factor, seams.margin / factor),
+            wells.plank,
+            wells.clear,
             (overrun(stretch[0], list(ordered)), overrun(stretch[1], list(ordered))),
-            bulge,
         )
 
     for deck in ordered:
@@ -874,29 +942,17 @@ def _hollow(
         # its own number instead of a single drop below a sheer they no longer
         # share.
         floor = deck.height * lines.depth
-        hollowed = _cut(
-            hollowed,
-            lines,
-            stations,
-            wall,
-            clip(deck.start, deck.end),
-            lambda x, floor=floor: floor,
-            bulge,
-            bow,
-        )
+        bounds = clip(deck.start, deck.end)
+        hollowed = _cut(hollowed, lines, stations, wall, bounds, floor, bulge, bow)
         if seams is None or deck.plank is None:
             continue
         others = [d for d in ordered if d is not deck]
-        grooves += _seams(
-            lines,
-            wall,
-            clip(deck.start, deck.end),
+        grooves += grooves_for(
+            bounds,
             floor,
-            deck.plank / factor,
-            0.5 * deck.plank / factor,
-            (seams.width / factor, seams.depth / factor, seams.margin / factor),
+            deck.plank,
+            0.5 * deck.plank,
             (overrun(deck.start, others), overrun(deck.end, others)),
-            bulge,
         )
     for deck in ordered:
         abutting = any(abs(d.start - deck.end) < 1e-9 for d in ordered)
@@ -1050,18 +1106,7 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
         hull = as_part(hull + post, "adding the stem")
 
     if spec.deck_open:
-        hull = _hollow(
-            hull,
-            lines,
-            np.concatenate([forefoot[:-1], main]),
-            spec.wall / factor,
-            spec.decks,
-            spec.bulge,
-            spec.seams,
-            factor,
-            bow,
-            spec.wells,
-        )
+        hull = _hollow(hull, spec, lines, np.concatenate([forefoot[:-1], main]), factor, bow)
 
     return as_part(scale(hull, factor), "scaling")
 

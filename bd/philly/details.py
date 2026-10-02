@@ -31,10 +31,11 @@ from hull import (
     Deck,
     HullSpec,
     Knee,
+    Scaled,
     _cavity_span,
     as_part,
     clear_of_seams,
-    inner_half_width,
+    deck_at,
     open_stretches,
 )
 from lines import HullLines
@@ -76,41 +77,16 @@ BENCH_SECTIONS = 8
 SIDE_POINTS = 5
 
 
-class _Hull:
-    """The hull's lines in finished millimetres, for everything here."""
-
-    def __init__(self, spec: HullSpec, lines: HullLines) -> None:
-        self.spec, self.lines = spec, lines
-        self.factor = spec.length / lines.length
-        self.x0, self.x1 = lines.span
-
-    def station(self, fraction: float) -> float:
-        return (self.x0 + (self.x1 - self.x0) * fraction) * self.factor
-
-    def inside(self, x: float, z: float) -> float:
-        f = self.factor
-        return inner_half_width(self.lines, x / f, self.spec.wall / f, z / f, self.spec.bulge) * f
-
-    def sheer(self, x: float) -> float:
-        return self.lines.sheer_height.value(x / self.factor) * self.factor
-
-    def floor(self, x: float) -> float:
-        """The inside of the bottom, where no deck covers it."""
-        return self.lines.chine_height.value(x / self.factor) * self.factor + self.spec.wall
-
-    def deck(self, deck: Deck) -> float:
-        return deck.height * self.lines.depth * self.factor
-
-    def side(self, x: float, low: float, high: float) -> list[tuple[float, float]]:
-        """The inside face from `low` up to `high`, reached into by `OVERLAP`, as (y, z)."""
-        return [
-            (self.inside(x, float(z)) + OVERLAP, float(z))
-            for z in np.linspace(low, high, SIDE_POINTS)
-        ]
+def _side(hull: Scaled, x: float, low: float, high: float) -> list[tuple[float, float]]:
+    """The inside face from `low` up to `high`, reached into by `OVERLAP`, as (y, z)."""
+    return [
+        (hull.inside(x, float(z)) + OVERLAP, float(z)) for z in np.linspace(low, high, SIDE_POINTS)
+    ]
 
 
 def _deck_at(spec: HullSpec, fraction: float) -> Deck:
-    deck = next((d for d in spec.decks if d.start <= fraction <= d.end), None)
+    """As `hull.deck_at`, but nothing here can stand over open bilge."""
+    deck = deck_at(spec, fraction)
     if deck is None:
         raise ValueError(f"there is no deck at {fraction:.3f} to stand anything on")
     return deck
@@ -123,7 +99,7 @@ def _transverse(profile: list[tuple[float, float]], x: float, side: int, siding:
     return Part(extrude(face, siding, dir=(1.0, 0.0, 0.0)).wrapped)
 
 
-def knee(hull: _Hull, x: float, side: int, platform: Deck) -> Part:
+def knee(hull: Scaled, x: float, side: int, platform: Deck) -> Part:
     """One knee, centred on station `x`, standing on `platform`."""
     deck = hull.deck(platform)
     top = hull.sheer(x) - KNEE_BELOW_RAIL
@@ -149,7 +125,7 @@ def knee(hull: _Hull, x: float, side: int, platform: Deck) -> Part:
     end = face - KNEE_REACH
     end += clear_of_seams(hull.spec, platform, (end,))
     profile = [
-        *hull.side(x, deck - SINK, top),
+        *_side(hull, x, deck - SINK, top),
         *tall,
         *((float(y), float(z)) for y, z in curve),
         (end + KNEE_TAPER, arm),
@@ -161,24 +137,24 @@ def knee(hull: _Hull, x: float, side: int, platform: Deck) -> Part:
     return _transverse(profile, x - KNEE_SIDING / 2.0, side, KNEE_SIDING)
 
 
-def beam(hull: _Hull, x: float, deck: float) -> Part:
+def beam(hull: Scaled, x: float, deck: float) -> Part:
     """A cross-beam from `x` aft by `BEAM`, side to side on the deck at height `deck`."""
     top = deck + BEAM_HEIGHT
     # The narrower of its two faces, so it reaches into the side at both.
     near = min((x, x + BEAM), key=lambda s: hull.inside(s, deck))
-    starboard = hull.side(near, deck - SINK, top)
+    starboard = _side(hull, near, deck - SINK, top)
     profile = [*starboard, *((-y, z) for y, z in reversed(starboard))]
     return _transverse(profile, x, 1, BEAM)
 
 
-def bench(hull: _Hull, start: float, end: float, deck: float, side: int) -> Part:
+def bench(hull: Scaled, start: float, end: float, deck: float, side: int) -> Part:
     """A bench from station `start` to `end` along one side, solid down to the deck."""
     seat = deck + BENCH_SEAT
     sections = []
     for x in np.linspace(start, end, BENCH_SECTIONS):
         x = float(x)
         front = hull.inside(x, seat) - BENCH_REACH
-        profile = [*hull.side(x, deck - SINK, seat), (front, seat), (front, deck - SINK)]
+        profile = [*_side(hull, x, deck - SINK, seat), (front, seat), (front, deck - SINK)]
         sections.append(make_face(Polyline(*[(x, side * y, z) for y, z in profile], close=True)))
     return Part(loft(sections).wrapped)
 
@@ -188,10 +164,10 @@ def bench_top(spec: HullSpec, lines: HullLines, fraction: float) -> float | None
     covering = next((b for b in spec.benches if b.start <= fraction <= b.end), None)
     if covering is None:
         return None
-    return _Hull(spec, lines).deck(_deck_at(spec, fraction)) + BENCH_SEAT
+    return Scaled(spec, lines).deck(_deck_at(spec, fraction)) + BENCH_SEAT
 
 
-def keelson(hull: _Hull, start: float, end: float) -> Part:
+def keelson(hull: Scaled, start: float, end: float) -> Part:
     """The keelson from `start` to `end` along the centreline, on the floor of a well."""
     floor = hull.floor(0.5 * (start + end))
     height = KEELSON_PROUD + SINK
@@ -200,7 +176,7 @@ def keelson(hull: _Hull, start: float, end: float) -> Part:
     )
 
 
-def _platform_knees(hull: _Hull, spec: HullSpec) -> tuple[list[Part], list[tuple[Knee, Deck]]]:
+def _platform_knees(hull: Scaled, spec: HullSpec) -> tuple[list[Part], list[tuple[Knee, Deck]]]:
     """Each knee'd platform's cross-beams, and every knee with the deck it stands on.
 
     A platform is knee'd if any of `spec.knees` stands on it, and then its end
@@ -227,7 +203,7 @@ def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
     Runs after `build`, like every fitting, and before the awning's: its
     sockets are bored into the benches where a pair of legs stands on one.
     """
-    at = _Hull(spec, lines)
+    at = Scaled(spec, lines)
     pieces: list[Part] = []
 
     beams, knees = _platform_knees(at, spec)
@@ -243,7 +219,7 @@ def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
 
     if spec.keelson:
         wall = spec.wall / at.factor
-        first, last = _cavity_span(lines, wall, at.x0, at.x1)
+        first, last = _cavity_span(lines, wall, *lines.span)
         for a, b in open_stretches(sorted(spec.decks, key=lambda d: d.start)):
             # Into the bulkhead at each end, or as far as the hull has a floor.
             start = max(at.station(a) - OVERLAP, first * at.factor)
