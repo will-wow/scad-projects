@@ -42,19 +42,19 @@ def _stepped_mast(lines, seat) -> Part:
 def _hung_sails(lines, seat) -> list[Part]:
     """Each sail turned upright and slid onto the pair of yards it belongs to.
 
-    A sail is built lying down: its height runs along x, its width along y, and
+    A sail is built lying down: its depth runs along x, its width along y, and
     its thickness along z. Rotating 90 degrees about y carries x down to -z and
-    z round to x, so the height stands up, the width stays athwartships, and the
+    z round to x, so the depth stands up, the width stays athwartships, and the
     plate ends up facing fore and aft -- which is how a square sail hangs. It
     also carries the sail's +x end -- its foot -- to the bottom, which is where
     a tapered topsail wants its wider edge.
 
     The canvas goes on the bow side. A square sail's yard is slung forward of
     the mast so the sail does not chafe against it, so the whole sail shifts
-    forward by a neck's length to bring the eyes back onto the yards. That gap
+    forward by a neck's length to bring the cringles back onto the yards. That gap
     is real, and load-bearing: it is what keeps the plate from fouling the mast.
 
-    The eyes' mouths need no thought here. The neck joins the plate to the eye,
+    The cringles' mouths need no thought here. The neck joins the plate to the cringle,
     so a mouth is always on the far side of the bore from the plate -- canvas
     forward means the sails press on from astern.
     """
@@ -62,11 +62,11 @@ def _hung_sails(lines, seat) -> list[Part]:
     offset = rigging.stand_off(HULL, lines, RIG)
 
     hung = []
-    for (foot, head, height), pair in zip(
+    for (foot, head, depth), pair in zip(
         rigging.sail_sizes(HULL, lines, RIG), (RIG.course, RIG.topsail), strict=True
     ):
         middle = seat.floor + 0.5 * (pair[0] + pair[1]) * RIG.mast_length
-        flat = rigging.sail(RIG, foot, head, height, radius, offset)
+        flat = rigging.sail(RIG, foot, head, depth, radius, offset)
         hung.append(Pos(seat.station - offset, 0.0, middle) * (Rot(0.0, 90.0, 0.0) * flat))
     return hung
 

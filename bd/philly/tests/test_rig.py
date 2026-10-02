@@ -201,16 +201,16 @@ class TestSails:
         assert pytest.approx(0.0, abs=1e-6) == part.bounding_box().min.Z
 
     def test_each_sail_spans_its_pair_of_yards(self, lines):
-        """The sail's height is the gap between the yards it hangs from.
+        """The sail's depth is the gap between the yards it hangs from.
 
         Computed twice from different ends -- the yards from the rig's
         fractions, the sail from `sail_sizes` -- so this is what catches the
         two drifting apart.
         """
-        for (_, _, height), pair in zip(
+        for (_, _, depth), pair in zip(
             sail_sizes(SPEC, lines, RIG), (RIG.course, RIG.topsail), strict=True
         ):
-            assert height == pytest.approx((pair[1] - pair[0]) * RIG.mast_length, abs=1e-6)
+            assert depth == pytest.approx((pair[1] - pair[0]) * RIG.mast_length, abs=1e-6)
 
     def test_each_edge_is_as_wide_as_its_yards_clip_necks_are_apart(self, lines):
         halves = [half for _, half in yards(SPEC, lines, RIG)]
@@ -251,14 +251,14 @@ class TestSails:
     def topsail(self, lines):
         """One tapered sail on its own, centred, so its corners are where the
         sizes say rather than shifted sideways for printing."""
-        foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
+        foot, head, depth = sail_sizes(SPEC, lines, RIG)[1]
         radius = rigging.neck_radius(SPEC, lines, RIG)
-        return rigging.sail(RIG, foot, head, height, radius, stand_off(SPEC, lines, RIG))
+        return rigging.sail(RIG, foot, head, depth, radius, stand_off(SPEC, lines, RIG))
 
     def _corners(self, lines):
-        """Each eye, and which way is out from the sail along x and along y."""
-        foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
-        for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
+        """Each cringle, and which way is out from the sail along x and along y."""
+        foot, head, depth = sail_sizes(SPEC, lines, RIG)[1]
+        for along, width in ((-depth / 2.0, head), (depth / 2.0, foot)):
             for across in (-width / 2.0, width / 2.0):
                 yield along, across, np.sign(along), np.sign(across)
 
@@ -266,8 +266,8 @@ class TestSails:
         """The plate reaches the posts' outer faces, so a post stands wholly on
         the sail rather than centred on its corner with most of it hanging off.
         Probed on the plate just beside each post, at the line of its outer
-        face, which is air if the edge still runs through the eye."""
-        outer = RIG.neck_width * mast_width(SPEC, lines) / 2.0 + TOLERANCE + RIG.loop_wall
+        face, which is air if the edge still runs through the cringle."""
+        outer = RIG.neck_width * mast_width(SPEC, lines) / 2.0 + TOLERANCE + RIG.cringle_wall
         half = (RIG.clip_length - 2.0 * TOLERANCE) / 2.0
         low = RIG.sail_thickness / 2.0
         for along, across, out_x, out_y in self._corners(lines):
@@ -278,7 +278,7 @@ class TestSails:
 
     def test_the_corners_are_patched_and_the_edges_roped(self, topsail, lines):
         """Thick at the corners, thinner round the edges, canvas in between."""
-        outer = RIG.neck_width * mast_width(SPEC, lines) / 2.0 + TOLERANCE + RIG.loop_wall
+        outer = RIG.neck_width * mast_width(SPEC, lines) / 2.0 + TOLERANCE + RIG.cringle_wall
         patch = (RIG.rope_thickness + RIG.patch_thickness) / 2.0
         rope = (RIG.sail_thickness + RIG.rope_thickness) / 2.0
         for along, across, out_x, out_y in self._corners(lines):
@@ -298,17 +298,17 @@ class TestSails:
         aimed at the middle of an edge instead of a corner -- where there is
         nothing either way, so it passed without checking anything.
         """
-        foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
+        foot, head, depth = sail_sizes(SPEC, lines, RIG)[1]
         radius = rigging.neck_radius(SPEC, lines, RIG)
-        outer = radius + TOLERANCE + RIG.loop_wall
+        outer = radius + TOLERANCE + RIG.cringle_wall
         offset = stand_off(SPEC, lines, RIG)
-        one = rigging.sail(RIG, foot, head, height, radius, offset)
+        one = rigging.sail(RIG, foot, head, depth, radius, offset)
 
         # All four corners, on the tapered topsail: head at -x, foot at +x.
-        for along, width in ((-height / 2.0, head), (height / 2.0, foot)):
+        for along, width in ((-depth / 2.0, head), (depth / 2.0, foot)):
             for across in (-width / 2.0, width / 2.0):
                 corner = (along, across)
-                assert one.is_inside(Vector(*corner, offset / 2.0)), "no neck holds the eye"
+                assert one.is_inside(Vector(*corner, offset / 2.0)), "no neck holds the cringle"
                 assert not one.is_inside(Vector(*corner, offset)), "the bore is filled"
                 assert not one.is_inside(Vector(*corner, offset + outer - 0.1)), "mouth closed"
 

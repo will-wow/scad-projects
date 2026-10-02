@@ -2,7 +2,7 @@
 
 Two things here are worth more than the rest. The canvas has to clip onto the
 frame's necks, which are a dimension owned by rig.py -- so that is checked
-against the canvas's own eyes rather than against a number copied out of it.
+against the canvas's own cringles rather than against a number copied out of it.
 And a socket bored into a deck is bored into the bottom of the hull, which
 would leak a boat that floats perfectly well in every other respect.
 """
@@ -210,14 +210,14 @@ class TestCanvas:
         assert pytest.approx(0.0, abs=1e-6) == flat.bounding_box().min.Z
 
     def test_its_eyes_sit_on_the_end_crossbars_necks(self, rigged, shape):
-        """Each eye's bore is where a neck is: hollow on the neck's axis, with
-        the eye's ring around it."""
+        """Each cringle's bore is where a neck is: hollow on the neck's axis, with
+        the cringle's ring around it."""
         for station, clip in zip((shape.bars[0], shape.bars[-1]), shape.clips, strict=True):
             for side in (-1.0, 1.0):
                 axis = Vector(station, side * clip, shape.roof)
                 ring = Vector(station, side * clip, shape.roof + shape.neck + 0.8)
                 assert not rigged.is_inside(axis), "the bore is not over the neck"
-                assert rigged.is_inside(ring), f"no eye at {station:.0f}mm"
+                assert rigged.is_inside(ring), f"no cringle at {station:.0f}mm"
 
     def test_only_the_end_crossbars_are_necked(self, lines, shape):
         """Just under the square bar's top face: air over a neck, bar elsewhere.
@@ -244,7 +244,7 @@ class TestCanvas:
         assert not rigged.is_inside(middle), "the plate is sitting in the bars"
 
     def test_the_end_crossbars_knees_leave_the_eyes_their_room(self, upright, rigged):
-        """A necked crossbar has only the square between the leg and the eye to
+        """A necked crossbar has only the square between the leg and the cringle to
         put a knee in: the canvas's ring comes down round the neck, and a knee of
         the full reach would fill the place it sits."""
         assert (upright & rigged).volume < 1e-6
@@ -255,8 +255,8 @@ class TestCanvas:
 
     def test_an_eye_clips_over_a_neck_and_holds(self, shape):
         bore = shape.neck + rigging.TOLERANCE
-        assert bore > shape.neck, "the eye would not go over the neck"
-        assert RIG.mouth * 2.0 * shape.neck < 2.0 * shape.neck, "the eye would slip off"
+        assert bore > shape.neck, "the cringle would not go over the neck"
+        assert RIG.mouth * 2.0 * shape.neck < 2.0 * shape.neck, "the cringle would slip off"
 
 
 class TestSockets:

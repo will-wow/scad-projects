@@ -560,7 +560,7 @@ bar += at * (lengthwise * Cylinder(radius, rig.clip_length))
 
 That is a 4.6mm bridge with a square shoulder at each end rather than a
 cantilever, and the shoulders double as what stops a sail sliding along the
-yard. It was 2.5mm until the eyes that clip onto it were widened; `clip_inset`
+yard. It was 2.5mm until the cringles that clip onto it were widened; `clip_inset`
 moved from 0.08 to 0.11 at the same time, to keep the outboard shoulder on the
 topsail's head yard, which is the shortest and so the tight one. It also fixed something that was quietly broken: when the clip was a
 shallow groove turned into a round yard, the groove's floor was _narrower_ than
@@ -582,15 +582,15 @@ def course_yard(spec, lines, rig):
 The topsail's foot yard is the same length, so the two sails meet edge to edge,
 and its head yard is `topsail_taper` (0.72) of that: the topsail narrows toward
 the masthead. A sail is therefore a trapezoid, `sail(rig, foot, head, height,
-...)`, with the eyes at its four corners; the course is just the case where foot
+...)`, with the cringles at its four corners; the course is just the case where foot
 and head are equal.
 
 ### Sails clip on, and the corners are the whole problem
 
 A sail is a 0.6mm plate. The yard is 2.5mm thick, and the hole has to be wider
 still -- so a hole through the plate's edge would be wider than the plate. Each
-corner therefore carries an eye on a short neck, which is what a real sail's
-cringle is anyway.
+corner therefore carries a cringle on a short neck -- a rope eye worked into the
+edge, which is what a real sail's corner is anyway.
 
 The neck is not decoration. A sail spans the whole width of its yard and **the
 mast stands in the middle of it**, so a plate hung straight off the yard's axis
@@ -604,7 +604,7 @@ corners = mast_width(spec, lines) / np.sqrt(3.0)
 return corners + rig.sail_thickness + rig.mast_clearance
 ```
 
-The eye is as wide as its neck, so the corner rises off the bed as a wall with
+The cringle is as wide as its neck, so the corner rises off the bed as a wall with
 a ring on top and nothing overhangs. Its mouth opens **upward** -- away from the
 bed while printing, and square to the sail once rigged, so it presses onto both
 yards at once. Mouths facing up on one yard and down on the other would need the
@@ -613,7 +613,7 @@ sail to stretch to reach both.
 ### And then the lips broke off
 
 The patches below fixed the plate folding at the post. What that left was the C
-itself: the lips of the eye snapped off in play, which is the same lesson as the
+itself: the lips of the cringle snapped off in play, which is the same lesson as the
 carriage clip two schemes back, arrived at from the other end.
 
 Take one lip as a curved cantilever -- mid-radius 1.95mm, 0.8mm wall, spanning
@@ -628,14 +628,14 @@ the ring is rigid, but three or four percent either way. The root section is a
 layer interface, and PLA gives up interlayer somewhere between one and two
 percent. They were loaded several times past breaking, and they broke.
 
-The first instinct was to make the eyes wider, and 1.9mm is absurdly small for
+The first instinct was to make the cringles wider, and 1.9mm is absurdly small for
 something a child pulls on. But **ε has no width in it**. Widening multiplies
 the force to clip on and the area at the break by the same factor and leaves the
 strain exactly where it was: the load is a deflection, not a force. What moves
 the strain is δ, and δ is `mouth`. At 0.98 it is 0.025mm and ε about 1.3%, with
 the clip-on force down from roughly 22N a lip to 9.
 
-So both: `mouth` 0.9 to 0.98 for the strain, and the eye 1.9mm to 4.0 for the
+So both: `mouth` 0.9 to 0.98 for the strain, and the cringle 1.9mm to 4.0 for the
 bonded area at the root and for being pulled off askew, which is how a child
 takes a sail off. What holds a sail on afterwards is 0.05mm of interference
 across the mouth plus whatever the printer leaves in the slot, which is why
@@ -643,20 +643,20 @@ across the mouth plus whatever the printer leaves in the slot, which is why
 
 ### Flush posts, patches and a bolt rope, because the posts snapped
 
-The sail's size is measured between its eyes, and the plate used to be exactly
+The sail's size is measured between its cringles, and the plate used to be exactly
 that shape, so each post stood centred on the plate's corner: three quarters of
 it hung off the sail, held by a 0.6mm plate under one quarter of its base. In
 play that plate folded right where it met the post whenever a sail was pulled
 off, and PLA does not take much of that before it whitens and snaps.
 
-Nothing needed the plate to stop at the eyes; only the eyes have to be on the
+Nothing needed the plate to stop at the cringles; only the cringles have to be on the
 necks. So the plate is now the convex hull of the four posts (`_hull`), which
 puts every post flush with both edges and wholly on the sail, and the sail's
 head lies level with the top of its yard, where a real sail is laced on.
 
 A real sail is also sewn double at its corners and roped round its edges, so
-this one is too. Each eye gets a **patch** `patch_thickness` (1.6mm) thick, a
-diamond `patch` (10mm) across from the eye, cut to the plate. A **bolt rope**
+this one is too. Each cringle gets a **patch** `patch_thickness` (1.6mm) thick, a
+diamond `patch` (10mm) across from the cringle, cut to the plate. A **bolt rope**
 `rope_width` (1.5mm) wide and `rope_thickness` (1.2mm) thick runs round the
 whole edge, tying the four posts together. Both are on the side away from the
 bed, so they print as plain raised walls.
@@ -726,7 +726,7 @@ the yards: its foot spans the necks on the first crossbar and its head the necks
 on the last, which is narrower because the hull closes in toward the transom.
 Only those two crossbars are necked, each neck just inboard of the rail with a
 square shoulder between them. The necks are `rig.neck_radius` — the same number
-the canvas's eyes were cut for, imported rather than copied.
+the canvas's cringles were cut for, imported rather than copied.
 
 Between the ends it follows the frame. A straight run from the first crossbar
 to the last read as a triangle over a frame that bows out along its sides, so
@@ -735,10 +735,10 @@ crossbar in between, inset from the side rail as far as the corners are. The
 plate is the convex hull of its corners and those points. That is exact here,
 since the frame only ever narrows faster toward the stern.
 
-It prints flat and eyes up, like the sails, and is rigged the other way up:
+It prints flat and cringles up, like the sails, and is rigged the other way up:
 `rigged_canvas` gives it a half turn about y, which puts the plate on top, the
-eyes' mouths facing down onto the necks, and the wider foot forward. Its plate
-stands off its eyes only far enough to clear the bars' tops (`canvas_offset`);
+cringles' mouths facing down onto the necks, and the wider foot forward. Its plate
+stands off its cringles only far enough to clear the bars' tops (`canvas_offset`);
 the sails stand off further, but that is to clear the mast. Rigged that way up,
 the patches and bolt rope hang under the plate, so it is the patches'
 thickness, not the plate's, that has to clear the bars.
@@ -909,7 +909,7 @@ Equal-legged, and reaching from the leg's centreline rather than its face, so
 each one overlaps both members and the fuse has something to bite on. Laid
 roof-down every layer of a knee is smaller than the one beneath it, which is the
 whole reason it is a triangle and not a block: the hypotenuse carries itself.
-The two necked crossbars are the exception -- the canvas's eye comes down into
+The two necked crossbars are the exception -- the canvas's cringle comes down into
 that square, so those knees stop at the neck's end and are a chamfer rather than
 a brace. The stress concentration was most of the benefit anyway.
 

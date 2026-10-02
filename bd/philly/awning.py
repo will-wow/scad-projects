@@ -9,7 +9,7 @@ the way the sails clip onto the yards.
 The frame is its legs: it runs from the first pair to the last, with a crossbar
 over every pair, so each crossbar stands on something and both ends are closed.
 The canvas clips to the two end crossbars, on necks that are `rig.neck_radius`
--- the same number the canvas's corner eyes are cut for, taken from rig.py
+-- the same number the canvas's corner cringles are cut for, taken from rig.py
 rather than copied.
 
 Millimetres of the finished model throughout, as rig.py is; the hull arrives
@@ -210,7 +210,7 @@ class Frame:
     clips: tuple[float, float]
     """how far out along the first and the last crossbar the canvas clips on"""
     neck: float
-    """the clip neck's radius -- what the canvas's corner eyes were cut for"""
+    """the clip neck's radius -- what the canvas's corner cringles were cut for"""
     clip_length: float
 
     @property
@@ -421,7 +421,7 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     section = knee_section(awning.edge)
 
     # A necked crossbar leaves a knee only the square between the leg and the
-    # eye that clips on: the canvas's ring comes down round the neck and its
+    # cringle that clips on: the canvas's ring comes down round the neck and its
     # outboard face stands `clip_length / 2` short of the leg's centreline.
     def inboard(station: float) -> float:
         clip = necked.get(station)
@@ -484,10 +484,10 @@ def awning_part(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | Non
 
 
 def canvas_offset(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> float:
-    """How far the canvas's plate stands from its eyes' axes.
+    """How far the canvas's plate stands from its cringles' axes.
 
     Far enough that, rigged plate-up, it clears the tops of the crossbars the
-    eyes hang from. The sails stand off further, but that is to clear the mast;
+    cringles hang from. The sails stand off further, but that is to clear the mast;
     the canvas only has the bars to clear.
 
     Its patches and bolt rope hang under the plate once it is rigged, so it is
@@ -498,7 +498,7 @@ def canvas_offset(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> f
 
 
 def canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Part:
-    """The awning's canvas, flat on the bed and eyes up, ready to print.
+    """The awning's canvas, flat on the bed and cringles up, ready to print.
 
     It is a sail in all but name -- `rig.sail`, cut to the frame instead of the
     yards: its foot spans the necks on the first crossbar, its head the necks on
@@ -520,7 +520,7 @@ def canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = N
         rig,
         foot=2.0 * fore,
         head=2.0 * aft,
-        height=shape.bars[-1] - shape.bars[0],
+        depth=shape.bars[-1] - shape.bars[0],
         radius=shape.neck,
         offset=canvas_offset(spec, lines, rig),
         edge=tuple((middle - foot.station, foot.half - inset) for foot in shape.feet[1:-1]),
@@ -531,7 +531,7 @@ def rigged_canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     """The canvas clipped onto the frame, in the hull's own coordinates.
 
     Turned end for end and upside down at once -- a half turn about y -- so the
-    plate is on top, the eyes hang under it with their mouths facing down onto
+    plate is on top, the cringles hang under it with their mouths facing down onto
     the necks, and the wider foot goes forward, where the frame is wider.
     """
     rig = rig or Rig()

@@ -98,20 +98,20 @@ class Rig:
     """how far in from a yard's tip a sail clips on, as a fraction of its half-length
 
     Far enough in that the square shoulder outboard of the neck survives the
-    eye's width. The neck is `clip_length` long, and at 0.08 a 4.6mm one left
+    cringle's width. The neck is `clip_length` long, and at 0.08 a 4.6mm one left
     the topsail's head yard 0.38mm of tip to hold a sail against.
     """
     clip_length: float = 4.6
     """the length of the necked section, which is what locates a sail fore and aft
 
-    It is also the eye's width, less a clearance at each end. At 2.5 the eye
+    It is also the cringle's width, less a clearance at each end. At 2.5 the cringle
     was 1.9mm across and its lips broke off in play. Widening does not lower
     the strain that cracks them -- that is set by how far they spring -- but it
     doubles the layer bonded at the root and takes being pulled off askew.
     """
     sail_thickness: float = 0.6
     """three layers at 0.2mm: thin enough to look like canvas, thick enough to survive"""
-    loop_wall: float = 0.8
+    cringle_wall: float = 0.8
     """material around a sail's corner bore
 
     Thin on purpose: a lip's strain when it springs over a neck runs with its
@@ -126,18 +126,23 @@ class Rig:
     mast's corners, which come to within `sail_thickness + mast_clearance` of the bed.
     """
     patch: float = 10.0
-    """how far a corner patch reaches from its eye, straight along the yard or down the sail"""
+    """how far a corner patch reaches from its cringle, straight along the yard or down the sail
+
+    A real sail names these by corner -- an earing-piece at the head, a
+    clue-piece at the clew -- and has no one word for both, so this keeps the
+    plain one: the same patch goes on all four.
+    """
     patch_thickness: float = 1.6
     """a corner patch's thickness, plate included
 
-    Thick because the corner is where the eye's post meets the plate, and a
+    Thick because the corner is where the cringle's post meets the plate, and a
     0.6mm plate folds right there when a sail is pulled off. The patches are
     far from the mast, so it is only the yard's underside they have to clear.
     """
     mast_clearance: float = 1.0
     """how far a sail must stay clear of the mast it hangs in front of"""
     mouth: float = 0.98
-    """a corner eye's opening, as a fraction of the neck's diameter
+    """a corner cringle's opening, as a fraction of the neck's diameter
 
     Under 1.0 so the sail clips on and stays put rather than falling off, and
     only just under. This is what sets how far each lip has to spread, and a
@@ -303,7 +308,7 @@ def neck(bar: Part, at: Pos, width: float, radius: float, length: float) -> Part
     Cut the square away over the clip's length, then put a cylinder back. That
     is a 4.6mm bridge between two square shoulders rather than an overhang, and
     the shoulders are what stop a sail sliding along. Both bars a sail or the
-    canvas clips to are necked here, so the eye's bore and the neck it goes over
+    canvas clips to are necked here, so the cringle's bore and the neck it goes over
     cannot drift apart.
 
     The neck lies along y, which is the way both of them run.
@@ -387,10 +392,13 @@ def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
 
 
 def sail_sizes(spec: HullSpec, lines: HullLines, rig: Rig) -> list[tuple[float, float, float]]:
-    """Each sail as (foot width, head width, height), course first.
+    """Each sail as (foot width, head width, depth), course first.
 
-    Measured between the eyes: the widths are between the clip necks on the
-    yards the sail's corners go to, and the height is between those yards. The
+    A sail's head-to-foot measurement is its depth, which is the word Steel's
+    sail tables use; `drop` is period too, but was the loose variant even then.
+
+    Measured between the cringles: the widths are between the clip necks on the
+    yards the sail's corners go to, and the depth is between those yards. The
     plate itself runs a little past them, out to the posts' outer faces.
     """
     course_foot, course_head, topsail_foot, topsail_head = yards(spec, lines, rig)
@@ -425,15 +433,15 @@ def sail(
     rig: Rig,
     foot: float,
     head: float,
-    height: float,
+    depth: float,
     radius: float,
     offset: float,
     edge: tuple[tuple[float, float], ...] = (),
 ) -> Part:
-    """One sail, lying flat: the plate in the XY plane, corner eyes along Y.
+    """One sail, lying flat: the plate in the XY plane, corner cringles along Y.
 
     The head is at -x and the foot at +x, `head` and `foot` wide between the
-    eyes -- a trapezoid, since a topsail narrows toward its head. Public so an
+    cringles -- a trapezoid, since a topsail narrows toward its head. Public so an
     assembled view can hang one on the yards; `sails()` lays both out side by
     side for printing instead. The awning's canvas is one of these too.
 
@@ -444,12 +452,13 @@ def sail(
 
     The corners cannot simply be holes. The bore has to be wider than the yard,
     and the yard is several times thicker than the plate, so a hole through the
-    plate's edge would be wider than the plate itself. Each corner gets an eye
-    on a short neck instead, which is what a real sail's cringle is anyway.
+    plate's edge would be wider than the plate itself. Each corner gets a cringle
+    on a short neck instead -- a rope eye worked into the edge, which is what a
+    real sail's corner is anyway.
 
     The neck is what holds the plate clear of the mast -- see `stand_off` -- and
-    it is as wide as the eye, so nothing overhangs: the whole corner rises off
-    the bed as a wall with a ring on top. The eye's mouth opens away from the
+    it is as wide as the cringle, so nothing overhangs: the whole corner rises off
+    the bed as a wall with a ring on top. The cringle's mouth opens away from the
     bed, and so, once the sail is rigged, square to the sail, which is what lets
     it press onto both its yards at once. A mouth facing up on one yard and down
     on the other would need the sail to stretch to reach both.
@@ -457,22 +466,22 @@ def sail(
     The plate is grown out to the posts' outer faces, so each post stands wholly
     on the sail rather than centred on its corner with most of it hanging off. A
     real sail is sewn double at its corners and roped round its edges too, and
-    so is this one: a thick patch round each eye, and a bolt rope round the
+    so is this one: a thick patch round each cringle, and a bolt rope round the
     whole edge, both on the side away from the bed.
     """
     bore = radius + TOLERANCE
-    outer = bore + rig.loop_wall
-    eye_length = rig.clip_length - 2.0 * TOLERANCE
-    eyes = [
+    outer = bore + rig.cringle_wall
+    cringle_length = rig.clip_length - 2.0 * TOLERANCE
+    cringles = [
         Vector(along, across)
-        for along, width in ((-height / 2.0, head), (height / 2.0, foot))
+        for along, width in ((-depth / 2.0, head), (depth / 2.0, foot))
         for across in (-width / 2.0, width / 2.0)
     ]
     posts = [
-        eye + Vector(dx, dy)
-        for eye in eyes
+        cringle + Vector(dx, dy)
+        for cringle in cringles
         for dx in (-outer, outer)
-        for dy in (-eye_length / 2.0, eye_length / 2.0)
+        for dy in (-cringle_length / 2.0, cringle_length / 2.0)
     ]
     posts += [Vector(along, side * half) for along, half in edge for side in (-1.0, 1.0)]
     outline = Polygon(*_hull(posts), align=None)
@@ -482,23 +491,23 @@ def sail(
     rope = Sketch((outline - offset2d(outline, -rig.rope_width, kind=Kind.INTERSECTION)).wrapped)
     plate += extrude(rope, amount=rig.rope_thickness)
     side = rig.patch * np.sqrt(2.0)
-    for eye in eyes:
-        diamond = Pos(eye) * Rot(0.0, 0.0, 45.0) * Rectangle(side, side)
+    for cringle in cringles:
+        diamond = Pos(cringle) * Rot(0.0, 0.0, 45.0) * Rectangle(side, side)
         plate += extrude(Sketch((outline & diamond).wrapped), amount=rig.patch_thickness)
 
     mouth = rig.mouth * 2.0 * radius
     lengthwise = Rot(-90.0, 0.0, 0.0)
     sail = plate
-    for eye in eyes:
-        corner = Pos(eye)
-        sail += corner * Pos(0.0, 0.0, offset / 2.0) * Box(2.0 * outer, eye_length, offset)
-        sail += corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(outer, eye_length))
-        sail -= corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(bore, eye_length + 2.0))
+    for cringle in cringles:
+        corner = Pos(cringle)
+        sail += corner * Pos(0.0, 0.0, offset / 2.0) * Box(2.0 * outer, cringle_length, offset)
+        sail += corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(outer, cringle_length))
+        sail -= corner * Pos(0.0, 0.0, offset) * (lengthwise * Cylinder(bore, cringle_length + 2.0))
         # The slot, from the bore's centre straight up and out.
         sail -= (
             corner
             * Pos(0.0, 0.0, offset + outer / 2.0 + 0.5)
-            * Box(mouth, eye_length + 2.0, outer + 1.0)
+            * Box(mouth, cringle_length + 2.0, outer + 1.0)
         )
     return as_part(sail, "a sail")
 
@@ -511,10 +520,10 @@ def sails(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     gap = 5.0
     built = []
     across = 0.0
-    for foot, head, height in sail_sizes(spec, lines, rig):
+    for foot, head, depth in sail_sizes(spec, lines, rig):
         widest = max(foot, head)
         built.append(
-            Pos(0.0, across + widest / 2.0, 0.0) * sail(rig, foot, head, height, radius, offset)
+            Pos(0.0, across + widest / 2.0, 0.0) * sail(rig, foot, head, depth, radius, offset)
         )
         across += widest + gap
     together = built[0]

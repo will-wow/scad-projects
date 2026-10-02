@@ -84,7 +84,7 @@ def test_each_sail_hangs_between_the_yards_it_belongs_to(assembled, lines):
 def test_the_sails_hang_forward_of_the_mast(assembled, lines):
     """On the bow side: a square sail's yard is slung forward of the mast.
 
-    The eyes straddle the yard, so they reach aft of the station; it is the
+    The cringles straddle the yard, so they reach aft of the station; it is the
     plate, and so the sail's bulk, that has to be forward of it.
     """
     seat = rigging.step(HULL, lines, RIG)
