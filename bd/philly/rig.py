@@ -46,7 +46,7 @@ from build123d import (
 )
 from build123d import offset as offset2d
 
-from hull import HullSpec, as_part, inner_half_width, open_stretches
+from hull import HullSpec, Scaled, as_part, on_the_bed, open_stretches
 from lines import HullLines
 
 # Clearance between parts that have to fit together, per side. Anything that
@@ -209,33 +209,28 @@ def step(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Step:
     platform.
     """
     rig = rig or Rig()
-    factor = spec.length / lines.length
+    hull = Scaled(spec, lines)
     stretches = open_stretches(sorted(spec.decks, key=lambda d: d.start))
     if not stretches:
         raise ValueError("the hull is decked over end to end; there is no well to step a mast in")
     start, end = stretches[0]
 
-    x0, x1 = lines.span
-    source_x = x0 + (x1 - x0) * 0.5 * (start + end)
-    wall = spec.wall / factor
-
+    station = hull.station(0.5 * (start + end))
     bar = bar_size(spec, lines)
-    rail = lines.sheer_height.value(source_x) * factor
-    chine = lines.chine_height.value(source_x) * factor
+    rail = hull.sheer(station)
     bar_top = rail - bar
 
     return Step(
-        station=source_x * factor,
+        station=station,
         bar_top=bar_top,
         bar_size=bar,
         # Measured at the bar's top, which is the widest the inside gets over
         # the bar's height. The side flares, so the bar then overlaps into the
         # wall at its lower edge -- by less than the wall is thick, so it meets
         # the hull all the way down without breaking through.
-        bar_half_length=inner_half_width(lines, source_x, wall, bar_top / factor, spec.bulge)
-        * factor,
-        floor=chine + spec.wall,
-        outer_floor=chine,
+        bar_half_length=hull.inside(station, bar_top),
+        floor=hull.floor(station),
+        outer_floor=hull.bottom(station),
         # One bar-width proud of the rail: enough to read as a fitting, little
         # enough that the boat still looks like a boat with the mast out.
         top=rail + bar,
@@ -302,6 +297,22 @@ def yards(spec: HullSpec, lines: HullLines, rig: Rig) -> list[tuple[float, float
     ]
 
 
+def neck(bar: Part, at: Pos, width: float, radius: float, length: float) -> Part:
+    """Turn `length` of a square bar down to a round neck at `at`, for a sail to clip onto.
+
+    Cut the square away over the clip's length, then put a cylinder back. That
+    is a 4.6mm bridge between two square shoulders rather than an overhang, and
+    the shoulders are what stop a sail sliding along. Both bars a sail or the
+    canvas clips to are necked here, so the eye's bore and the neck it goes over
+    cannot drift apart.
+
+    The neck lies along y, which is the way both of them run.
+    """
+    lengthwise = Rot(-90.0, 0.0, 0.0)
+    turned = bar - at * Box(2.0 * width, length, 1.2 * width)
+    return as_part(turned + at * (lengthwise * Cylinder(radius, length)), "a neck")
+
+
 def _yard(rig: Rig, width: float, half: float) -> Part:
     """One yard, centred on the origin and running along y.
 
@@ -309,20 +320,13 @@ def _yard(rig: Rig, width: float, half: float) -> Part:
     laid down to print. Round yards looked better and did not print: a 2.5mm
     cylinder on the mast's centreline hangs 1.25mm clear of the bed for the
     whole 72mm of its length, with nothing underneath it.
-
-    Where a sail clips on, a short length is turned down to a round neck. That
-    is a 4.6mm bridge between two square shoulders rather than an overhang, and
-    the shoulders are what stop a sail sliding along the yard.
     """
     radius = rig.neck_width * width / 2.0
-    bar = Box(width, 2.0 * half, width)
-    bar = fillet(bar.edges().filter_by(Axis.Y), rig.yard_fillet)
-    lengthwise = Rot(-90.0, 0.0, 0.0)
+    square = Box(width, 2.0 * half, width)
+    bar = as_part(fillet(square.edges().filter_by(Axis.Y), rig.yard_fillet), "a yard's square")
     for side in (-1.0, 1.0):
         at = Pos(0.0, side * half * (1.0 - rig.clip_inset), 0.0)
-        # Cut the square away over the clip's length, then put the neck back.
-        bar -= at * Box(2.0 * width, rig.clip_length, 1.2 * width)
-        bar += at * (lengthwise * Cylinder(radius, rig.clip_length))
+        bar = neck(bar, at, width, radius, rig.clip_length)
     return as_part(bar, "a yard")
 
 
@@ -362,7 +366,7 @@ def mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
     """
     rig = rig or Rig()
     laid = Rot(0.0, 90.0, 0.0) * upright_mast(spec, lines, rig)
-    return as_part(Pos(0.0, 0.0, -laid.bounding_box().min.Z) * laid, "laying the mast down")
+    return on_the_bed(laid, "laying the mast down")
 
 
 def neck_radius(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
@@ -371,16 +375,12 @@ def neck_radius(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
 
 
 def stand_off(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
-    """How far a sail's plate hangs from the yard's axis.
+    """How far a sail's plate hangs from the yard's axis: far enough to clear the mast.
 
-    Far enough to clear the mast. A sail spans the whole width of its yard and
-    the mast stands in the middle of it, so a plate any nearer the axis tries to
-    occupy the same space as the mast -- which is exactly what the first
-    assembled render showed it doing, 130 cubic millimetres of overlap a sail.
-
-    Measured against the mast across its corners, which is the wider way and so
-    holds however the mast is turned in its socket. It can turn: that is the
-    point of the round base.
+    A sail spans the whole width of its yard with the mast in the middle of it,
+    so a plate any nearer the axis sits inside the mast -- 130 cubic millimetres
+    of it, in the first assembled render. Measured across the mast's corners,
+    the wider way, since it turns in its socket.
     """
     corners = mast_width(spec, lines) / np.sqrt(3.0)
     return corners + rig.sail_thickness + rig.mast_clearance

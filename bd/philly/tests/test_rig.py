@@ -232,7 +232,7 @@ class TestSails:
         was a plain cylinder with a shallow groove turned in it, the groove's
         floor was narrower than the mouth, so nothing held a sail on at all.
         """
-        neck = RIG.neck_width * mast_width(SPEC, lines) / 2.0
+        neck = rigging.neck_radius(SPEC, lines, RIG)
         assert neck + TOLERANCE > neck, "the bore does not clear the neck"
         assert RIG.mouth * 2.0 * neck < 2.0 * neck, "the mouth would slip off the neck"
 
@@ -252,7 +252,7 @@ class TestSails:
         """One tapered sail on its own, centred, so its corners are where the
         sizes say rather than shifted sideways for printing."""
         foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
-        radius = RIG.neck_width * mast_width(SPEC, lines) / 2.0
+        radius = rigging.neck_radius(SPEC, lines, RIG)
         return rigging.sail(RIG, foot, head, height, radius, stand_off(SPEC, lines, RIG))
 
     def _corners(self, lines):
@@ -299,7 +299,7 @@ class TestSails:
         nothing either way, so it passed without checking anything.
         """
         foot, head, height = sail_sizes(SPEC, lines, RIG)[1]
-        radius = RIG.neck_width * mast_width(SPEC, lines) / 2.0
+        radius = rigging.neck_radius(SPEC, lines, RIG)
         outer = radius + TOLERANCE + RIG.loop_wall
         offset = stand_off(SPEC, lines, RIG)
         one = rigging.sail(RIG, foot, head, height, radius, offset)

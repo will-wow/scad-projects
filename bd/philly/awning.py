@@ -26,7 +26,6 @@ from build123d import (
     Box,
     BuildPart,
     BuildSketch,
-    Cylinder,
     Part,
     Plane,
     Polygon,
@@ -38,9 +37,9 @@ from build123d import (
 )
 
 from details import bench_top
-from hull import Deck, HullSpec, as_part, clear_of_seams, inner_half_width
+from hull import HullSpec, Scaled, as_part, clear_of_seams, deck_at, on_the_bed
 from lines import HullLines
-from rig import TOLERANCE, Rig, neck_radius, sail
+from rig import TOLERANCE, Rig, neck, neck_radius, sail
 
 # Square section for every member. The frame is handled, so nothing thinner.
 BAR = 3.4
@@ -173,91 +172,75 @@ class Frame:
         return float(np.interp(station, [n[0] for n in self.nodes], [n[1] for n in self.nodes]))
 
 
-def _deck_at(spec: HullSpec, fraction: float) -> Deck | None:
-    return next((d for d in spec.decks if d.start <= fraction <= d.end), None)
+def _foot(hull: Scaled, awning: Awning, leg: float) -> tuple[Foot, float]:
+    """One pair of uprights solved against the hull, with the height of its deck.
 
-
-def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Frame:
-    """Solve the frame against the hull it has to sit in.
-
-    The uprights' offsets come from `hull.inner_half_width` at the height of
-    whatever they step on -- the narrowest the inside gets over an upright's length,
-    since the side flares outward going up. Measuring at the rail instead would
-    put the feet through the planking.
+    The offset comes from `Scaled.inside` at the height of whatever the pair
+    steps on -- the narrowest the inside gets over an upright's length, since
+    the side flares outward going up. Measuring at the rail instead would put
+    the feet through the planking.
 
     Two things can pull a pair further in than `inset` alone: the socket under
     it, which is below the deck where the side has closed in further (see
     `SIDE_FLOOR`), and the seams on a bare deck, which its boss must not end
     hard by.
+
+    The deck comes back along with the foot, because two pairs stand on benches
+    and the roof is set over the deck you would stand on, not over a seat.
     """
+    spec = hull.spec
+    deck = deck_at(spec, leg)
+    if deck is None:
+        raise ValueError(
+            f"the leg at {leg:.3f} stands over open bilge; there is nothing to bore a socket in"
+        )
+    station = hull.station(leg)
+    seat = bench_top(spec, hull.lines, leg)
+    standing = hull.deck(deck)
+    height = standing if seat is None else seat
+
+    # The tightest the inside gets along the upright's own length: toward the
+    # transom the hull closes in fast enough that its after face is nearer the
+    # side than its middle.
+    def tightest(z: float, wall: float | None = None) -> float:
+        return min(hull.inside(station + d, z, wall) for d in (-BAR / 2.0, 0.0, BAR / 2.0))
+
+    half = tightest(height) - awning.inset
+    # And no further out than the socket under it can go. The side closes in as
+    # it falls and the socket's floor is below the deck, so it is the floor, not
+    # the deck, that decides how far outboard a leg may stand if `SIDE_FLOOR` of
+    # planking is to be left outboard of the hole.
+    cap = tightest(height + BOSS_HEIGHT - SOCKET_DEPTH, SIDE_FLOOR) - (BAR + 2.0 * TOLERANCE) / 2.0
+    room = cap - half
+    if seat is None:
+        # On bare deck the boss must not end hard by a seam, and dodging one must
+        # not push the upright into the side where it rises off the boss -- the
+        # boss itself is meant to merge into the planking -- nor past what the
+        # socket under it allows. A negative `room` is the cap already breached,
+        # and asks the dodge for a move inboard.
+        room = min(tightest(height + BOSS_HEIGHT) - SIDE_GAP - BAR / 2.0 - half, room)
+        edges = (half - BOSS / 2.0, half + BOSS / 2.0)
+        half += clear_of_seams(spec, deck, edges, outboard=room)
+    return Foot(
+        station=station, half=min(half, cap), deck=height, bottom=hull.bottom(station)
+    ), standing
+
+
+def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Frame:
+    """Solve the frame against the hull it has to sit in; `_foot` solves the legs."""
     rig = rig or Rig()
-    factor = spec.length / lines.length
-    x0, x1 = lines.span
-
-    def source(fraction: float) -> float:
-        return x0 + (x1 - x0) * fraction
-
-    feet: list[Foot] = []
-    decks: list[float] = []
-    for leg in awning.legs:
-        deck = _deck_at(spec, leg)
-        if deck is None:
-            raise ValueError(
-                f"the leg at {leg:.3f} stands over open bilge; there is nothing to bore a socket in"
-            )
-        at = source(leg)
-        seat = bench_top(spec, lines, leg)
-        standing = deck.height * lines.depth * factor
-        decks.append(standing)
-        height = standing if seat is None else seat
-        # The tightest the inside gets along the upright's own length: toward the
-        # transom the hull closes in fast enough that its after face is nearer
-        # the side than its middle.
-        along = [at + offset / factor for offset in (-BAR / 2.0, 0.0, BAR / 2.0)]
-
-        def tightest(z: float, wall: float = spec.wall, along: list[float] = along) -> float:
-            return factor * min(
-                inner_half_width(lines, x, wall / factor, z / factor, spec.bulge) for x in along
-            )
-
-        inside = tightest(height)
-        half = inside - awning.inset
-        # And no further out than the socket under it can go. The side closes in
-        # as it falls and the socket's floor is below the deck, so it is the
-        # floor, not the deck, that decides how far outboard a leg may stand if
-        # `SIDE_FLOOR` of planking is to be left outboard of the hole.
-        cap = (
-            tightest(height + BOSS_HEIGHT - SOCKET_DEPTH, SIDE_FLOOR)
-            - (BAR + 2.0 * TOLERANCE) / 2.0
-        )
-        room = cap - half
-        if seat is None:
-            # On bare deck the boss must not end hard by a seam, and dodging one
-            # must not push the upright into the side where it rises off the
-            # boss -- the boss itself is meant to merge into the planking -- nor
-            # past what the socket under it allows. A negative `room` is the cap
-            # already breached, and asks the dodge for a move inboard.
-            room = min(tightest(height + BOSS_HEIGHT) - SIDE_GAP - BAR / 2.0 - half, room)
-            edges = (half - BOSS / 2.0, half + BOSS / 2.0)
-            half += clear_of_seams(spec, deck, edges, outboard=room)
-        half = min(half, cap)
-        feet.append(
-            Foot(
-                station=at * factor,
-                half=half,
-                deck=height,
-                bottom=lines.chine_height.value(at) * factor,
-            )
-        )
+    hull = Scaled(spec, lines)
+    solved = [_foot(hull, awning, leg) for leg in awning.legs]
+    feet = [foot for foot, _ in solved]
 
     # Headroom over the deck, so the roof is set by what it is for rather than
     # by a clearance over the rail. It still has to clear the rail: the sheer
     # rises toward the transom under the frame, and the check is against the
     # highest of it, not the average, so the roof stands clear everywhere rather
     # than only amidships.
-    roof = max(decks) + awning.headroom * factor
-    stations = np.linspace(source(awning.legs[0]), source(awning.legs[-1]), 200)
-    highest = float(max(lines.sheer_height.value(float(x)) for x in stations)) * factor
+    roof = max(deck for _, deck in solved) + awning.headroom * hull.factor
+    span = np.linspace(feet[0].station, feet[-1].station, 200)
+    highest = max(hull.sheer(float(x)) for x in span)
     if roof < highest + BAR:
         raise ValueError(
             f"a roof {roof:.1f}mm up does not clear the rail at {highest:.1f}mm; "
@@ -302,17 +285,9 @@ def _knee(at: tuple[float, float, float], bearing: float, section: float, reach:
 
     `at` is the corner -- the leg's centreline at the bar's underside -- and
     `reach` is measured from there, so a knee overlaps both members rather than
-    sitting on their faces and the fuse has something to bite on.
-
-    Right-angled and equal-legged. Laid roof-down every layer of it is smaller
-    than the one beneath, so the hypotenuse carries itself at 45 degrees and
-    there is nothing to bridge.
-
-    The corner is what broke. A leg is a 3.4mm column whose root is a sharp step
-    under the bars, it bends across the printed layers, and a dropped boat
-    snapped one off. A knee moves the worst section down the leg and rounds that
-    step out into a taper, which is most of what it is for: the step's own
-    stress concentration costs more than the length it saves.
+    meeting them on a face. Right-angled and equal-legged, so laid roof-down
+    every layer of it is smaller than the one beneath and the hypotenuse carries
+    itself. A dropped boat snapped a leg off that corner; see HOW-IT-WORKS.md.
     """
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
@@ -325,19 +300,16 @@ def _knee(at: tuple[float, float, float], bearing: float, section: float, reach:
 def _crossbar(shape: Frame, station: float, edge: float, clip: float | None) -> Part:
     """One crossbar, necked where the canvas clips on, if it does.
 
-    The neck is the yard's trick again: cut the square away over the clip's
-    length, put a cylinder back. The bar runs athwartships, so the cut is
-    `clip_length` deep in y and the neck lies along y too.
+    It runs athwartships, which is the way `rig.neck` cuts, so the yard's own
+    neck serves here unchanged.
     """
     half = shape.half_at(station)
     bar = _span((station, -half), (station, half), shape.roof, BAR, edge)
     if clip is None:
         return as_part(bar, "a crossbar")
-    lengthwise = Rot(-90.0, 0.0, 0.0)
     for side in (-1.0, 1.0):
         at = Pos(station, side * clip, shape.roof)
-        bar -= at * Box(2.0 * BAR, shape.clip_length, 1.2 * BAR)
-        bar += at * (lengthwise * Cylinder(shape.neck, shape.clip_length))
+        bar = neck(bar, at, BAR, shape.neck, shape.clip_length)
     return as_part(bar, "a crossbar")
 
 
@@ -414,7 +386,7 @@ def awning_part(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | Non
     between them.
     """
     rolled = Rot(180.0, 0.0, 0.0) * upright_frame(spec, lines, awning, rig)
-    return as_part(Pos(0.0, 0.0, -rolled.bounding_box().min.Z) * rolled, "laying the awning down")
+    return on_the_bed(rolled, "laying the awning down")
 
 
 def canvas_offset(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> float:
@@ -495,7 +467,7 @@ def fit_awning(
     to a round peg, and the peg was the weakest section in the frame.
     """
     shape = frame(spec, lines, awning, rig)
-    factor = spec.length / lines.length
+    at = Scaled(spec, lines)
     bore = BAR + 2.0 * TOLERANCE
 
     fitted = hull
@@ -508,13 +480,7 @@ def fit_awning(
         # The planking left outboard of it, offset perpendicular to the side the
         # way the hull measures its own wall. Taken at the socket's floor, which
         # is where the side has closed in the furthest.
-        room = factor * inner_half_width(
-            lines,
-            foot.station / factor,
-            SIDE_FLOOR / factor,
-            foot.socket_floor / factor,
-            spec.bulge,
-        )
+        room = at.inside(foot.station, foot.socket_floor, SIDE_FLOOR)
         if foot.half + bore / 2.0 > room:
             raise RuntimeError(
                 f"the socket at {foot.station:.0f}mm reaches "
@@ -522,9 +488,9 @@ def fit_awning(
                 "must leave outboard of it"
             )
         for side in (-1.0, 1.0):
-            at = (foot.station, side * foot.half)
+            place = (foot.station, side * foot.half)
             fitted = as_part(
-                fitted + Pos(*at, foot.deck + BOSS_HEIGHT / 2.0) * Box(BOSS, BOSS, BOSS_HEIGHT),
+                fitted + Pos(*place, foot.deck + BOSS_HEIGHT / 2.0) * Box(BOSS, BOSS, BOSS_HEIGHT),
                 "setting an awning boss",
             )
     for foot in shape.feet:

@@ -60,7 +60,7 @@ from ocp_vscode import show_object
 
 from cannon.cannon import CannonSpec, barrel_radius, base_ring_radius, trunnion_height
 from cannon.slide import Slide
-from cannon.trunnion import TrunnionSpec, diamond
+from cannon.trunnion import TrunnionSpec, diamond, through
 
 # Top edge of a bracket: (millimetres aft of the trunnion axis, height below the
 # rail's top). Tallest forward, where it carries the clip, stepping down aft over
@@ -256,21 +256,9 @@ def _bores(spec: CarriageSpec) -> Part:
     One prism across the whole carriage does both brackets. At this height there
     is nothing between them to cut: the quoin tops out some 4mm lower and the bed
     lower still.
-
-    Returns a part to subtract rather than cutting the caller's, because a
-    builder only nests into its parent when both are opened in the same Python
-    frame: a BuildSketch opened down here would quietly go nowhere.
     """
-    reach = spec.gap / 2 + spec.bracket + 0.5
     corners = [(along, spec.axis_height + up) for along, up in spec.hole]
-
-    with BuildPart() as cutter:
-        with BuildSketch(Plane.XZ.offset(-reach)):
-            Polygon(*corners, align=None)
-        extrude(amount=2 * reach)
-
-    assert cutter.part is not None
-    return cutter.part
+    return through(corners, spec.gap / 2 + spec.bracket + 0.5)
 
 
 def _tunnel(spec: CarriageSpec) -> Part:
