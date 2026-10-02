@@ -35,8 +35,9 @@ CLEARANCE = 0.5
 # The least a barrel may clear the rail by, anywhere in its run.
 MARGIN = 0.3
 
-# How far the bow's notch round the barrel dips below the rail at the stem.
-GUNPORT_DEPTH = 1.0
+# How far the bow chaser's port dips below the rail at the stem. A chase port,
+# not a gunport: she fires over the stem, not through her side.
+CHASE_PORT_DEPTH = 1.0
 
 # How close a chock may come to the outside of the hull, which it is merged into
 # where the carriage runs out right against the side.
@@ -92,15 +93,15 @@ class Mount:
         return self.carriage.slide.travel
 
     @property
-    def bearing(self) -> float:
-        """Degrees about z that turn the carriage's muzzle end, -x, to `outboard`."""
+    def training(self) -> float:
+        """Degrees about z that train the carriage's muzzle end, -x, to `outboard`."""
         return math.degrees(math.atan2(-self.outboard[1], -self.outboard[0]))
 
     def location(self, recoil: float = 0.0) -> Location:
         """Carriage coordinates to the hull's, `recoil` millimetres inboard of run out."""
         x = self.trunnions[0] - recoil * self.outboard[0]
         y = self.trunnions[1] - recoil * self.outboard[1]
-        return Pos(x, y, self.deck) * Rot(0.0, 0.0, self.bearing)
+        return Pos(x, y, self.deck) * Rot(0.0, 0.0, self.training)
 
     def slide(self) -> Part:
         """The slide in the deck, its chocks just clear of the carriage at either end."""
@@ -108,18 +109,18 @@ class Mount:
         rail = slide(spec.slide, spec.fore, spec.aft + self.travel)
         return self.location() * rail
 
-    def gunport(self, sheer: float) -> Part:
+    def chase_port(self, sheer: float) -> Part:
         """The notch in the bow round the barrel, as a solid to subtract.
 
         A cylinder on the gun's axis, run out, from the carriage's front to past
-        the stem, large enough to dip `GUNPORT_DEPTH` below the rail at the stem,
+        the stem, large enough to dip `CHASE_PORT_DEPTH` below the rail at the stem,
         whose height there is `sheer`. It takes the rail and the stem's head down
         round the barrel.
         """
         tilt = math.radians(self.carriage.elevation)
         inner = -self.carriage.fore
         outer = self.trunnions[0] + 1.0
-        radius = self.deck + self.axis_over(self.trunnions[0]) - (sheer - GUNPORT_DEPTH)
+        radius = self.deck + self.axis_over(self.trunnions[0]) - (sheer - CHASE_PORT_DEPTH)
         start = Pos(self.trunnions[0] - inner, 0.0, self.deck + self.axis_over(inner)).position
         direction = (-math.cos(tilt), 0.0, math.sin(tilt))
         length = (outer - inner) / math.cos(tilt)
@@ -242,7 +243,7 @@ def fit_guns(hull: Part, spec: HullSpec, lines: HullLines, guns: tuple[Gun, ...]
     for m in solved:
         if m.gun.side == 0:
             head = Scaled(spec, lines).sheer(0.0)
-            fitted = as_part(fitted - m.gunport(head), "cutting the bow's gunport")
+            fitted = as_part(fitted - m.chase_port(head), "cutting the bow's chase port")
     for m in solved:
         fitted = as_part(fitted + m.slide(), "laying a gun's slide")
     for m in solved:

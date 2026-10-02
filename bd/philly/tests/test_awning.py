@@ -25,11 +25,11 @@ from awning import (  # noqa: E402
     BAR,
     BOSS,
     BOSS_ROUND,
-    FLOOR,
+    BOTTOM_PLANKING,
     FOOT_CHAMFER,
     KNEE,
     MOUTH_CHAMFER,
-    SIDE_FLOOR,
+    SIDE_PLANKING,
     SOCKET_DEPTH,
     SOCKET_DROP,
     Awning,
@@ -271,7 +271,7 @@ class TestSockets:
         is the boat's bottom. The bosses exist to keep the hole out of it."""
         for foot in shape.feet:
             left = foot.socket_floor - foot.bottom
-            assert left >= FLOOR, (
+            assert left >= BOTTOM_PLANKING, (
                 f"only {left:.2f}mm of hull under the socket at {foot.station:.0f}"
             )
 
@@ -384,7 +384,7 @@ class TestSockets:
             room = factor * inner_half_width(
                 lines,
                 foot.station / factor,
-                SIDE_FLOOR / factor,
+                SIDE_PLANKING / factor,
                 foot.socket_floor / factor,
                 HULL.bulge,
             )

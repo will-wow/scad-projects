@@ -74,7 +74,7 @@ def knee_section(edge: float) -> float:
 #
 # The depth is what steadies the frame; the drop is only so the cut does not end
 # on the deck's own face, because down is the one direction a socket cannot grow
-# in -- see SIDE_FLOOR. Everything between is boss. Where a bench covers the
+# in -- see SIDE_PLANKING. Everything between is boss. Where a bench covers the
 # deck it gives most of that depth itself, so a pair standing on one shows a
 # 1.8mm pad rather than an 8mm block, for exactly the same hold.
 BOSS = 7.0
@@ -93,16 +93,16 @@ MOUTH_CHAMFER = 0.6
 # The least an upright stands off the inside of the hull.
 SIDE_GAP = 0.3
 
-# How far inside the planking a boss must keep. Not `SIDE_FLOOR`, which is a
+# How far inside the planking a boss must keep. Not `SIDE_PLANKING`, which is a
 # socket's rule: a hole takes material away and wants some left beside it, while
 # a boss puts material in and only has to stop short of the surface. A token
 # margin, so it beds into the planking rather than meeting it tangentially.
 SKIN = 0.2
 
-# Material that must be left under a socket. A deck is solid from the bottom of
+# Planking that must be left under a socket. A deck is solid from the bottom of
 # the hull up, so a socket's floor is also the hull's bottom, and anything
 # thinner than the planking there is a leak waiting to happen.
-FLOOR = 2.0
+BOTTOM_PLANKING = 2.0
 
 # Planking that must be left outboard of a socket, which is the real limit on
 # how deep one can go. The side closes in as it falls and the uprights stand
@@ -111,7 +111,7 @@ FLOOR = 2.0
 # is 3 to 4.5mm narrower than where the legs step, so a socket bored to the
 # bilge would come out through the side. Dropping 2mm below the deck, as they
 # used to, left 0.67mm beside the aft pair.
-SIDE_FLOOR = 1.0
+SIDE_PLANKING = 1.0
 
 
 @dataclass(frozen=True)
@@ -260,7 +260,7 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
 
     Two things can pull a pair further in than `inset` alone: the socket under
     it, which is below the deck where the side has closed in further (see
-    `SIDE_FLOOR`), and the seams on a bare deck, which its boss must not end
+    `SIDE_PLANKING`), and the seams on a bare deck, which its boss must not end
     hard by.
 
     """
@@ -285,9 +285,9 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     half = tightest(step) - awning.inset
     # And no further out than the socket under it can go. The side closes in as
     # it falls and the socket's floor is below the deck, so it is the floor, not
-    # the deck, that decides how far outboard a leg may stand if `SIDE_FLOOR` of
+    # the deck, that decides how far outboard a leg may stand if `SIDE_PLANKING` of
     # planking is to be left outboard of the hole.
-    cap = tightest(floor, SIDE_FLOOR) - (BAR + 2.0 * TOLERANCE) / 2.0
+    cap = tightest(floor, SIDE_PLANKING) - (BAR + 2.0 * TOLERANCE) / 2.0
     # The pad round the socket is wider than the hole and reaches further fore
     # and aft, so it is the boss, not the socket, that the side of the boat
     # catches first. Taken at the boss's own foot, the lowest it stands.
@@ -357,20 +357,20 @@ def _span(
 ) -> Part:
     """A bar between two points in plan, at height `z`.
 
-    Placed by its midpoint and bearing, which is the least fiddly way to lay a
+    Placed by its midpoint and angle, which is the least fiddly way to lay a
     box along an arbitrary line and works for the crossbars too. Filleted before
     it is turned, while its length still runs along x and the four edges to
     round off are the ones parallel to it.
     """
     length = float(np.hypot(b[0] - a[0], b[1] - a[1]))
-    bearing = float(np.degrees(np.arctan2(b[1] - a[1], b[0] - a[0])))
+    angle = float(np.degrees(np.arctan2(b[1] - a[1], b[0] - a[0])))
     bar = Box(length, section, section)
     bar = fillet(bar.edges().filter_by(Axis.X), edge)
     middle = Pos(0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), z)
-    return as_part(middle * (Rot(0.0, 0.0, bearing) * bar), "a bar")
+    return as_part(middle * (Rot(0.0, 0.0, angle) * bar), "a bar")
 
 
-def _knee(at: tuple[float, float, float], bearing: float, section: float, reach: float) -> Part:
+def _knee(at: tuple[float, float, float], angle: float, section: float, reach: float) -> Part:
     """A triangular knee in a corner a leg makes with a bar, pointing along it.
 
     `at` is the corner -- the leg's centreline at the bar's underside -- and
@@ -386,7 +386,7 @@ def _knee(at: tuple[float, float, float], bearing: float, section: float, reach:
             Polygon((0.0, 0.0), (reach, 0.0), (0.0, -reach), align=None)
         extrude(amount=section)
     assert knee.part is not None
-    return as_part(Pos(*at) * (Rot(0.0, 0.0, bearing) * knee.part), "a knee")
+    return as_part(Pos(*at) * (Rot(0.0, 0.0, angle) * knee.part), "a knee")
 
 
 def _crossbar(shape: Frame, station: float, edge: float, clip: float | None) -> Part:
@@ -462,8 +462,8 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
                     continue
                 run = shape.nodes[other][0] - foot.station
                 across = side * (shape.nodes[other][1] - foot.half)
-                bearing = float(np.degrees(np.arctan2(across, run)))
-                parts.append(_knee(corner, bearing, section, KNEE + BAR / 2.0))
+                angle = float(np.degrees(np.arctan2(across, run)))
+                parts.append(_knee(corner, angle, section, KNEE + BAR / 2.0))
 
     whole = parts[0]
     for extra in parts[1:]:
@@ -550,7 +550,7 @@ def fit_awning(
     direction a socket can grow in. A deck is solid down to the outside of the
     hull, so there is no bilge under one to reach; what a deeper hole runs into
     is the side, which closes in as it falls while the uprights stand close to
-    it. See `SIDE_FLOOR`, which is checked here. In a boss, the extra depth is
+    it. See `SIDE_PLANKING`, which is checked here. In a boss, the extra depth is
     above the deck instead, where the hull is wider, and the planking outboard
     of the hole is untouched.
 
@@ -574,7 +574,7 @@ def fit_awning(
                 f"the bench at {foot.station:.0f}mm is deeper than the socket; "
                 "there is no boss left to bore into"
             )
-        if foot.socket_floor - foot.bottom < FLOOR:
+        if foot.socket_floor - foot.bottom < BOTTOM_PLANKING:
             raise RuntimeError(
                 f"the socket at {foot.station:.0f}mm leaves only "
                 f"{foot.socket_floor - foot.bottom:.2f}mm of hull under it"
@@ -582,11 +582,11 @@ def fit_awning(
         # The planking left outboard of it, offset perpendicular to the side the
         # way the hull measures its own planking. Taken at the socket's floor, which
         # is where the side has closed in the furthest.
-        room = at.inside(foot.station, foot.socket_floor, SIDE_FLOOR)
+        room = at.inside(foot.station, foot.socket_floor, SIDE_PLANKING)
         if foot.half + bore / 2.0 > room:
             raise RuntimeError(
                 f"the socket at {foot.station:.0f}mm reaches "
-                f"{foot.half + bore / 2.0 - room:.2f}mm past the {SIDE_FLOOR}mm of planking it "
+                f"{foot.half + bore / 2.0 - room:.2f}mm past the {SIDE_PLANKING}mm of planking it "
                 "must leave outboard of it"
             )
         for side in (-1.0, 1.0):

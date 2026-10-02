@@ -147,8 +147,8 @@ def test_the_bow_is_notched_round_the_barrel(hull, lines):
     """The stem's head stops a little under the sheer, in a round notch the barrel sits in."""
     rail = lines.sheer_height.value(0.0) * HULL.length / lines.length
     for x in (0.5, 1.5):
-        assert not hull.is_inside(Vector(x, 0.0, rail - 0.5 * guns.GUNPORT_DEPTH))
-        assert hull.is_inside(Vector(x, 0.0, rail - guns.GUNPORT_DEPTH - 0.3))
+        assert not hull.is_inside(Vector(x, 0.0, rail - 0.5 * guns.CHASE_PORT_DEPTH))
+        assert hull.is_inside(Vector(x, 0.0, rail - guns.CHASE_PORT_DEPTH - 0.3))
 
 
 def test_the_bow_guns_slide_runs_back_to_the_forecastles_edge(hull, solved):
