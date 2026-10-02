@@ -22,9 +22,11 @@ import details  # noqa: E402
 import rig as rigging  # noqa: E402
 from awning import (  # noqa: E402
     BAR,
+    BOSS,
     FLOOR,
     FOOT_CHAMFER,
     KNEE,
+    MOUTH_CHAMFER,
     SIDE_FLOOR,
     SOCKET_DEPTH,
     SOCKET_DROP,
@@ -278,6 +280,30 @@ class TestSockets:
                 beside = Vector(foot.station, side * foot.half + BAR, foot.step + 1.0)
                 assert not fitted.is_inside(bore), "the socket was not bored"
                 assert fitted.is_inside(beside), "there is no boss around the socket"
+
+    def test_a_socket_mouth_is_chamfered_to_guide_a_leg_in(self, fitted, shape):
+        """The hull's half of the lead-in -- the leg's foot is chamfered to
+        match. Probed just outside the bore: open at the mouth, metal once the
+        chamfer has run out below it."""
+        bore = BAR + 2.0 * rigging.TOLERANCE
+        out = bore / 2.0 + MOUTH_CHAMFER / 2.0
+        for foot in shape.feet:
+            for side in (-1.0, 1.0):
+                flared = Vector(foot.station, side * foot.half + out, foot.base - 0.05)
+                straight = Vector(
+                    foot.station, side * foot.half + out, foot.base - MOUTH_CHAMFER - 0.5
+                )
+                assert not fitted.is_inside(flared), (
+                    f"the socket at {foot.station:.0f}mm has no chamfered mouth"
+                )
+                assert fitted.is_inside(straight), "the chamfer runs on down the socket"
+
+    def test_the_mouth_chamfer_leaves_the_boss_a_collar(self):
+        """It is cut out of a collar only 1.5mm thick to begin with, which is why
+        it is the smaller half of the lead-in."""
+        mouth = BAR + 2.0 * rigging.TOLERANCE + 2.0 * MOUTH_CHAMFER
+        assert (BOSS - mouth) / 2.0 >= 0.8, "the chamfer eats the boss's collar"
+        assert MOUTH_CHAMFER < FOOT_CHAMFER
 
     def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, built_hull):
         assert fitted.is_valid
