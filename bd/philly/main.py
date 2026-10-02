@@ -79,8 +79,8 @@ def _forecastle_tabs(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
     return replace(spec, decks=(replace(forecastle, tab=tab), *spec.decks[1:]))
 
 
-def _well_ceiling(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
-    """Plank the wells' floors, the innermost seam clear of what stands on them.
+def _well_planking(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
+    """Plank the wells' ceilings, the innermost seam clear of what stands on them.
 
     8.0mm to match the middle platform, which lies between the two wells. The
     keelson runs down every well and the mast's tube stands in the forward one,
@@ -93,7 +93,7 @@ def _well_ceiling(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
     return replace(spec, wells=Well(plank=8.0, clear=clear))
 
 
-HULL = _well_ceiling(_forecastle_tabs(HULL, RIG), RIG)
+HULL = _well_planking(_forecastle_tabs(HULL, RIG), RIG)
 
 AWNING = awnings.Awning()
 

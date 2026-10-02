@@ -149,7 +149,7 @@ def test_the_keelson_runs_down_each_well(hull, at):
     for a, b in stretches:
         # A quarter of the way along, clear of the mast's tube in the forward well.
         x = at.station(a + 0.25 * (b - a))
-        floor = at.floor(x)
+        floor = at.ceiling(x)
         assert _solid(hull, x, 0.0, floor + 1.5), f"no keelson at {x:.1f}"
         assert not _solid(hull, x, 0.0, floor + details.KEELSON_PROUD + 0.3)
         for side in (-1.0, 1.0):

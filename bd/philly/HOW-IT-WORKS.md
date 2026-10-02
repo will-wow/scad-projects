@@ -497,7 +497,7 @@ systems. Everything in hull.py works in the source's 1:1 millimetres and scales
 once at the end; everything fitted to the hull afterwards -- the joinery, this
 socket, the awning's legs, the guns' slides -- works in printed millimetres.
 Each of them wants the same handful of answers (`station`, `inside`, `sheer`,
-`bottom`, `floor`, `deck`), and each of them used to divide by `factor` on the
+`bottom`, `ceiling`, `deck`), and each of them used to divide by `factor` on the
 way in and multiply on the way out for itself. `Scaled` holds that conversion
 once, so a fitting asks rather than converts. The thwart is cut to reach it:
 
@@ -513,8 +513,8 @@ through.
 
 ### Two constraints that are not obvious
 
-**The bore must not reach the bottom.** It stops at the inside of the hull's
-floor. A bore one millimetre longer is a hole in the boat.
+**The bore must not reach the bottom.** It stops at the ceiling, the inside of the hull's
+bottom. A bore one millimetre longer is a hole in the boat.
 
 **The tube runs all the way down**, which does two jobs. It steps the mast, and
 it plants a pillar under the middle of the thwart. Without it the thwart is a single
@@ -767,7 +767,7 @@ modelled solid from the bottom up, so the floor of that socket is the boat's
 bottom, below the waterline. On the quarterdeck there is 8.3mm of solid; a 5mm
 socket would take most of it. So each leg steps on a boss and the socket is
 bored into that, where the hull under the hole keeps its thickness. `fit_awning`
-refuses to build a frame whose sockets come within `FLOOR` of the outside, and a
+refuses to build a frame whose sockets come within `BOTTOM_PLANKING` of the outside, and a
 test checks the same thing from the other end.
 
 That was only half the answer, and the half that is easy to see. Deepening the
@@ -787,7 +787,7 @@ not end on the deck's own face. Everything between that floor and whatever the
 pair stands on is boss. That is 8mm of leg gripped against the 5 it had; the
 planking outboard of the worst socket went from 0.67mm to 1.9, no leg moved, and
 because the boss grew as much as the roof did the legs ended up *shorter* than
-before. `SIDE_FLOOR` is the rule now, enforced twice: `frame` caps how far
+before. `SIDE_PLANKING` is the rule now, enforced twice: `frame` caps how far
 outboard a pair may stand by what its socket allows -- the same cap bounding the
 seam dodge that already moves the bare-deck pairs -- and `fit_awning` refuses to
 bore a hole that breaks it.
@@ -808,7 +808,7 @@ the difference.
 
 It is not free. The hole now bottoms at 9.33mm instead of 15.53, six millimetres
 lower, where the side has closed in; the cap pulls that pair 0.6mm inboard to
-keep `SIDE_FLOOR`, and their planking goes from 2.8mm to 1.4. And the leg is
+keep `SIDE_PLANKING`, and their planking goes from 2.8mm to 1.4. And the leg is
 free for 28.47mm rather than 22.27, since it leaves its socket lower down --
 which is worth knowing but not worth much, because that is exactly the length the
 aft pair has always been. No leg is longer than the longest already was.
@@ -837,7 +837,7 @@ open the hole from 4.0mm to 5.2 and let a pair go in a millimetre out of true.
 
 ### A boss has its own rule about the side
 
-`SIDE_FLOOR` is a socket's rule: a hole takes material away, so some has to be
+`SIDE_PLANKING` is a socket's rule: a hole takes material away, so some has to be
 left beside it. A boss is the opposite -- it puts material in -- and it only has
 to stop short of the surface. `SKIN`, a fifth of a millimetre, is that: enough
 that a boss beds into the planking rather than meeting it tangentially.
@@ -1041,8 +1041,8 @@ neck and every ring at full height. `mounts` refuses any gun under `MARGIN`. At
 the scan's heights the bow gun clears by 0.50mm and the broadside guns by 0.52
 and 0.44, which is why the real boat needed no gunports as such. Her bow is
 still notched round the 12-pounder: the stem stops a little under the sheer, in
-a round cut the barrel sits in. `Mount.gunport` is a cylinder on the gun's
-axis, sized to dip `GUNPORT_DEPTH` below the rail at the stem.
+a round cut the barrel sits in. `Mount.chase_port` is a cylinder on the gun's
+axis, sized to dip `CHASE_PORT_DEPTH` below the rail at the stem.
 
 Those were a millimetre apiece until the barrels were measured off the scan
 rather than proportioned from a founder's table: the true piece is half a
@@ -1243,7 +1243,7 @@ have stood on a knee.
 
 ### The keelson
 
-The keelson is a 4mm bar standing 1.8mm proud of each well's floor. It runs
+The keelson is a 4mm bar standing 1.8mm proud of each well's ceiling. It runs
 into the bulkhead at each end, and the mast's tube and bore go straight through
 it.
 
@@ -1261,13 +1261,13 @@ before the side. That is the same shape at a quarter of the cost. A groove runs
 out past a platform's open edge rather than ending on the face of its bulkhead.
 All three decks' grooves are cut in one boolean.
 
-The floors of the two open wells are grooved out of the same function, from
+The ceilings of the two open wells are grooved out of the same function, from
 `Well` rather than `Deck`, because a well is only a cavity with its floor
-further down. Two things make it not a deck. Its floor is not declared: it is
+further down. Two things make it not a deck. Its ceiling is not declared: it is
 wherever the inside of the bottom is, read off `_outline` -- the same place the
 cavity takes it from, and not the chine's curve, which clamps where the bottom
 sweeps up to the stem instead of rising with it. And one groove is cut at one
-height, so `_well_floor` refuses a stretch whose floor is not flat to within a
+height, so `_well_ceiling` refuses a stretch whose bottom is not flat to within a
 seam's depth rather than averaging it into a groove that would surface in the
 middle of a ramp. Amidships, where both wells are, it is a single number.
 

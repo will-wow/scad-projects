@@ -60,8 +60,8 @@ def test_nothing_occupies_the_same_space_as_anything_else(assembled):
 def test_the_mast_stands_on_the_bottom_of_its_bore(assembled, lines):
     seat = rigging.step(HULL, lines, RIG)
     box = assembled["mast"].bounding_box()
-    assert pytest.approx(seat.floor, abs=1e-6) == box.min.Z
-    assert pytest.approx(seat.floor + RIG.mast_length, abs=0.01) == box.max.Z
+    assert pytest.approx(seat.ceiling, abs=1e-6) == box.min.Z
+    assert pytest.approx(seat.ceiling + RIG.mast_length, abs=0.01) == box.max.Z
 
 
 def test_the_mast_is_upright_on_the_centreline(assembled, lines):
@@ -77,7 +77,7 @@ def test_each_sail_hangs_between_the_yards_it_belongs_to(assembled, lines):
     seat = rigging.step(HULL, lines, RIG)
     yards = rigging.yards(HULL, lines, RIG)
     for name, (low, high) in (("course", yards[:2]), ("topsail", yards[2:])):
-        middle = seat.floor + 0.5 * (low[0] + high[0])
+        middle = seat.ceiling + 0.5 * (low[0] + high[0])
         assert pytest.approx(middle, abs=0.01) == assembled[name].bounding_box().center().Z
 
 
@@ -102,6 +102,6 @@ def test_the_bore_is_where_the_mast_is(assembled, lines):
     """The socket really does accept the mast, rather than the mast floating in
     a hull that never got bored."""
     seat = rigging.step(HULL, lines, RIG)
-    inside = Vector(seat.station, 0.0, seat.floor + seat.socket / 2.0)
+    inside = Vector(seat.station, 0.0, seat.ceiling + seat.socket / 2.0)
     assert assembled["mast"].is_inside(inside)
     assert not assembled["hull"].is_inside(inside)

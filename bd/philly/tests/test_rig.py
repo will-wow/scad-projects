@@ -89,12 +89,12 @@ class TestFitting:
     def test_the_bore_does_not_pierce_the_bottom(self, fitted, lines):
         """A hole here is a hole in the boat, and the boat is meant to float."""
         seat = step(SPEC, lines)
-        below = Vector(seat.station, 0.0, seat.floor - seat.wall / 2.0)
+        below = Vector(seat.station, 0.0, seat.ceiling - seat.wall / 2.0)
         assert fitted.is_inside(below), "the bore went through the hull's bottom"
 
     def test_the_bore_is_open_from_the_top(self, fitted, lines):
         seat = step(SPEC, lines)
-        for height in (seat.top - 1.0, seat.thwart_top, seat.floor + 1.0):
+        for height in (seat.top - 1.0, seat.thwart_top, seat.ceiling + 1.0):
             assert not fitted.is_inside(Vector(seat.station, 0.0, height)), (
                 f"the bore is blocked at z={height:.1f}"
             )

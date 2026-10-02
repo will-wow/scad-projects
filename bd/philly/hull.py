@@ -118,11 +118,11 @@ class Seams:
 
 @dataclass(frozen=True)
 class Well:
-    """The ceiling on the floor of every open stretch, in millimetres of the model.
+    """The ceiling over the bottom of every open stretch, in millimetres of the model.
 
-    A well is not a deck -- its floor is found from the chine rather than
+    A well is not a deck -- its ceiling is found from the chine rather than
     declared -- but it grooves the same way, since the faired bottom is flat and
-    so the floor is one height.
+    so the ceiling is one height.
     """
 
     plank: float
@@ -130,12 +130,11 @@ class Well:
     clear: float
     """how far out from the centreline the innermost seam stands
 
-    The floor is not bare: the keelson runs down the middle of it, and the
+    The ceiling is not bare: the keelson runs down the middle of it, and the
     mast's tube stands on it in the forward well. Both are fitted after the hull
     is built, so a seam has to keep `Seams.clearance` off them or the strip left
-    between is too thin for the mesher. Inboard of this the floor reads as one
-    wide plank with the keelson on it, which is what a ceiling looks like
-    anyway.
+    between is too thin for the mesher. Inboard of this it reads as one wide
+    plank with the keelson on it, which is what a ceiling looks like anyway.
     """
 
     def __post_init__(self) -> None:
@@ -251,9 +250,9 @@ class HullSpec:
     bulge: Bulge | None = None
     # The grooves cut into any deck that has a plank width.
     seams: Seams | None = None
-    # The same grooves on the floor of every open well, or None to leave them
+    # The same grooves on the ceiling of every open well, or None to leave them
     # bare. Not a plank width on its own: something stands on every well's
-    # floor, so the innermost seam has to be placed clear of it.
+    # ceiling, so the innermost seam has to be placed clear of it.
     wells: Well | None = None
     # The boat's joinery, which details.py fits once the hull is built: knees on
     # the platforms, benches along the sides and the keelson showing in the wells.
@@ -575,8 +574,12 @@ class Scaled:
         """The outside of the hull's bottom."""
         return self.lines.chine_height.value(x / self.factor) * self.factor
 
-    def floor(self, x: float) -> float:
-        """The inside of the bottom, where no deck covers it."""
+    def ceiling(self, x: float) -> float:
+        """The inside of the bottom, where no deck covers it.
+
+        A floor is a transverse bottom timber; the planking laid over it inside
+        is the ceiling, which is what you stand on in an open well.
+        """
         return self.bottom(x) + self.spec.planking
 
     def deck(self, deck: Deck) -> float:
@@ -839,7 +842,7 @@ def _seams(
     return grooves
 
 
-def _well_floor(
+def _well_ceiling(
     lines: HullLines,
     planking: float,
     bounds: tuple[float, float],
@@ -853,7 +856,7 @@ def _well_floor(
     where the bottom sweeps up round the forefoot -- it is refused rather than
     averaged, since a straight groove at one height would surface in the middle
     of the ramp. Read off `_outline` for that reason, which is where the cavity
-    takes its own floor from; the chine's curve alone clamps there instead of
+    takes its own bottom from; the chine's curve alone clamps there instead of
     rising.
     """
     heights = [
@@ -862,7 +865,7 @@ def _well_floor(
     ]
     if max(heights) - min(heights) > depth:
         raise ValueError(
-            f"the well from {bounds[0]:.0f} to {bounds[1]:.0f} has no flat floor to groove: "
+            f"the well from {bounds[0]:.0f} to {bounds[1]:.0f} has no flat ceiling to groove: "
             f"it rises {(max(heights) - min(heights)) / depth:.0f} times a seam's depth across it"
         )
     return max(heights)
@@ -930,7 +933,7 @@ def _hollow(
         # of both bulkheads rather than running them onto their faces.
         grooves += grooves_for(
             bounds,
-            _well_floor(lines, planking, bounds, seams.depth / factor, bow),
+            _well_ceiling(lines, planking, bounds, seams.depth / factor, bow),
             wells.plank,
             wells.clear,
             (overrun(stretch[0], list(ordered)), overrun(stretch[1], list(ordered))),

@@ -322,14 +322,14 @@ class TestWellSeams:
     def test_bare_wells_are_the_default(self):
         assert HullSpec().wells is None
 
-    def test_a_well_with_no_flat_floor_is_refused(self, lines):
+    def test_a_well_with_no_flat_ceiling_is_refused(self, lines):
         """Forward of where the bottom sweeps up round the forefoot a well's
-        floor is a ramp, and one groove cut at one height would surface in the
+        ceiling is a ramp, and one groove cut at one height would surface in the
         middle of it."""
         spec = HullSpec(
             stations=STATIONS, decks=(Deck(0.5, 1.0, 0.3),), seams=Seams(), wells=self.WELL
         )
-        with pytest.raises(ValueError, match="flat floor"):
+        with pytest.raises(ValueError, match="flat ceiling"):
             build(spec, lines)
 
     def test_a_plank_with_no_width_is_refused(self):

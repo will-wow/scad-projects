@@ -36,7 +36,7 @@ CANVAS = Color(0.95, 0.93, 0.87)
 
 def _stepped_mast(lines, seat) -> Part:
     """The mast standing on the bottom of its bore, where it comes to rest."""
-    return Pos(seat.station, 0.0, seat.floor) * rigging.upright_mast(HULL, lines, RIG)
+    return Pos(seat.station, 0.0, seat.ceiling) * rigging.upright_mast(HULL, lines, RIG)
 
 
 def _hung_sails(lines, seat) -> list[Part]:
@@ -65,7 +65,7 @@ def _hung_sails(lines, seat) -> list[Part]:
     for (foot, head, depth), pair in zip(
         rigging.sail_sizes(HULL, lines, RIG), (RIG.course, RIG.topsail), strict=True
     ):
-        middle = seat.floor + 0.5 * (pair[0] + pair[1]) * RIG.mast_length
+        middle = seat.ceiling + 0.5 * (pair[0] + pair[1]) * RIG.mast_length
         flat = rigging.sail(RIG, foot, head, depth, radius, offset)
         hung.append(Pos(seat.station - offset, 0.0, middle) * (Rot(0.0, 90.0, 0.0) * flat))
     return hung

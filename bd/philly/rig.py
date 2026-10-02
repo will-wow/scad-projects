@@ -188,9 +188,9 @@ class Step:
     thwart_siding: float
     thwart_half_length: float
     """half the thwart's span: the inside of the hull at its top edge"""
-    floor: float
+    ceiling: float
     """the inside of the hull's bottom -- the bore stops here, or the boat leaks"""
-    outer_floor: float
+    outer_bottom: float
     """the outside of the bottom, so the tube can be merged into it"""
     top: float
     """the top of the tube, one siding proud of the rail"""
@@ -205,7 +205,7 @@ class Step:
     @property
     def socket(self) -> float:
         """How much of the mast the tube holds."""
-        return self.top - self.floor
+        return self.top - self.ceiling
 
     @property
     def tube_radius(self) -> float:
@@ -241,8 +241,8 @@ def step(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Step:
         # at its lower edge -- by less than the planking is thick, so it meets the
         # hull all the way down without breaking through.
         thwart_half_length=hull.inside(station, thwart_top),
-        floor=hull.floor(station),
-        outer_floor=hull.bottom(station),
+        ceiling=hull.ceiling(station),
+        outer_bottom=hull.bottom(station),
         # One siding proud of the rail: enough to read as a fitting, little
         # enough that the boat still looks like a boat with the mast out.
         top=rail + siding,
@@ -269,16 +269,16 @@ def fit_mast(hull: Part, spec: HullSpec, lines: HullLines, rig: Rig | None = Non
         seat.thwart_siding, 2.0 * seat.thwart_half_length, seat.thwart_siding
     )
 
-    tube_height = seat.top - seat.outer_floor
-    tube = Pos(seat.station, 0.0, seat.outer_floor + tube_height / 2.0) * Cylinder(
+    tube_height = seat.top - seat.outer_bottom
+    tube = Pos(seat.station, 0.0, seat.outer_bottom + tube_height / 2.0) * Cylinder(
         seat.tube_radius, tube_height
     )
 
     # From the inside of the bottom up, and a hair past the tube's top so the
     # cut does not end on a coincident face. It must not reach the outside of
     # the bottom: a bore through the hull is a hole in the boat.
-    bore_height = seat.top + 1.0 - seat.floor
-    bore = Pos(seat.station, 0.0, seat.floor + bore_height / 2.0) * Cylinder(
+    bore_height = seat.top + 1.0 - seat.ceiling
+    bore = Pos(seat.station, 0.0, seat.ceiling + bore_height / 2.0) * Cylinder(
         seat.bore_radius, bore_height
     )
 

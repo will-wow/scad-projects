@@ -69,7 +69,7 @@ BEAM_MOULDED = 1.9
 BENCH_SEAT = 6.2
 BENCH_REACH = 8.8
 
-# The keelson stands this far proud of a well's floor, and is this wide.
+# The keelson stands this far proud of a well's ceiling, and is this wide.
 KEELSON_PROUD = 1.8
 KEELSON_WIDTH = 4.0
 
@@ -169,10 +169,10 @@ def bench_top(spec: HullSpec, lines: HullLines, fraction: float) -> float | None
 
 
 def keelson(hull: Scaled, start: float, end: float) -> Part:
-    """The keelson from `start` to `end` along the centreline, on the floor of a well."""
-    floor = hull.floor(0.5 * (start + end))
+    """The keelson from `start` to `end` along the centreline, on a well's ceiling."""
+    ceiling = hull.ceiling(0.5 * (start + end))
     height = KEELSON_PROUD + SINK
-    return Pos(0.5 * (start + end), 0.0, floor - SINK + height / 2.0) * Box(
+    return Pos(0.5 * (start + end), 0.0, ceiling - SINK + height / 2.0) * Box(
         end - start, KEELSON_WIDTH, height
     )
 
@@ -222,7 +222,7 @@ def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
         planking = spec.planking / at.factor
         first, last = _cavity_span(lines, planking, *lines.span)
         for a, b in open_stretches(sorted(spec.decks, key=lambda d: d.start)):
-            # Into the bulkhead at each end, or as far as the hull has a floor.
+            # Into the bulkhead at each end, or as far as the hull has a ceiling.
             start = max(at.station(a) - OVERLAP, first * at.factor)
             end = min(at.station(b) + OVERLAP, last * at.factor)
             if end > start:
