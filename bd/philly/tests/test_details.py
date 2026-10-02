@@ -132,9 +132,15 @@ def test_the_aft_awning_legs_stand_on_the_benches(lines):
     ]
     assert len(seats) == 2
     for foot in seats:
-        assert foot.deck == pytest.approx(
-            details.bench_top(HULL, lines, foot.station / HULL.length)
-        )
+        seat = details.bench_top(HULL, lines, foot.station / HULL.length)
+        assert seat is not None
+        assert foot.step == pytest.approx(seat), "the pair does not step on the seat"
+        # Socketed through the bench rather than onto it: the hole is bored from
+        # the deck like every other, so the bench's own height is depth that
+        # costs nothing to show above the seat.
+        assert foot.deck < seat
+        assert foot.socket_floor < foot.deck
+        assert foot.boss < seat - foot.deck
 
 
 def test_the_keelson_runs_down_each_well(hull, at):

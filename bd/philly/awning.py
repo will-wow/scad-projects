@@ -64,16 +64,19 @@ def knee_section(edge: float) -> float:
     return BAR - 2.0 * edge
 
 
-# The step each upright is socketed into, and how far the socket is bored down
-# through it. Square, like the socket and the leg it takes: a round pad leaves
-# only 0.7mm over a square hole's corners, where a square one leaves 1.8 all
-# round. Tall, because up is the only direction a socket can grow in -- see
-# SIDE_FLOOR -- and what steadies the frame is how much of a leg is gripped, not
-# how far down the hole reaches. All but half a millimetre of it is in the boss,
-# and that half is only so the cut does not end on the deck's own face.
+# The step each upright is socketed into, how deep the socket is bored, and how
+# far it reaches below the deck. Square, like the socket and the leg it takes: a
+# round pad leaves only 0.7mm over a square hole's corners, where a square one
+# leaves 1.8 all round.
+#
+# The depth is what steadies the frame; the drop is only so the cut does not end
+# on the deck's own face, because down is the one direction a socket cannot grow
+# in -- see SIDE_FLOOR. Everything between is boss. Where a bench covers the
+# deck it gives most of that depth itself, so a pair standing on one shows a
+# 1.8mm pad rather than an 8mm block, for exactly the same hold.
 BOSS = 7.0
-BOSS_HEIGHT = 8.0
 SOCKET_DEPTH = 8.5
+SOCKET_DROP = 0.5
 
 # How far the chamfer on a leg's foot runs back up it, so the leg finds its
 # socket when the frame is dropped in slightly out of place.
@@ -150,18 +153,30 @@ class Foot:
     half: float
     """the centreline's distance from the centreline of the boat"""
     deck: float
-    """the height of what it steps on: the deck, or a bench where one covers it"""
+    """the height of the deck the socket is bored into"""
+    step: float
+    """what the pair stands on: the deck, or a bench's seat where one covers it"""
     bottom: float
     """the outside of the hull below it, which a socket must not reach"""
 
     @property
-    def base(self) -> float:
-        """The top of the boss, which is where an upright actually starts."""
-        return self.deck + BOSS_HEIGHT
+    def socket_floor(self) -> float:
+        """Just under the deck, wherever the pair happens to step."""
+        return self.deck - SOCKET_DROP
 
     @property
-    def socket_floor(self) -> float:
-        return self.base - SOCKET_DEPTH
+    def base(self) -> float:
+        """The top of the boss, which is where an upright actually starts."""
+        return self.socket_floor + SOCKET_DEPTH
+
+    @property
+    def boss(self) -> float:
+        """How far the boss stands proud of what the pair steps on.
+
+        A whole socket's worth on bare deck; on a bench, only what the bench
+        does not already give.
+        """
+        return self.base - self.step
 
 
 @dataclass(frozen=True)
@@ -189,7 +204,7 @@ class Frame:
         return float(np.interp(station, [n[0] for n in self.nodes], [n[1] for n in self.nodes]))
 
 
-def _foot(hull: Scaled, awning: Awning, leg: float) -> tuple[Foot, float]:
+def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     """One pair of uprights solved against the hull, with the height of its deck.
 
     The offset comes from `Scaled.inside` at the height of whatever the pair
@@ -202,8 +217,6 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> tuple[Foot, float]:
     `SIDE_FLOOR`), and the seams on a bare deck, which its boss must not end
     hard by.
 
-    The deck comes back along with the foot, because two pairs stand on benches
-    and the roof is set over the deck you would stand on, not over a seat.
     """
     spec = hull.spec
     deck = deck_at(spec, leg)
@@ -214,7 +227,8 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> tuple[Foot, float]:
     station = hull.station(leg)
     seat = bench_top(spec, hull.lines, leg)
     standing = hull.deck(deck)
-    height = standing if seat is None else seat
+    step = standing if seat is None else seat
+    floor = standing - SOCKET_DROP
 
     # The tightest the inside gets along the upright's own length: toward the
     # transom the hull closes in fast enough that its after face is nearer the
@@ -222,12 +236,12 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> tuple[Foot, float]:
     def tightest(z: float, wall: float | None = None) -> float:
         return min(hull.inside(station + d, z, wall) for d in (-BAR / 2.0, 0.0, BAR / 2.0))
 
-    half = tightest(height) - awning.inset
+    half = tightest(step) - awning.inset
     # And no further out than the socket under it can go. The side closes in as
     # it falls and the socket's floor is below the deck, so it is the floor, not
     # the deck, that decides how far outboard a leg may stand if `SIDE_FLOOR` of
     # planking is to be left outboard of the hole.
-    cap = tightest(height + BOSS_HEIGHT - SOCKET_DEPTH, SIDE_FLOOR) - (BAR + 2.0 * TOLERANCE) / 2.0
+    cap = tightest(floor, SIDE_FLOOR) - (BAR + 2.0 * TOLERANCE) / 2.0
     room = cap - half
     if seat is None:
         # On bare deck the boss must not end hard by a seam, and dodging one must
@@ -235,27 +249,30 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> tuple[Foot, float]:
         # boss itself is meant to merge into the planking -- nor past what the
         # socket under it allows. A negative `room` is the cap already breached,
         # and asks the dodge for a move inboard.
-        room = min(tightest(height + BOSS_HEIGHT) - SIDE_GAP - BAR / 2.0 - half, room)
+        room = min(tightest(floor + SOCKET_DEPTH) - SIDE_GAP - BAR / 2.0 - half, room)
         edges = (half - BOSS / 2.0, half + BOSS / 2.0)
         half += clear_of_seams(spec, deck, edges, outboard=room)
     return Foot(
-        station=station, half=min(half, cap), deck=height, bottom=hull.bottom(station)
-    ), standing
+        station=station,
+        half=min(half, cap),
+        deck=standing,
+        step=step,
+        bottom=hull.bottom(station),
+    )
 
 
 def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Frame:
     """Solve the frame against the hull it has to sit in; `_foot` solves the legs."""
     rig = rig or Rig()
     hull = Scaled(spec, lines)
-    solved = [_foot(hull, awning, leg) for leg in awning.legs]
-    feet = [foot for foot, _ in solved]
+    feet = [_foot(hull, awning, leg) for leg in awning.legs]
 
     # Headroom over the deck, so the roof is set by what it is for rather than
     # by a clearance over the rail. It still has to clear the rail: the sheer
     # rises toward the transom under the frame, and the check is against the
     # highest of it, not the average, so the roof stands clear everywhere rather
     # than only amidships.
-    roof = max(deck for _, deck in solved) + awning.headroom * hull.factor
+    roof = max(foot.deck for foot in feet) + awning.headroom * hull.factor
     span = np.linspace(feet[0].station, feet[-1].station, 200)
     highest = max(hull.sheer(float(x)) for x in span)
     if roof < highest + BAR:
@@ -493,6 +510,11 @@ def fit_awning(
 
     fitted = hull
     for foot in shape.feet:
+        if foot.boss <= 0.0:
+            raise RuntimeError(
+                f"the bench at {foot.station:.0f}mm is deeper than the socket; "
+                "there is no boss left to bore into"
+            )
         if foot.socket_floor - foot.bottom < FLOOR:
             raise RuntimeError(
                 f"the socket at {foot.station:.0f}mm leaves only "
@@ -511,7 +533,7 @@ def fit_awning(
         for side in (-1.0, 1.0):
             place = (foot.station, side * foot.half)
             fitted = as_part(
-                fitted + Pos(*place, foot.deck + BOSS_HEIGHT / 2.0) * Box(BOSS, BOSS, BOSS_HEIGHT),
+                fitted + Pos(*place, foot.step + foot.boss / 2.0) * Box(BOSS, BOSS, foot.boss),
                 "setting an awning boss",
             )
     for foot in shape.feet:
