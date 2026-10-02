@@ -202,7 +202,7 @@ def fit_details(hull: Part, spec: HullSpec, lines: HullLines) -> Part:
     """Merge the knees, benches and keelson into a finished hull.
 
     Runs after `build`, like every fitting, and before the awning's: its
-    sockets are bored into the benches where a pair of legs stands on one.
+    sockets are bored into the benches where a pair of stanchions stands on one.
     """
     at = Scaled(spec, lines)
     pieces: list[Part] = []

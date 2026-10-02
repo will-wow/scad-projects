@@ -1,13 +1,18 @@
 """The awning frame over the after part of the boat.
 
-The real boat carried a light frame over its after part: uprights off the
+The real boat carried a light frame over its after part: stanchions off the
 deck, a rail over the top, crossbars across, and canvas over that for shade.
 Here the frame is a separate printed part that drops into sockets in the decks
 and lifts straight out again, and the canvas is a thin plate that clips onto it
 the way the sails clip onto the yards.
 
-The frame is its legs: it runs from the first pair to the last, with a crossbar
-over every pair, so each crossbar stands on something and both ends are closed.
+The uprights are *stanchions* on Falconer's own authority -- his 1769 entry for
+AWNING has it supported by "a range of light posts, called stanchions, which are
+erected along the ship's side on the right and left". He gives no word at all
+for the canvas's upper surface, so that is just its top.
+
+The frame is its stanchions: it runs from the first pair to the last, with a
+crossbar over every pair, so each stands on something and both ends are closed.
 The canvas clips to the two end crossbars, on necks that are `rig.neck_radius`
 -- the same number the canvas's corner cringles are cut for, taken from rig.py
 rather than copied.
@@ -45,7 +50,7 @@ from rig import TOLERANCE, Rig, neck, neck_radius, sail
 # Square section for every member. The frame is handled, so nothing thinner.
 BAR = 3.4
 
-# How far a knee reaches along a bar and down a leg from the corner they make.
+# How far a knee reaches along a bar and down a stanchion from the corner they make.
 KNEE = 6.0
 
 
@@ -54,19 +59,19 @@ def knee_section(edge: float) -> float:
 
     As wide as the bar, a knee stood its outer edge on the bar's rounded corner
     and left a lip hanging over nothing. Narrowing it to the flat fixes a second
-    thing for free. Knees meet at a leg from the directions its bars run, and
+    thing for free. Knees meet at a stanchion from the directions its bars run, and
     two slabs of half-width w crossing at an angle t overlap out to w / sin(t/2)
-    from the leg's centre. The tightest angle in this frame is 64 degrees, where
+    from the stanchion's centre. The tightest angle in this frame is 64 degrees, where
     a rail meets the crossbar on the trapezoid stretch aft: at the bar's full
-    width that reaches 3.2mm, past the leg's 2.4mm half-diagonal, so the two
+    width that reaches 3.2mm, past the stanchion's 2.4mm half-diagonal, so the two
     hypotenuses crossed in open air and left a spike. At the flat's width it
-    reaches 2.07mm and the crossing is buried inside the leg.
+    reaches 2.07mm and the crossing is buried inside the stanchion.
     """
     return BAR - 2.0 * edge
 
 
-# The step each upright is socketed into, how deep the socket is bored, and how
-# far it reaches below the deck. Square, like the socket and the leg it takes: a
+# The step each stanchion is socketed into, how deep the socket is bored, and how
+# far it reaches below the deck. Square, like the socket and the stanchion it takes: a
 # round pad leaves only 0.7mm over a square hole's corners, where a square one
 # leaves 1.8 all round. Its upright corners are rounded off, which is kinder to
 # a hand and quicker to print, and which also buys back a little of the room the
@@ -82,7 +87,7 @@ BOSS_ROUND = 1.0
 SOCKET_DEPTH = 8.5
 SOCKET_DROP = 0.5
 
-# The two halves of the lead-in: how far the chamfer on a leg's foot runs back
+# The two halves of the lead-in: how far the chamfer on a stanchion's foot runs back
 # up it, and how far the one round the mouth of its socket runs down. Between
 # them a pair dropped in a millimetre out of true still finds its holes rather
 # than standing on their rims. The mouth's is the smaller of the two because it
@@ -90,7 +95,7 @@ SOCKET_DROP = 0.5
 FOOT_CHAMFER = 0.8
 MOUTH_CHAMFER = 0.6
 
-# The least an upright stands off the inside of the hull.
+# The least a stanchion stands off the inside of the hull.
 SIDE_GAP = 0.3
 
 # How far inside the planking a boss must keep. Not `SIDE_PLANKING`, which is a
@@ -105,10 +110,10 @@ SKIN = 0.2
 BOTTOM_PLANKING = 2.0
 
 # Planking that must be left outboard of a socket, which is the real limit on
-# how deep one can go. The side closes in as it falls and the uprights stand
+# how deep one can go. The side closes in as it falls and the stanchions stand
 # close to it, so every millimetre a hole drops below the deck costs about a
 # fifth of one off the planking beside it. At the bottom of the hull the inside
-# is 3 to 4.5mm narrower than where the legs step, so a socket bored to the
+# is 3 to 4.5mm narrower than where the stanchions step, so a socket bored to the
 # bilge would come out through the side. Dropping 2mm below the deck, as they
 # used to, left 0.67mm beside the aft pair.
 SIDE_PLANKING = 1.0
@@ -118,18 +123,18 @@ SIDE_PLANKING = 1.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    legs: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82, 0.885)
-    """where the pairs of uprights stand, which is also where the frame ends
+    stanchions: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82, 0.885)
+    """where the pairs of stanchions stand, which is also where the frame ends
 
     The first two pairs stand between the middle platform's knees, the second
     of them between the two 9-pounders' carriages. The next two stand on the
     quarterdeck's benches, and the last on the deck just aft of them, which
     carries the frame nearly to the transom as the museum's model has it.
     Further aft the hull closes in fast -- the inside narrows from 15mm of
-    half-width at 0.90 to 11mm at 0.92 -- and legs there pinch the frame to a
+    half-width at 0.90 to 11mm at 0.92 -- and a pair there pinches the frame to a
     point. At 0.885 rather than 0.895 or 0.90, and the reason is the boss rather
-    than the upright. Dodging the quarterdeck's seams moves this pair outboard,
-    which the upright has room for at any of the three; the boss round its socket
+    than the stanchion. Dodging the quarterdeck's seams moves this pair outboard,
+    which the stanchion has room for at any of the three; the boss round its socket
     does not, and at 0.895 its corner nearest the transom stood 1.1mm outside
     the planking. Pulling the pair in instead is no good, because the next place
     clear of the seams is 3.6mm in and pinches the frame. Three millimetres
@@ -137,35 +142,35 @@ class Awning:
     centreline.
     """
     headroom: float = 1828.8
-    """standing room under the roof, in real-world millimetres: six feet
+    """standing room under the canvas, in real-world millimetres: six feet
 
     Measured over the deck rather than as a clearance over the rail, because
     standing room is the thing it is for. Philadelphia II, the full-size
     recreation, carries her awning high enough to stand under amidships. Taken
-    over the highest deck a pair of legs stands on -- the middle platform --
+    over the highest deck a pair stands on -- the middle platform --
     since the benches aft are to sit on, not to stand on, and the quarterdeck
     they stand on is lower still.
     """
     inset: float = 2.5
-    """how far inboard of the hull's inside face an upright's centreline stands"""
+    """how far inboard of the hull's inside face an stanchion's centreline stands"""
     edge: float = 0.6
     """how far the bars' long edges are rounded off"""
 
     def __post_init__(self) -> None:
-        if len(self.legs) < 2:
-            raise ValueError("an awning needs at least two pairs of legs")
-        for leg in self.legs:
-            if not 0.0 <= leg <= 1.0:
-                raise ValueError(f"the leg at {leg} is off the boat")
-        if list(self.legs) != sorted(set(self.legs)):
-            raise ValueError("the legs are not in order bow to stern")
+        if len(self.stanchions) < 2:
+            raise ValueError("an awning needs at least two pairs of stanchions")
+        for station in self.stanchions:
+            if not 0.0 <= station <= 1.0:
+                raise ValueError(f"the stanchion at {station} is off the boat")
+        if list(self.stanchions) != sorted(set(self.stanchions)):
+            raise ValueError("the stanchions are not in order bow to stern")
         if self.headroom <= 0.0:
             raise ValueError(f"an awning needs some headroom under it, got {self.headroom}")
 
 
 @dataclass(frozen=True)
 class Foot:
-    """One pair of uprights: where they stand and what they stand on."""
+    """One pair of stanchions: where they stand and what they stand on."""
 
     station: float
     """along the length, in millimetres"""
@@ -185,7 +190,7 @@ class Foot:
 
     @property
     def base(self) -> float:
-        """The top of the boss, which is where an upright actually starts."""
+        """The top of the boss, which is where a stanchion actually starts."""
         return self.socket_floor + SOCKET_DEPTH
 
     @property
@@ -202,11 +207,11 @@ class Foot:
 class Frame:
     """Everything solved once, so the frame and the hull's sockets agree."""
 
-    roof: float
-    """the roof's height: planar, so one number"""
+    top: float
+    """the height of its top: planar, so one number"""
     feet: tuple[Foot, ...]
     nodes: tuple[tuple[float, float], ...]
-    """the side rail as (station, half-width) points, one at each pair of legs"""
+    """the side rail as (station, half-width) points, one at each pair of stanchions"""
     clips: tuple[float, float]
     """how far out along the first and the last crossbar the canvas clips on"""
     neck: float
@@ -215,7 +220,7 @@ class Frame:
 
     @property
     def bars(self) -> tuple[float, ...]:
-        """Crossbar stations: one over every pair of legs."""
+        """Crossbar stations: one over every pair of stanchions."""
         return tuple(station for station, _ in self.nodes)
 
     def half_at(self, station: float) -> float:
@@ -250,11 +255,11 @@ def _pad(half: float, round_: float) -> list[tuple[float, float]]:
     return [(float(along), float(out)) for along, out in edge]
 
 
-def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
-    """One pair of uprights solved against the hull, with the height of its deck.
+def _foot(hull: Scaled, awning: Awning, at: float) -> Foot:
+    """One pair of stanchions solved against the hull, with the height of its deck.
 
     The offset comes from `Scaled.inside` at the height of whatever the pair
-    steps on -- the narrowest the inside gets over an upright's length, since
+    steps on -- the narrowest the inside gets over a stanchion's length, since
     the side flares outward going up. Measuring at the rail instead would put
     the feet through the planking.
 
@@ -265,18 +270,19 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
 
     """
     spec = hull.spec
-    deck = deck_at(spec, leg)
+    deck = deck_at(spec, at)
     if deck is None:
         raise ValueError(
-            f"the leg at {leg:.3f} stands over open bilge; there is nothing to bore a socket in"
+            f"the stanchion at {at:.3f} stands over open bilge; "
+            "there is nothing to bore a socket in"
         )
-    station = hull.station(leg)
-    seat = bench_top(spec, hull.lines, leg)
+    station = hull.station(at)
+    seat = bench_top(spec, hull.lines, at)
     standing = hull.deck(deck)
     step = standing if seat is None else seat
     floor = standing - SOCKET_DROP
 
-    # The tightest the inside gets along the upright's own length: toward the
+    # The tightest the inside gets along the stanchion's own length: toward the
     # transom the hull closes in fast enough that its after face is nearer the
     # side than its middle.
     def tightest(z: float, planking: float | None = None) -> float:
@@ -285,7 +291,7 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     half = tightest(step) - awning.inset
     # And no further out than the socket under it can go. The side closes in as
     # it falls and the socket's floor is below the deck, so it is the floor, not
-    # the deck, that decides how far outboard a leg may stand if `SIDE_PLANKING` of
+    # the deck, that decides how far outboard a stanchion may stand if `SIDE_PLANKING` of
     # planking is to be left outboard of the hole.
     cap = tightest(floor, SIDE_PLANKING) - (BAR + 2.0 * TOLERANCE) / 2.0
     # The pad round the socket is wider than the hole and reaches further fore
@@ -301,7 +307,7 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
     room = cap - half
     if seat is None:
         # On bare deck the boss must not end hard by a seam, and dodging one must
-        # not push the upright into the side where it rises off the boss -- the
+        # not push the stanchion into the side where it rises off the boss -- the
         # boss itself is meant to merge into the planking -- nor past what the
         # socket under it allows. A negative `room` is the cap already breached,
         # and asks the dodge for a move inboard.
@@ -318,22 +324,22 @@ def _foot(hull: Scaled, awning: Awning, leg: float) -> Foot:
 
 
 def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = None) -> Frame:
-    """Solve the frame against the hull it has to sit in; `_foot` solves the legs."""
+    """Solve the frame against the hull it has to sit in; `_foot` solves the stanchions."""
     rig = rig or Rig()
     hull = Scaled(spec, lines)
-    feet = [_foot(hull, awning, leg) for leg in awning.legs]
+    feet = [_foot(hull, awning, stanchion) for stanchion in awning.stanchions]
 
-    # Headroom over the deck, so the roof is set by what it is for rather than
+    # Headroom over the deck, so the top is set by what it is for rather than
     # by a clearance over the rail. It still has to clear the rail: the sheer
     # rises toward the transom under the frame, and the check is against the
-    # highest of it, not the average, so the roof stands clear everywhere rather
+    # highest of it, not the average, so the top stands clear everywhere rather
     # than only amidships.
-    roof = max(foot.deck for foot in feet) + awning.headroom * hull.factor
+    top = max(foot.deck for foot in feet) + awning.headroom * hull.factor
     span = np.linspace(feet[0].station, feet[-1].station, 200)
     highest = max(hull.sheer(float(x)) for x in span)
-    if roof < highest + BAR:
+    if top < highest + BAR:
         raise ValueError(
-            f"a roof {roof:.1f}mm up does not clear the rail at {highest:.1f}mm; "
+            f"a top {top:.1f}mm up does not clear the rail at {highest:.1f}mm; "
             "raise the awning's headroom"
         )
 
@@ -343,7 +349,7 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
         return foot.half - BAR - rig.clip_length / 2.0
 
     return Frame(
-        roof=roof,
+        top=top,
         feet=tuple(feet),
         nodes=tuple((f.station, f.half) for f in feet),
         clips=(clip(feet[0]), clip(feet[-1])),
@@ -371,13 +377,13 @@ def _span(
 
 
 def _knee(at: tuple[float, float, float], angle: float, section: float, reach: float) -> Part:
-    """A triangular knee in a corner a leg makes with a bar, pointing along it.
+    """A triangular knee in a corner a stanchion makes with a bar, pointing along it.
 
-    `at` is the corner -- the leg's centreline at the bar's underside -- and
+    `at` is the corner -- the stanchion's centreline at the bar's underside -- and
     `reach` is measured from there, so a knee overlaps both members rather than
     meeting them on a face. Right-angled and equal-legged, so laid roof-down
     every layer of it is smaller than the one beneath and the hypotenuse carries
-    itself. A dropped boat snapped a leg off that corner; see HOW-IT-WORKS.md.
+    itself. A dropped boat snapped a stanchion off that corner; see HOW-IT-WORKS.md.
 
     `section` is the bar's flat, not the bar: see `KNEE_SECTION`.
     """
@@ -396,11 +402,11 @@ def _crossbar(shape: Frame, station: float, edge: float, clip: float | None) -> 
     neck serves here unchanged.
     """
     half = shape.half_at(station)
-    bar = _span((station, -half), (station, half), shape.roof, BAR, edge)
+    bar = _span((station, -half), (station, half), shape.top, BAR, edge)
     if clip is None:
         return as_part(bar, "a crossbar")
     for side in (-1.0, 1.0):
-        at = Pos(station, side * clip, shape.roof)
+        at = Pos(station, side * clip, shape.top)
         bar = neck(bar, at, BAR, shape.neck, shape.clip_length)
     return as_part(bar, "a crossbar")
 
@@ -413,16 +419,16 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     for side in (-1.0, 1.0):
         for a, b in zip(shape.nodes, shape.nodes[1:], strict=False):
             parts.append(
-                _span((a[0], side * a[1]), (b[0], side * b[1]), shape.roof, BAR, awning.edge)
+                _span((a[0], side * a[1]), (b[0], side * b[1]), shape.top, BAR, awning.edge)
             )
     necked = {shape.bars[0]: shape.clips[0], shape.bars[-1]: shape.clips[1]}
     parts += [_crossbar(shape, x, awning.edge, necked.get(x)) for x in shape.bars]
 
     section = knee_section(awning.edge)
 
-    # A necked crossbar leaves a knee only the square between the leg and the
+    # A necked crossbar leaves a knee only the square between the stanchion and the
     # cringle that clips on: the canvas's ring comes down round the neck and its
-    # outboard face stands `clip_length / 2` short of the leg's centreline.
+    # outboard face stands `clip_length / 2` short of the stanchion's centreline.
     def inboard(station: float) -> float:
         clip = necked.get(station)
         room = KNEE + BAR / 2.0
@@ -433,29 +439,29 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     for index, foot in enumerate(shape.feet):
         for side in (-1.0, 1.0):
             # One square column from the bars' tops to the socket's floor. Up to
-            # the tops rather than the roof's middle plane because the rails and
-            # crossbars both stop at the leg's centre, and the leg is what fills
-            # the corner they leave, so the roof prints flat to the end.
+            # those rather than to the middle plane because the rails and the
+            # crossbars both stop at the stanchion's centre, and the stanchion
+            # is what fills the corner they leave, so it prints flat to the end.
             #
             # Down into the socket at full section, where it used to step to a
             # round peg at the boss. That step was the weakest thing in the
-            # frame -- 3.9mm^3 of section against the leg's 6.6, with a sharp
+            # frame -- 3.9mm^3 of section against the stanchion's 6.6, with a sharp
             # shoulder on it where the bending is worst -- and the feet snapped
             # off it. The socket is a square hole now, so there is nothing to
-            # step down to, and the leg beds on the hole's floor.
-            height = shape.roof + BAR / 2.0 - foot.socket_floor
-            leg = Pos(foot.station, side * foot.half, foot.socket_floor + height / 2.0) * Box(
+            # step down to, and the stanchion beds on the hole's floor.
+            height = shape.top + BAR / 2.0 - foot.socket_floor
+            stanchion = Pos(foot.station, side * foot.half, foot.socket_floor + height / 2.0) * Box(
                 BAR, BAR, height
             )
             # The foot chamfered, so a frame dropped in a little out of place
             # finds its holes instead of standing on their rims.
-            footed = chamfer(leg.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
-            parts.append(as_part(footed, "a leg"))
+            footed = chamfer(stanchion.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
+            parts.append(as_part(footed, "a stanchion"))
 
-            # Knees into every bar the leg runs into: the crossbar, inboard, and
-            # each rail it has. An end leg has one rail, which is why it is the
+            # Knees into every bar the stanchion runs into: the crossbar, inboard, and
+            # each rail it has. An end stanchion has one rail, which is why it is the
             # one that wants them.
-            corner = (foot.station, side * foot.half, shape.roof - BAR / 2.0)
+            corner = (foot.station, side * foot.half, shape.top - BAR / 2.0)
             parts.append(_knee(corner, -90.0 * side, section, inboard(foot.station)))
             for other in (index - 1, index + 1):
                 if not 0 <= other < len(shape.nodes):
@@ -475,8 +481,8 @@ def awning_part(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | Non
     """The frame rolled over, roof down on the bed, ready to print.
 
     Roof down because the roof is the one flat, connected plane in the part: the
-    legs then rise off it as plain columns with nothing to bridge. The other way
-    up the legs print first as thin towers and the whole roof has to span
+    stanchions then rise off it as plain columns with nothing to bridge. The other way
+    up the stanchions print first as thin towers and the whole roof has to span
     between them.
     """
     rolled = Rot(180.0, 0.0, 0.0) * upright_frame(spec, lines, awning, rig)
@@ -538,7 +544,7 @@ def rigged_canvas(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     shape = frame(spec, lines, awning, rig)
     middle = 0.5 * (shape.bars[0] + shape.bars[-1])
     turned = Rot(0.0, 180.0, 0.0) * canvas(spec, lines, awning, rig)
-    return Pos(middle, 0.0, shape.roof + canvas_offset(spec, lines, rig)) * turned
+    return Pos(middle, 0.0, shape.top + canvas_offset(spec, lines, rig)) * turned
 
 
 def fit_awning(
@@ -549,7 +555,7 @@ def fit_awning(
     The bosses stand the sockets up off the decks, and that is the only
     direction a socket can grow in. A deck is solid down to the outside of the
     hull, so there is no bilge under one to reach; what a deeper hole runs into
-    is the side, which closes in as it falls while the uprights stand close to
+    is the side, which closes in as it falls while the stanchions stand close to
     it. See `SIDE_PLANKING`, which is checked here. In a boss, the extra depth is
     above the deck instead, where the hull is wider, and the planking outboard
     of the hole is untouched.
@@ -557,7 +563,7 @@ def fit_awning(
     A pair standing on a bench gets its boss on the seat, so the bench has to be
     fitted first.
 
-    The holes are square, like the legs: a round one needed the leg to step down
+    The holes are square, like the stanchions: a round one needed the stanchion to step down
     to a round peg, and the peg was the weakest section in the frame.
 
     Nothing here is clipped to the hull: `frame` has already pulled each pair in

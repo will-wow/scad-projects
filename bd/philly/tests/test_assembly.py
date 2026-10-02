@@ -43,7 +43,7 @@ def test_nothing_occupies_the_same_space_as_anything_else(assembled):
     The sails failed this when they were first hung: each had 130 cubic
     millimetres of itself inside the mast, because a flat plate spanning the
     whole yard passes straight through whatever is in the middle of it. The
-    guns are here too, run out, which is what says the awning's legs, the mast
+    guns are here too, run out, which is what says the awning's stanchions, the mast
     and the sails all stand clear of them.
     """
     names = list(assembled)

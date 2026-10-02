@@ -69,18 +69,18 @@ class TestFrame:
     def test_the_roof_is_planar(self, shape, lines):
         """Which is what lets it print roof-down with nothing to support.
 
-        The sheer rises toward the transom under the awning; the legs absorb that instead
+        The sheer rises toward the transom under the awning; the stanchions absorb that instead
         of the roof following it.
         """
         upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
         box = upright.bounding_box()
-        assert pytest.approx(shape.roof + BAR / 2.0, abs=1e-6) == box.max.Z
+        assert pytest.approx(shape.top + BAR / 2.0, abs=1e-6) == box.max.Z
         for station in shape.bars:
-            at = Vector(float(station), 0.0, shape.roof)
+            at = Vector(float(station), 0.0, shape.top)
             assert upright.is_inside(at), f"no roof at {station:.0f}mm"
 
     def test_it_prints_roof_down_on_the_bed(self, part, shape):
-        """Roof down because the roof is the one flat connected plane: the legs
+        """Roof down because the roof is the one flat connected plane: the stanchions
         then rise off it as plain columns with nothing to bridge."""
         assert pytest.approx(0.0, abs=1e-6) == part.bounding_box().min.Z
         for station in shape.bars:
@@ -97,15 +97,15 @@ class TestFrame:
         """There would be nothing to bore a socket into."""
         spec = HullSpec(stations=8, decks=(Deck(0.0, 0.30, 0.5),), bulge=HULL.bulge)
         with pytest.raises(ValueError, match="open bilge"):
-            frame(spec, lines, Awning(legs=(0.40, 0.80)), RIG)
+            frame(spec, lines, Awning(stanchions=(0.40, 0.80)), RIG)
 
     def test_legs_out_of_order_are_refused(self):
         with pytest.raises(ValueError, match="not in order"):
-            Awning(legs=(0.60, 0.40))
+            Awning(stanchions=(0.60, 0.40))
 
     def test_the_frame_ends_at_its_legs(self, shape):
         """So both ends are closed by a crossbar standing on something, rather
-        than rails running on past the last legs with nothing across them."""
+        than rails running on past the last stanchions with nothing across them."""
         stations = [foot.station for foot in shape.feet]
         assert [n[0] for n in shape.nodes] == stations
         assert list(shape.bars) == stations
@@ -113,16 +113,16 @@ class TestFrame:
     def test_there_is_a_crossbar_over_every_pair_of_legs(self, lines, shape):
         upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
         for foot in shape.feet:
-            at = Vector(foot.station, 0.0, shape.roof)
-            assert upright.is_inside(at), f"no crossbar over the legs at {foot.station:.0f}mm"
+            at = Vector(foot.station, 0.0, shape.top)
+            assert upright.is_inside(at), f"no crossbar over the stanchions at {foot.station:.0f}mm"
 
     def test_every_leg_is_kneed_into_the_bars_it_meets(self, upright, shape):
-        """The leg's root under the bars is what broke when the boat was dropped.
+        """The stanchion's root under the bars is what broke when the boat was dropped.
         Every corner gets a triangle: inboard along the crossbar, and along each
-        rail the leg has. An end leg has one rail, which is why it is the leg
+        rail the stanchion has. An end stanchion has one rail, which is why it is the stanchion
         that wants them.
 
-        Probed a hair past the corner of the leg's own square, so it is the knee
+        Probed a hair past the corner of the stanchion's own square, so it is the knee
         answering and not the column.
         """
         step = BAR / 2.0 * math.sqrt(2.0) + 0.2
@@ -130,7 +130,7 @@ class TestFrame:
             ends = index in (0, len(shape.feet) - 1)
             beside = [shape.nodes[i] for i in (index - 1, index + 1) if 0 <= i < len(shape.feet)]
             for side in (-1.0, 1.0):
-                corner = Vector(foot.station, side * foot.half, shape.roof - BAR / 2.0 - 0.2)
+                corner = Vector(foot.station, side * foot.half, shape.top - BAR / 2.0 - 0.2)
                 along = [Vector(0.0, -side, 0.0)] + [
                     Vector(x - foot.station, side * (half - foot.half), 0.0) for x, half in beside
                 ]
@@ -146,7 +146,7 @@ class TestFrame:
 
     def test_knees_cross_inside_their_leg_rather_than_in_the_air(self, shape):
         """Two slabs of half-width w meeting at an angle t overlap out to
-        w / sin(t/2) from the leg's centre. Past the leg's half-diagonal that
+        w / sin(t/2) from the stanchion's centre. Past the stanchion's half-diagonal that
         crossing is in open air, and the two hypotenuses leave a spike where they
         cut each other. The tightest angle here is 64 degrees, where a rail meets
         the crossbar on the trapezoid stretch aft.
@@ -169,7 +169,7 @@ class TestFrame:
                     crossing = reach / math.sin(math.radians(gap) / 2.0)
                     assert crossing <= buried, (
                         f"knees {gap:.0f} degrees apart at {foot.station:.0f}mm "
-                        f"cross {crossing:.2f}mm out, past the leg's {buried:.2f}mm"
+                        f"cross {crossing:.2f}mm out, past the stanchion's {buried:.2f}mm"
                     )
 
     def test_a_knee_is_a_taper_rather_than_a_block(self, upright, shape):
@@ -179,14 +179,14 @@ class TestFrame:
         foot = shape.feet[2]
         reach = KNEE + BAR / 2.0  # probed down the bar's centreline, where the knee is
         for step, deep, wanted in ((0.45 * reach, 0.45, True), (0.55 * reach, 0.55, False)):
-            at = Vector(foot.station - step, foot.half, shape.roof - BAR / 2.0 - deep * reach)
+            at = Vector(foot.station - step, foot.half, shape.top - BAR / 2.0 - deep * reach)
             assert upright.is_inside(at) == wanted, f"the taper is wrong {step:.1f}mm along"
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
-        """The rails and crossbars stop at the leg's centre; the leg has to run
+        """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
         up to their tops, or each end corner prints with a notch in the roof."""
         upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
-        top = shape.roof + BAR / 2.0 - 0.1
+        top = shape.top + BAR / 2.0 - 0.1
         for foot in (shape.feet[0], shape.feet[-1]):
             outward = -1.0 if foot is shape.feet[0] else 1.0
             corner = Vector(foot.station + outward * BAR / 4.0, foot.half + BAR / 4.0, top)
@@ -214,8 +214,8 @@ class TestCanvas:
         the cringle's ring around it."""
         for station, clip in zip((shape.bars[0], shape.bars[-1]), shape.clips, strict=True):
             for side in (-1.0, 1.0):
-                axis = Vector(station, side * clip, shape.roof)
-                ring = Vector(station, side * clip, shape.roof + shape.neck + 0.8)
+                axis = Vector(station, side * clip, shape.top)
+                ring = Vector(station, side * clip, shape.top + shape.neck + 0.8)
                 assert not rigged.is_inside(axis), "the bore is not over the neck"
                 assert rigged.is_inside(ring), f"no cringle at {station:.0f}mm"
 
@@ -225,7 +225,7 @@ class TestCanvas:
         The middle bars are probed at the aft neck's offset, which is the
         narrowest and so lies on every bar."""
         upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
-        just_under = shape.roof + shape.neck + 0.2
+        just_under = shape.top + shape.neck + 0.2
         ends = {shape.bars[0]: shape.clips[0], shape.bars[-1]: shape.clips[1]}
         for station in shape.bars:
             necked = station in ends
@@ -239,12 +239,12 @@ class TestCanvas:
             assert clip + shape.clip_length / 2.0 < foot.half - BAR / 2.0
 
     def test_the_plate_clears_the_bars(self, rigged, shape):
-        assert shape.roof + BAR / 2.0 + RIG.sail_thickness < rigged.bounding_box().max.Z
-        middle = Vector(0.5 * (shape.bars[0] + shape.bars[-1]), 0.0, shape.roof + BAR / 2.0)
+        assert shape.top + BAR / 2.0 + RIG.sail_thickness < rigged.bounding_box().max.Z
+        middle = Vector(0.5 * (shape.bars[0] + shape.bars[-1]), 0.0, shape.top + BAR / 2.0)
         assert not rigged.is_inside(middle), "the plate is sitting in the bars"
 
     def test_the_end_crossbars_knees_leave_the_eyes_their_room(self, upright, rigged):
-        """A necked crossbar has only the square between the leg and the cringle to
+        """A necked crossbar has only the square between the stanchion and the cringle to
         put a knee in: the canvas's ring comes down round the neck, and a knee of
         the full reach would fill the place it sits."""
         assert (upright & rigged).volume < 1e-6
@@ -284,7 +284,7 @@ class TestSockets:
                 assert fitted.is_inside(beside), "there is no boss around the socket"
 
     def test_a_socket_mouth_is_chamfered_to_guide_a_leg_in(self, fitted, shape):
-        """The hull's half of the lead-in -- the leg's foot is chamfered to
+        """The hull's half of the lead-in -- the stanchion's foot is chamfered to
         match. Probed just outside the bore: open at the mouth, metal once the
         chamfer has run out below it."""
         bore = BAR + 2.0 * rigging.TOLERANCE
@@ -346,8 +346,8 @@ class TestSockets:
 
     def test_a_leg_fits_its_socket_with_clearance(self):
         """Loose enough to lift out, which is the point of the whole part. The
-        leg goes in at full section: it used to step down to a round peg here,
-        and the peg -- 3.9mm^3 of section against the leg's 6.6, with a sharp
+        stanchion goes in at full section: it used to step down to a round peg here,
+        and the peg -- 3.9mm^3 of section against the stanchion's 6.6, with a sharp
         shoulder on it -- is what snapped off."""
         assert (
             pytest.approx(rigging.TOLERANCE, abs=1e-9)
@@ -357,10 +357,10 @@ class TestSockets:
     def test_a_socket_drops_only_far_enough_to_clear_the_deck(self):
         """Down is the one direction it cannot grow in: every millimetre below
         the deck costs planking beside the hole, since the side closes in as it
-        falls and the legs stand close to it. The drop is there only so the cut
+        falls and the stanchions stand close to it. The drop is there only so the cut
         does not end on the deck's own face."""
         assert SOCKET_DROP < 1.0, "the socket drops into the side"
-        assert SOCKET_DEPTH > BAR, "too little of a leg gripped to steady the frame"
+        assert SOCKET_DEPTH > BAR, "too little of a stanchion gripped to steady the frame"
 
     def test_a_bench_gives_its_pair_most_of_their_socket(self, shape):
         """A pair on a bench is socketed through it rather than onto it: the hole
@@ -395,12 +395,12 @@ class TestSockets:
     def test_a_foot_is_chamfered_so_it_finds_its_hole(self, part, shape):
         """So a frame dropped in askew finds its sockets rather than standing on
         their rims. Printed roof down the feet are the last thing laid, so the
-        chamfer faces up and costs nothing; the longest leg is the one at the top
+        chamfer faces up and costs nothing; the longest stanchion is the one at the top
         of the laid part, which is where this probes.
         """
         foot = min(shape.feet, key=lambda f: f.socket_floor)
         top = part.bounding_box().max.Z
-        assert pytest.approx(shape.roof + BAR / 2.0 - foot.socket_floor, abs=0.01) == top
+        assert pytest.approx(shape.top + BAR / 2.0 - foot.socket_floor, abs=0.01) == top
         # A tenth off the end, the chamfer has taken all but a tenth off each face.
         edge = BAR / 2.0 - FOOT_CHAMFER + 0.1
         for reach, solid in ((edge - 0.05, True), (edge + 0.05, False)):

@@ -52,7 +52,7 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-hull.3mf`          | 300 x 84.5 x 31.2mm   | as exported, bottom down   | the watertightness settings below |
 | `philadelphia-mast.3mf`          | 200.8 x 93.0 x 5.0mm  | as exported, lying flat    | needs a 200mm bed axis            |
 | `philadelphia-sails.3mf`         | 69 x 174.5 x 6.5mm    | as exported, flat          | two separate sails in one file    |
-| `philadelphia-awning.3mf`        | 148.3 x 72.1 x 37.0mm | as exported, **roof down** | legs point up; do not flip it     |
+| `philadelphia-awning.3mf`        | 148.3 x 72.1 x 37.0mm | as exported, **roof down** | stanchions point up; do not flip it     |
 | `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.6mm  | as exported, flat          | print it with the sails' settings |
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
@@ -137,7 +137,7 @@ snaps.
 The bosses' upright corners are rounded 1mm, which is one fewer sharp edge to
 handle and a little less for the slicer to walk round.
 
-The two pairs of legs that land on the quarterdeck's benches are socketed
+The two pairs of stanchions that land on the quarterdeck's benches are socketed
 through the bench rather than onto it, so their bosses show 1.8mm above the seat
 instead of 8: the bench is the rest of the hole. Those two sockets are bored
 deeper into the hull than the others, and leave about 1.4mm of planking beside
@@ -145,29 +145,29 @@ them, so they are the ones to look at if a side ever prints thin there.
 
 The awning frame is exported **roof down**, which is the whole reason its roof
 is a flat plane rather than following the sheer. That way the roof is the first
-layer -- one connected grid, well stuck to the bed -- and the ten legs rise
+layer -- one connected grid, well stuck to the bed -- and the ten stanchions rise
 off it as plain columns with nothing to bridge. Flipped the other way up, the
-legs print first as thin towers and the entire roof has to span between them.
+stanchions print first as thin towers and the entire roof has to span between them.
 
-The legs are the thing to watch: 3.4mm square and up to 28.5mm standing free
+The stanchions are the thing to watch: 3.4mm square and up to 28.5mm standing free
 above their bosses, ten of them. Slow the outer walls down, and if the tops ring or lean, print
 them with a bit more cooling rather than adding supports.
 
 Each one now carries **knees** where it meets the bars -- a 6mm triangle into
-the crossbar and into each rail -- because a dropped boat snapped a leg off at
-that corner. They cost 0.9 cm³ and print as part of the leg: laid roof-down
+the crossbar and into each rail -- because a dropped boat snapped a stanchion off at
+that corner. They cost 0.9 cm³ and print as part of the stanchion: laid roof-down
 every layer of a knee is smaller than the one beneath it, so the 45 degree
 hypotenuse carries itself. Each is 2.2mm wide rather than the bar's 3.4, which
 is the flat between the bar's rounded edges: as wide as the bar, a knee stood
 its outer lip on the round with nothing under it. The knees on the two necked crossbars are cut short,
 since the canvas's eye comes down into that square.
 
-Each leg now runs into its socket at full section rather than stepping down to a
+Each stanchion now runs into its socket at full section rather than stepping down to a
 round peg, and **its foot is chamfered 0.8mm** against a **0.6mm chamfer round
 the mouth of each socket**, so the frame finds its holes when it is dropped in
 slightly askew. The feet are the last thing the printer lays,
 at the top of the part, so the chamfer faces up and asks nothing of it -- but it
-does mean the very tips are small and want the same slow walls the leg tops do.
+does mean the very tips are small and want the same slow walls the stanchion tops do.
 
 The bar across the forward well **bridges about 34.4mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would

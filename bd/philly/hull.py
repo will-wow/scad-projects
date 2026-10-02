@@ -541,7 +541,7 @@ class Scaled:
 
     Everything in this module works in the source's own 1:1 millimetres and
     scales once at the end. Everything fitted to the hull afterwards -- the
-    joinery, the mast's step, the awning's legs, the guns' slides -- works in
+    joinery, the mast's step, the awning's stanchions, the guns' slides -- works in
     printed millimetres, and each of them wants the same handful of answers
     about where the hull is. This is that handful, so a fitting asks rather
     than converting for itself.
@@ -719,7 +719,7 @@ def deck_at(spec: HullSpec, fraction: float) -> Deck | None:
     """The deck covering `fraction` of the length, or None over open bilge.
 
     What to do about open bilge is the caller's: a gun, a knee and an awning's
-    leg all want a deck under them and all have their own way of saying so.
+    stanchion all want a deck under them and all have their own way of saying so.
     """
     return next((d for d in spec.decks if d.start <= fraction <= d.end), None)
 

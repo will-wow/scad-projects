@@ -197,6 +197,19 @@ outright:
 | forked support, Y-bracket | **crotch** (**crutch**) |
 | ridge beam | **the ridge**; the hoops bearing up a tilt are **bails** [V] |
 | the canvas's top surface | *no period word* — describe it as a height, or the height of the stanchions |
+
+Three the code deliberately does **not** use, though they were on the table:
+
+- **`tilt`** for the framework as a whole. Good English for a boat's canopy since
+  the 16th century, but its dictionary attestation is Smyth 1867, and `frame`
+  is what twenty-odd lines of prose in `awning.py` call it. A Victorian word
+  applied wholesale to good prose is not an improvement.
+- **`bail`** for a crossbar. Bails are specifically "the hoops which bear up the
+  tilt of a boat" — these crossbars are straight. A period word that is wrong
+  about the shape of the thing is worse than a modern one that is right.
+- **`chock`** for a boss. A chock is "a block or wedge of wood securing a gun, a
+  spar or a boat", which is close but not a bored raised pad. `boss` is a
+  shop word and accurate, so it stays.
 | centre suspension lines | **crowfoot** [G] — *ridge rope* is [V] |
 | guy line, edge line | **side ropes**, **lacings** |
 | corner tie-down | **earing**, through a **cringle** or **eyelet hole** |

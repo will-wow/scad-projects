@@ -495,7 +495,7 @@ that knows where the inside of a flared, bowed hull actually is.
 It is asked through **`hull.Scaled`**, which is the seam between the two unit
 systems. Everything in hull.py works in the source's 1:1 millimetres and scales
 once at the end; everything fitted to the hull afterwards -- the joinery, this
-socket, the awning's legs, the guns' slides -- works in printed millimetres.
+socket, the awning's stanchions, the guns' slides -- works in printed millimetres.
 Each of them wants the same handful of answers (`station`, `inside`, `sheer`,
 `bottom`, `ceiling`, `deck`), and each of them used to divide by `factor` on the
 way in and multiply on the way out for itself. `Scaled` holds that conversion
@@ -709,7 +709,7 @@ the mast, and it would catch it again.
 half that drops into sockets in the decks and lifts out again, and a canvas
 that clips onto it.
 
-**The frame is its legs.** It runs from the first pair of legs to the last, with
+**The frame is its stanchions.** It runs from the first pair of stanchions to the last, with
 a crossbar over every pair, so both ends are closed and every crossbar stands on
 something:
 
@@ -718,7 +718,7 @@ nodes = (tuple((f.station, f.half) for f in feet),)
 ```
 
 `Frame.bars` is just those stations. The rails and crossbars all stop at a
-leg's centre, so each leg runs up to the bars' tops rather than to the roof's
+stanchion's centre, so each stanchion runs up to the bars' tops rather than to the roof's
 middle plane -- otherwise every end corner would print with a notch in it.
 
 **The canvas is a sail.** It is `rig.sail` again, cut to the frame instead of
@@ -743,9 +743,9 @@ the sails stand off further, but that is to clear the mast. Rigged that way up,
 the patches and bolt rope hang under the plate, so it is the patches'
 thickness, not the plate's, that has to clear the bars.
 
-### Measure the hull where the leg actually is
+### Measure the hull where the stanchion actually is
 
-A leg's offset comes from the inside of the planking **at the height of the deck
+A stanchion's offset comes from the inside of the planking **at the height of the deck
 it stands on**, not at the rail:
 
 ```python
@@ -754,7 +754,7 @@ half = hull.inside(station, height) - awning.inset
 
 The side flares outward going up, so the inside is narrowest down at the deck —
 by about 3.5mm on the quarterdeck. Measuring at the rail would put the feet
-through the planking. The hull also closes in fast toward the transom, so legs
+through the planking. The hull also closes in fast toward the transom, so stanchions
 too far aft pinch the frame to a point. The last pair stands at 0.895, just aft
 of the quarterdeck's benches, which carries the frame nearly to the transom as
 the museum's model does. The two pairs before it stand on the benches, and are
@@ -765,7 +765,7 @@ measured at the seat instead (see Part 13).
 The obvious thing is to bore the socket straight into the deck. But a deck is
 modelled solid from the bottom up, so the floor of that socket is the boat's
 bottom, below the waterline. On the quarterdeck there is 8.3mm of solid; a 5mm
-socket would take most of it. So each leg steps on a boss and the socket is
+socket would take most of it. So each stanchion steps on a boss and the socket is
 bored into that, where the hull under the hole keeps its thickness. `fit_awning`
 refuses to build a frame whose sockets come within `BOTTOM_PLANKING` of the outside, and a
 test checks the same thing from the other end.
@@ -775,18 +775,18 @@ sockets to hold the frame more steadily, the obvious move was to take them down
 toward the bilge -- and there is no bilge to reach, because the deck is solid.
 What a deeper hole actually runs into is the **side**, which closes in as it
 falls while the uprights stand 2.5mm off it. At the bottom of the hull the
-inside is 3 to 4.5mm narrower than where the legs step: a socket bored to the
+inside is 3 to 4.5mm narrower than where the stanchions step: a socket bored to the
 bilge would come out through the planking at every one of them. Nearer to hand,
 sockets dropping 2mm below the deck -- which is what they did -- left **0.67mm**
 of planking beside the aft pair and 0.99 beside the second, in a 2mm hull, right
-where a leg levers against its hole.
+where a stanchion levers against its hole.
 
 So the depth went up instead of down. The socket is 8.5mm deep and drops only
 `SOCKET_DROP`, half a millimetre, below the deck -- just enough that the cut does
 not end on the deck's own face. Everything between that floor and whatever the
-pair stands on is boss. That is 8mm of leg gripped against the 5 it had; the
-planking outboard of the worst socket went from 0.67mm to 1.9, no leg moved, and
-because the boss grew as much as the roof did the legs ended up *shorter* than
+pair stands on is boss. That is 8mm of stanchion gripped against the 5 it had; the
+planking outboard of the worst socket went from 0.67mm to 1.9, no stanchion moved, and
+because the boss grew as much as the roof did the stanchions ended up *shorter* than
 before. `SIDE_PLANKING` is the rule now, enforced twice: `frame` caps how far
 outboard a pair may stand by what its socket allows -- the same cap bounding the
 seam dodge that already moves the bare-deck pairs -- and `fit_awning` refuses to
@@ -808,25 +808,25 @@ the difference.
 
 It is not free. The hole now bottoms at 9.33mm instead of 15.53, six millimetres
 lower, where the side has closed in; the cap pulls that pair 0.6mm inboard to
-keep `SIDE_PLANKING`, and their planking goes from 2.8mm to 1.4. And the leg is
+keep `SIDE_PLANKING`, and their planking goes from 2.8mm to 1.4. And the stanchion is
 free for 28.47mm rather than 22.27, since it leaves its socket lower down --
 which is worth knowing but not worth much, because that is exactly the length the
-aft pair has always been. No leg is longer than the longest already was.
+aft pair has always been. No stanchion is longer than the longest already was.
 
 ### Square holes, because the pegs snapped off
 
-A leg used to step down to a round peg at the boss, since the socket was bored
+A stanchion used to step down to a round peg at the boss, since the socket was bored
 with a cylinder. The step was the weakest section in the frame: 3.86mm³ against
-the leg's 6.55, with a sharp shoulder on it, at the one height where the bending
+the stanchion's 6.55, with a sharp shoulder on it, at the one height where the bending
 is greatest. They snapped off in play.
 
-A square hole takes the leg itself, full section, with nothing to step down to
+A square hole takes the stanchion itself, full section, with nothing to step down to
 -- the socket is a `Box` rather than a `Cylinder`, which is the whole change --
-so the weakest section of the leg is now the leg. The boss went square with it:
+so the weakest section of the stanchion is now the stanchion. The boss went square with it:
 a round pad leaves 0.7mm over a square hole's corners where a square one leaves
 1.8 all round, and it reads as a step rather than a turning.
 
-The lead-in is in two halves, because ten legs have to find ten holes at once.
+The lead-in is in two halves, because ten stanchions have to find ten holes at once.
 The foot is chamfered 0.8mm, which printed roof-down is the last thing laid, so
 it faces away from the bed and costs nothing. The mouth of the socket is
 chamfered 0.6mm to meet it, which printed the hull's way up flares as it rises,
@@ -870,8 +870,8 @@ but it is worth having for its own sake.
 ### The roof is planar on purpose, and set by standing room
 
 The sheer rises nearly 5mm toward the transom under the awning and the roof does
-not follow it — the legs absorb it instead. That is what lets the part print **roof down**, with the
-roof as one flat connected first layer and the legs rising off it as plain
+not follow it — the stanchions absorb it instead. That is what lets the part print **roof down**, with the
+roof as one flat connected first layer and the stanchions rising off it as plain
 columns. Following the sheer would leave one end of the roof standing 5mm off
 the bed with its crossbar hanging in air.
 
@@ -879,22 +879,22 @@ How high it sits is `Awning.headroom`, and it is a real-world length rather than
 a fraction of anything: **six feet**, 1828.8mm at 1:1 and 33.5 here. Photographs
 of Philadelphia II, the full-size recreation, show people standing under her
 awning amidships, which is the thing the number is for. It is taken over the
-highest *deck* a pair of legs stands on -- the middle platform -- since the
+highest *deck* a pair of stanchions stands on -- the middle platform -- since the
 benches aft are to sit on and the quarterdeck is lower still. The roof came out
 at 44.6mm against the 41.1 a clearance over the rail used to give. Clearing the
 rail is still checked, against the highest of the sheer under the frame rather
 than its average, but it is now a guard rather than the rule.
 
-The side rails are a polyline through the leg tops.
+The side rails are a polyline through the stanchion tops.
 
-### Knees, because a dropped boat snapped a leg off
+### Knees, because a dropped boat snapped a stanchion off
 
-A leg is 3.4mm square and stands up to 28.5mm free above its boss, and its root
+A stanchion is 3.4mm square and stands up to 28.5mm free above its boss, and its root
 is where the bars stop:
 a sharp step, at a layer interface, bending across the layers. Section modulus
 6.55mm³, so the tip breaks at about 7N and stores some 6mJ of elastic energy
 first. A metre drop of a 33g boat is 320mJ. The arithmetic says plainly that no
-version of this leg survives a direct hit on the frame, so the object is to
+version of this stanchion survives a direct hit on the frame, so the object is to
 raise the threshold rather than to reach it.
 
 A 6mm knee in each corner does two things, and the smaller of them is the length
@@ -903,9 +903,9 @@ step: a sharp re-entrant corner in bending runs a stress concentration around
 two, and a 45 degree taper runs about one. Together it is roughly 2.7 times the
 force and, since energy goes as force squared, about seven times the drop. The
 knees also triangulate the corners, so racking the frame loads them along their
-length instead of bending the legs.
+length instead of bending the stanchions.
 
-Equal-legged, and reaching from the leg's centreline rather than its face, so
+Equal-legged, and reaching from the stanchion's centreline rather than its face, so
 each one overlaps both members and the fuse has something to bite on. Laid
 roof-down every layer of a knee is smaller than the one beneath it, which is the
 whole reason it is a triangle and not a block: the hypotenuse carries itself.
@@ -921,15 +921,15 @@ the knee on each side stood on the round with nothing under it, and the first
 render showed the lip. Narrowing it to `BAR - 2 * edge`, 2.2mm, puts it on the
 flat.
 
-That fixed a second thing nobody had connected to it. Knees meet at a leg from
+That fixed a second thing nobody had connected to it. Knees meet at a stanchion from
 the directions its bars run, and two slabs of half-width w crossing at an angle
-t overlap out to `w / sin(t/2)` from the leg's centre. The tightest angle in
+t overlap out to `w / sin(t/2)` from the stanchion's centre. The tightest angle in
 this frame is 64 degrees, where a rail meets the crossbar at the fourth pair,
 on the trapezoid stretch where the sides come in fast. At the bar's full width
-that overlap reaches 3.2mm -- past the leg's own half-diagonal of 2.4 -- so the
+that overlap reaches 3.2mm -- past the stanchion's own half-diagonal of 2.4 -- so the
 two hypotenuses crossed in open air and left a spike standing off the post,
 5.9mm³ of it. At the flat's width it reaches 2.07mm and the whole crossing is
-buried inside the leg. One number, both symptoms.
+buried inside the stanchion. One number, both symptoms.
 
 The cost is that a knee is a third thinner than it was, so it braces a little
 less than the full-width one did. The strips either side of it are not bare,
@@ -937,7 +937,7 @@ though: that is exactly where the bar's own fillet is, which is the rounding
 that made the knee too wide in the first place.
 
 A test keeps it honest, because the margin is the frame's and not the knee's --
-2.07mm against 2.4 is 0.33mm to spare, and moving a pair of legs could spend it.
+2.07mm against 2.4 is 0.33mm to spare, and moving a pair of stanchions could spend it.
 
 ## Part 12: the guns
 
@@ -1232,13 +1232,13 @@ supports.
 
 The benches run from the quarterdeck's forward edge to 0.868, 6.2mm high and
 8.8mm deep. They are solid to the deck, because the scan's front boards run all
-the way down. They cover where the aft pairs of awning legs stood, so those legs
+the way down. They cover where the aft pairs of awning stanchions stood, so those stanchions
 now stand on the benches: `awning.frame` asks `details.bench_top` what is under
-each leg and uses the seat when there is one. The roof is planar, so the
+each stanchion and uses the seat when there is one. The roof is planar, so the
 uprights just get shorter. That is also why `fit_details` runs before
 `fit_awning`, since the sockets are bored into the seats.
 
-The forward legs moved too, from 0.42 and 0.55 to 0.412 and 0.57: each would
+The forward stanchions moved too, from 0.42 and 0.55 to 0.412 and 0.57: each would
 have stood on a knee.
 
 ### The keelson
