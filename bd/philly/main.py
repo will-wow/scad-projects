@@ -71,11 +71,11 @@ RIG = rigging.Rig()
 
 
 def _forecastle_tabs(spec: HullSpec, rig: rigging.Rig) -> HullSpec:
-    """The forecastle's corner tabs, half-way from its edge to the mast's bar."""
+    """The forecastle's corner tabs, half-way from its edge to the mast's thwart."""
     forecastle = spec.decks[0]
     seat = rigging.step(spec, hull_lines.load(), rig)
-    bar = seat.station - seat.bar_size / 2.0
-    tab = 0.5 * (bar - forecastle.end * spec.length)
+    thwart = seat.station - seat.thwart_siding / 2.0
+    tab = 0.5 * (thwart - forecastle.end * spec.length)
     return replace(spec, decks=(replace(forecastle, tab=tab), *spec.decks[1:]))
 
 

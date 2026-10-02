@@ -510,7 +510,7 @@ def inner_half_width(
     This is the inside face of the hull, and it is not the outside minus the
     wall. The side is flared, so it has to be offset perpendicular to itself;
     the line that results is what `_inner_section` builds its sections from and
-    what anything fitted against the inside of the hull -- the mast's bar, say
+    what anything fitted against the inside of the hull -- the mast's thwart, say
     -- has to reach. One function so there is one answer.
 
     `z` may sit above the rail or below the chine; the line is simply extended,

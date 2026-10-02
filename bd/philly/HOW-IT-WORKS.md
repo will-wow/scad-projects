@@ -348,7 +348,7 @@ shouldn't reach the bottom is just a low deck.
 The forecastle's aft corners run on past its edge along each side, as on the
 boat: `Deck(..., tab=...)` gives a square tab that many millimetres long on
 each corner, with a quarter circle cut out of its inboard aft corner. `main.py`
-makes the forecastle's reach half-way from its edge to the mast's bar, so it
+makes the forecastle's reach half-way from its edge to the mast's thwart, so it
 follows either of them if they move. [`_tabs`](hull.py)
 draws each one oversize in plan, solid to the bilge, and trims it to a cavity
 half a wall larger than the real one, so it fits the flared side and the floor
@@ -473,7 +473,7 @@ rather than lofting sections. It also works in **finished millimetres**
 throughout, unlike `hull.py`: the hull arrives already scaled, so this is the
 far side of that line.
 
-Three printed parts: the bar and tube, unioned into the hull; the mast, which
+Three printed parts: the thwart and tube, unioned into the hull; the mast, which
 lifts out; and the sails, which clip onto the yards.
 
 ### The socket is derived, not written down
@@ -499,16 +499,16 @@ socket, the awning's legs, the guns' slides -- works in printed millimetres.
 Each of them wants the same handful of answers (`station`, `inside`, `sheer`,
 `bottom`, `floor`, `deck`), and each of them used to divide by `factor` on the
 way in and multiply on the way out for itself. `Scaled` holds that conversion
-once, so a fitting asks rather than converts. The bar is cut to reach it:
+once, so a fitting asks rather than converts. The thwart is cut to reach it:
 
 ```python
-bar_half_length = hull.inside(station, bar_top)
+thwart_half_length = hull.inside(station, thwart_top)
 ```
 
-Measured at the bar's **top**, because the side flares: the inside is widest
-there, so the bar overlaps into the wall at its lower edge rather than leaving a
+Measured at the thwart's **top**, because the side flares: the inside is widest
+there, so the thwart overlaps into the wall at its lower edge rather than leaving a
 gap. The overlap is 0.73mm into a 2mm wall, and a test asserts the fitted hull
-is no wider than the bare one -- which is what catches a bar that punches
+is no wider than the bare one -- which is what catches a thwart that punches
 through.
 
 ### Two constraints that are not obvious
@@ -517,7 +517,7 @@ through.
 floor. A bore one millimetre longer is a hole in the boat.
 
 **The tube runs all the way down**, which does two jobs. It steps the mast, and
-it plants a pillar under the middle of the bar. Without it the bar is a single
+it plants a pillar under the middle of the thwart. Without it the thwart is a single
 78mm unsupported span to bridge, printed bottom-up; with it, two of 34.4mm.
 
 ### Why the mast is hexagonal
@@ -1276,7 +1276,7 @@ the centreline; a well's centreline is occupied -- the keelson down all of it,
 the mast's tube in the forward one -- so `Well.clear` places the innermost seam
 instead, `Seams.clearance` outboard of whichever is wider. [`main.py`](main.py)
 solves that from the parts themselves, the way `_forecastle_tabs` already solves
-a deck's tabs from the mast's bar, and gets 6.06mm: the tube's 4.81 plus 1.25.
+a deck's tabs from the mast's thwart, and gets 6.06mm: the tube's 4.81 plus 1.25.
 Inboard of it the floor reads as one wide plank with the keelson on it, which is
 what a ceiling looks like anyway.
 

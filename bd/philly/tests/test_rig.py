@@ -47,11 +47,11 @@ class TestStep:
         )
         assert step(moved, lines).station < step(SPEC, lines).station
 
-    def test_the_bar_sits_one_bar_width_below_the_rail(self, lines):
+    def test_the_thwart_sits_one_siding_below_the_rail(self, lines):
         seat = step(SPEC, lines)
         factor = SPEC.length / lines.length
         rail = lines.sheer_height.value(seat.station / factor) * factor
-        assert rail - seat.bar_top == pytest.approx(seat.bar_size, abs=1e-6)
+        assert rail - seat.thwart_top == pytest.approx(seat.thwart_siding, abs=1e-6)
 
     def test_a_hull_with_no_well_is_refused(self, lines):
         """A mast socket in the middle of a platform would be nonsense."""
@@ -69,22 +69,22 @@ class TestFitting:
         assert fitted.is_valid
         assert len(fitted.solids()) == 1
 
-    def test_the_bar_does_not_break_out_through_the_side(self, fitted, lines):
+    def test_the_thwart_does_not_break_out_through_the_side(self, fitted, lines):
         """It is deliberately run into the wall, so this is the check that it
-        stops there. Measured at the bar's top, the inside of the hull is at its
-        widest over the bar's height, which leaves the bar overlapping into the
+        stops there. Measured at the thwart's top, the inside of the hull is at its
+        widest over its depth, which leaves the thwart overlapping into the
         wall lower down -- by less than the wall is thick, or it would show."""
         bare = build(SPEC, lines).bounding_box()
         assert pytest.approx(bare.max.Y, abs=1e-6) == fitted.bounding_box().max.Y
         assert pytest.approx(bare.min.Y, abs=1e-6) == fitted.bounding_box().min.Y
 
-    def test_the_bar_reaches_the_hull_on_both_sides(self, fitted, lines):
-        """Probing just inboard of the wall, at the bar's height, off the tube."""
+    def test_the_thwart_reaches_the_hull_on_both_sides(self, fitted, lines):
+        """Probing just inboard of the wall, at the thwart's height, off the tube."""
         seat = step(SPEC, lines)
-        z = seat.bar_top - seat.bar_size / 2.0
+        z = seat.thwart_top - seat.thwart_siding / 2.0
         for side in (-1.0, 1.0):
-            at = Vector(seat.station, side * (seat.bar_half_length - 0.2), z)
-            assert fitted.is_inside(at), "the bar stops short of the hull"
+            at = Vector(seat.station, side * (seat.thwart_half_length - 0.2), z)
+            assert fitted.is_inside(at), "the thwart stops short of the hull"
 
     def test_the_bore_does_not_pierce_the_bottom(self, fitted, lines):
         """A hole here is a hole in the boat, and the boat is meant to float."""
@@ -94,7 +94,7 @@ class TestFitting:
 
     def test_the_bore_is_open_from_the_top(self, fitted, lines):
         seat = step(SPEC, lines)
-        for height in (seat.top - 1.0, seat.bar_top, seat.floor + 1.0):
+        for height in (seat.top - 1.0, seat.thwart_top, seat.floor + 1.0):
             assert not fitted.is_inside(Vector(seat.station, 0.0, height)), (
                 f"the bore is blocked at z={height:.1f}"
             )

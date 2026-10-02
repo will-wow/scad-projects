@@ -6,14 +6,15 @@ At 1:55 that mast is about 200mm, which is the one dimension here taken from
 the record; nothing gives its diameter, so that is a ratio instead -- and a
 deliberately generous one, because a true-scale 3.7mm rod 200mm long snaps.
 
-The nautical names, since the code uses one word for a thing that has three:
-the transverse beam is a *thwart*, the beam a mast passes through is the
-*partners*, and the socket it stands in is the *step*. The bar here is all
-three at once, so it is just "the bar".
+On a ship those are three members: a transverse beam is a *thwart*, the beam a
+mast passes through is the *partners*, and the socket it stands in is the
+*step*. On a boat they are one, and it has its own name -- the *mast thwart*,
+the thwart bored to take the mast, doing the partners' work. So that is what
+this is, and the step is the socket in it.
 
 Three printed parts:
 
-- the bar and its tube, unioned into the hull so they print with it
+- the thwart and its tube, unioned into the hull so they print with it
 - the mast, which lifts out of the tube, so the boat can be dismasted in play
   and the mast can turn under sail
 - the sails, thin plates that clip onto the yards
@@ -53,8 +54,9 @@ from lines import HullLines
 # slides into something else is grown or shrunk by this.
 TOLERANCE = 0.3
 
-# The bar's width and height, as a fraction of the hull's depth.
-BAR_RATIO = 0.10
+# The thwart's siding, as a fraction of the hull's depth. Square, so it is the
+# moulded dimension too.
+THWART_RATIO = 0.10
 
 # The mast across its flats, as a fraction of the hull's depth. A period mast
 # of this length would have been some 8 inches through, which is 3.7mm here --
@@ -166,9 +168,9 @@ def mast_width(spec: HullSpec, lines: HullLines) -> float:
     return MAST_RATIO * lines.depth * (spec.length / lines.length)
 
 
-def bar_size(spec: HullSpec, lines: HullLines) -> float:
-    """The bar is square, and this is its side."""
-    return BAR_RATIO * lines.depth * (spec.length / lines.length)
+def thwart_siding(spec: HullSpec, lines: HullLines) -> float:
+    """The thwart is square, and this is its side."""
+    return THWART_RATIO * lines.depth * (spec.length / lines.length)
 
 
 @dataclass(frozen=True)
@@ -181,17 +183,17 @@ class Step:
 
     station: float
     """along the length, at the middle of the forward well"""
-    bar_top: float
-    """the bar's upper face, one bar-width below the rail"""
-    bar_size: float
-    bar_half_length: float
-    """half the bar's span: the inside of the hull at the bar's top edge"""
+    thwart_top: float
+    """the thwart's upper face, one siding below the rail"""
+    thwart_siding: float
+    thwart_half_length: float
+    """half the thwart's span: the inside of the hull at its top edge"""
     floor: float
     """the inside of the hull's bottom -- the bore stops here, or the boat leaks"""
     outer_floor: float
     """the outside of the bottom, so the tube can be merged into it"""
     top: float
-    """the top of the tube, one bar-width proud of the rail"""
+    """the top of the tube, one siding proud of the rail"""
     bore_radius: float
     wall: float
 
@@ -221,45 +223,45 @@ def step(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Step:
     start, end = stretches[0]
 
     station = hull.station(0.5 * (start + end))
-    bar = bar_size(spec, lines)
+    siding = thwart_siding(spec, lines)
     rail = hull.sheer(station)
-    bar_top = rail - bar
+    thwart_top = rail - siding
 
     return Step(
         station=station,
-        bar_top=bar_top,
-        bar_size=bar,
-        # Measured at the bar's top, which is the widest the inside gets over
-        # the bar's height. The side flares, so the bar then overlaps into the
-        # wall at its lower edge -- by less than the wall is thick, so it meets
-        # the hull all the way down without breaking through.
-        bar_half_length=hull.inside(station, bar_top),
+        thwart_top=thwart_top,
+        thwart_siding=siding,
+        # Measured at the thwart's top, which is the widest the inside gets over
+        # its depth. The side flares, so the thwart then overlaps into the wall
+        # at its lower edge -- by less than the wall is thick, so it meets the
+        # hull all the way down without breaking through.
+        thwart_half_length=hull.inside(station, thwart_top),
         floor=hull.floor(station),
         outer_floor=hull.bottom(station),
-        # One bar-width proud of the rail: enough to read as a fitting, little
+        # One siding proud of the rail: enough to read as a fitting, little
         # enough that the boat still looks like a boat with the mast out.
-        top=rail + bar,
+        top=rail + siding,
         bore_radius=mast_width(spec, lines) / 2.0 + TOLERANCE,
         wall=spec.wall,
     )
 
 
 def fit_mast(hull: Part, spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
-    """Add the bar and the mast tube to a finished hull, and bore them.
+    """Add the thwart and the mast tube to a finished hull, and bore them.
 
     Has to run after the hull is hollowed: the cavity subtraction would carve
     straight back through anything added before it.
 
     The tube runs all the way down to the bottom, which is doing two jobs. It
-    steps the mast, and it plants a pillar under the middle of the bar -- the
-    bar spans the whole well, and without something under it that is a single
+    steps the mast, and it plants a pillar under the middle of the thwart --
+    which spans the whole well, and without something under it that is a single
     unsupported span of about 78mm to bridge. Halved, it is printable.
     """
     rig = rig or Rig()
     seat = step(spec, lines, rig)
 
-    bar = Pos(seat.station, 0.0, seat.bar_top - seat.bar_size / 2.0) * Box(
-        seat.bar_size, 2.0 * seat.bar_half_length, seat.bar_size
+    thwart = Pos(seat.station, 0.0, seat.thwart_top - seat.thwart_siding / 2.0) * Box(
+        seat.thwart_siding, 2.0 * seat.thwart_half_length, seat.thwart_siding
     )
 
     tube_height = seat.top - seat.outer_floor
@@ -275,7 +277,9 @@ def fit_mast(hull: Part, spec: HullSpec, lines: HullLines, rig: Rig | None = Non
         seat.bore_radius, bore_height
     )
 
-    return as_part(as_part(hull + bar + tube, "fitting the mast bar") - bore, "boring the mast")
+    return as_part(
+        as_part(hull + thwart + tube, "fitting the mast thwart") - bore, "boring the mast"
+    )
 
 
 def course_yard(spec: HullSpec, lines: HullLines, rig: Rig) -> float:
@@ -328,11 +332,11 @@ def _yard(rig: Rig, width: float, half: float) -> Part:
     """
     radius = rig.neck_width * width / 2.0
     square = Box(width, 2.0 * half, width)
-    bar = as_part(fillet(square.edges().filter_by(Axis.Y), rig.yard_fillet), "a yard's square")
+    yard = as_part(fillet(square.edges().filter_by(Axis.Y), rig.yard_fillet), "a yard's square")
     for side in (-1.0, 1.0):
         at = Pos(0.0, side * half * (1.0 - rig.clip_inset), 0.0)
-        bar = neck(bar, at, width, radius, rig.clip_length)
-    return as_part(bar, "a yard")
+        yard = neck(yard, at, width, radius, rig.clip_length)
+    return as_part(yard, "a yard")
 
 
 def upright_mast(spec: HullSpec, lines: HullLines, rig: Rig | None = None) -> Part:
