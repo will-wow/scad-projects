@@ -897,21 +897,73 @@ first. A metre drop of a 33g boat is 320mJ. The arithmetic says plainly that no
 version of this stanchion survives a direct hit on the frame, so the object is to
 raise the threshold rather than to reach it.
 
-A 6mm knee in each corner does two things, and the smaller of them is the length
-it saves -- moving the worst section from 28.7mm out to 22.7. The larger is the
+A 6mm knee in each corner did two things, and the smaller of them was the length
+it saved -- moving the worst section from 28.7mm out to 22.7. The larger was the
 step: a sharp re-entrant corner in bending runs a stress concentration around
-two, and a 45 degree taper runs about one. Together it is roughly 2.7 times the
+two, and a 45 degree taper runs about one. Together that was roughly 2.7 times the
 force and, since energy goes as force squared, about seven times the drop. The
 knees also triangulate the corners, so racking the frame loads them along their
 length instead of bending the stanchions.
 
 Equal-legged, and reaching from the stanchion's centreline rather than its face, so
 each one overlaps both members and the fuse has something to bite on. Laid
-roof-down every layer of a knee is smaller than the one beneath it, which is the
-whole reason it is a triangle and not a block: the hypotenuse carries itself.
+roof-down the hypotenuse faces up and carries itself, which is the whole reason
+it is a triangle and not a block.
 The two necked crossbars are the exception -- the canvas's cringle comes down into
 that square, so those knees stop at the neck's end and are a chamfer rather than
 a brace. The stress concentration was most of the benefit anyway.
+
+### Then it broke under the knee, so the knees went long and hollow
+
+Which is what the arithmetic above says should happen. The stanchion is a column
+pinned in its socket and built in at the frame's corner, so under racking the
+moment runs from nothing at the foot to its worst at the head: `M(z) = F·z`
+measured up from the socket. The knee carries the head, which moves the worst
+*plain* section down to its toe -- and at 6mm that toe still sat at **70%** of
+the peak. It broke there, exactly where the diagram says it should.
+
+The cure is a longer knee, and the cost of a longer solid one is a lot of
+material and a lot of hidden boat: a triangle's area goes as the square of its
+reach. So they are hollow now -- a land `KNEE_WEB` wide down each leg with the
+45 degree diagonal between them. At 12mm the toe drops to **46%** of the peak,
+which is about one and a half times the force, and the knees went from 0.9 cm³
+to 1.65 rather than to the 3.5 a solid one would have cost.
+
+Hollowing is only safe because of what a knee is actually for. The obvious
+lightening -- throw the triangle away and keep just the 45 degree bar -- throws
+away the better half of it. The taper at each toe is where the added section
+goes to nothing instead of stopping in a step, and a bar landing flat on the
+stanchion puts that step back at the one height where the bending is worst. So
+the lands stay and the middle goes.
+
+Nothing in it overhangs: the outer hypotenuse faces up as before, and the hole's
+own walls lean the same 45 degrees, so the material closes back over it without
+bridging. Measured on a knee laid the way it prints, the steepest downward face
+is 45.0 degrees -- the same as the solid one's, and exactly the limit the rest of
+the model is drawn to. A knee too short to have a middle worth taking out stays
+solid, which is what the two necked crossbars get.
+
+On the short rail spans aft the knees from neighbouring stanchions now reach past
+each other and cross. That is a union, not a clash, and what it leaves is an
+X-brace between those pairs.
+
+### Why not a second rail under the first
+
+The other way to brace the stanchion lower down is a second band of rails and
+crossbars under the first, with the knees under that -- which is a handsomer
+idea and structurally a little better: the toe would drop to 43%.
+
+It cannot be printed. The frame goes on the bed roof-down, so a second band is a
+complete grid floating a bar's width above the bed, held only where the
+stanchions rise, with unsupported runs of 51mm of rail and 68.7mm of crossbar.
+No orientation helps, because any horizontal grid that is not the first layer
+wants support, and nothing else in this model does.
+
+It could be made printable by joining the two bands with a web down the middle
+of the rail's width, flared 45 degrees into each -- two rails with a recessed
+waist, which is what a moulded rail looks like anyway. That costs about 9 cm³
+and roughly doubles the frame. The hollow knees get most of the same strength
+for 0.8.
 
 ### How wide a knee is, and why that was two bugs
 

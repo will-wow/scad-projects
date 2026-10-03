@@ -31,6 +31,7 @@ from build123d import (
     Box,
     BuildPart,
     BuildSketch,
+    Mode,
     Part,
     Plane,
     Polygon,
@@ -50,8 +51,12 @@ from rig import TOLERANCE, Rig, neck, neck_radius, sail
 # Square section for every member. The frame is handled, so nothing thinner.
 BAR = 3.4
 
-# How far a knee reaches along a bar and down a stanchion from the corner they make.
-KNEE = 6.0
+# How far a knee reaches along a bar and down a stanchion from the corner they
+# make, and how wide the three bars it is made of are. A knee is hollow: what it
+# is for is the taper at each toe and the diagonal between them, and the middle
+# of a solid one is material doing nothing but hiding the boat.
+KNEE = 12.0
+KNEE_WEB = 1.4
 
 
 def knee_section(edge: float) -> float:
@@ -381,15 +386,38 @@ def _knee(at: tuple[float, float, float], angle: float, section: float, reach: f
 
     `at` is the corner -- the stanchion's centreline at the bar's underside -- and
     `reach` is measured from there, so a knee overlaps both members rather than
-    meeting them on a face. Right-angled and equal-legged, so laid roof-down
-    every layer of it is smaller than the one beneath and the hypotenuse carries
-    itself. A dropped boat snapped a stanchion off that corner; see HOW-IT-WORKS.md.
+    meeting them on a face. Right-angled and equal-legged, and hollow: a land
+    `KNEE_WEB` wide down each leg with the 45 degree diagonal between them.
 
-    `section` is the bar's flat, not the bar: see `KNEE_SECTION`.
+    What a knee is for is the taper at its toes. The section it adds goes to
+    nothing there instead of stopping in a step, and that is most of what it
+    buys -- a bar landing flat on the stanchion would put the step back at the
+    one place the bending is worst. The middle of a solid one does little but
+    hide the boat, so it is taken out.
+
+    Laid roof-down nothing in it overhangs. The outer hypotenuse faces up, and
+    the hole's own walls lean the same 45 degrees, so the material closes back
+    over it without bridging. Too short a knee has no middle worth taking out
+    and stays solid.
+
+    `section` is the bar's flat, not the bar: see `knee_section`.
     """
+    # Insetting all three edges of a right isoceles triangle by `KNEE_WEB`
+    # shortens its legs by (2 + root 2) times that; under about a bar's width
+    # of leg there is nothing left worth hollowing.
+    inner = reach - (2.0 + np.sqrt(2.0)) * KNEE_WEB
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
             Polygon((0.0, 0.0), (reach, 0.0), (0.0, -reach), align=None)
+            if inner > BAR:
+                web = KNEE_WEB
+                Polygon(
+                    (web, -web),
+                    (web + inner, -web),
+                    (web, -web - inner),
+                    align=None,
+                    mode=Mode.SUBTRACT,
+                )
         extrude(amount=section)
     assert knee.part is not None
     return as_part(Pos(*at) * (Rot(0.0, 0.0, angle) * knee.part), "a knee")

@@ -28,6 +28,7 @@ from awning import (  # noqa: E402
     BOTTOM_PLANKING,
     FOOT_CHAMFER,
     KNEE,
+    KNEE_WEB,
     MOUTH_CHAMFER,
     SIDE_PLANKING,
     SOCKET_DEPTH,
@@ -173,14 +174,43 @@ class TestFrame:
                     )
 
     def test_a_knee_is_a_taper_rather_than_a_block(self, upright, shape):
-        """Its hypotenuse leans 45 degrees, so laid roof-down each layer of it is
-        smaller than the one beneath and there is nothing to bridge. Checked on a
-        rail knee, which is the one that gets the full reach."""
+        """Its hypotenuse leans 45 degrees, so laid roof-down the material closes
+        back over the hole without bridging. Checked on a rail knee, which is the
+        one that gets the full reach."""
         foot = shape.feet[2]
         reach = KNEE + BAR / 2.0  # probed down the bar's centreline, where the knee is
         for step, deep, wanted in ((0.45 * reach, 0.45, True), (0.55 * reach, 0.55, False)):
             at = Vector(foot.station - step, foot.half, shape.top - BAR / 2.0 - deep * reach)
             assert upright.is_inside(at) == wanted, f"the taper is wrong {step:.1f}mm along"
+
+    def test_a_knee_is_hollow_but_keeps_its_toes(self, upright, shape):
+        """The middle of a solid knee does little but hide the boat. What has to
+        stay is the taper at each toe, where the section it adds goes to nothing
+        instead of stopping in a step -- which is most of what a knee buys, and
+        what a bar landing flat on the stanchion would throw away.
+
+        Measured on the diagonal, where `along + down` is constant: the hole runs
+        from the inner corner out to the inner hypotenuse, and a land `KNEE_WEB`
+        wide lies either side of it.
+        """
+        foot = shape.feet[2]
+        reach = KNEE + BAR / 2.0
+        inner = reach - (2.0 + math.sqrt(2.0)) * KNEE_WEB
+        assert inner > BAR, "this knee is too short to be hollow at all"
+        # The hole's two corners along the diagonal, and a point midway between.
+        near = 2.0 * KNEE_WEB
+        far = near + inner
+        for reached, solid in (
+            (near - 0.3, True),
+            (0.5 * (near + far), False),
+            (reach - 0.3, True),
+        ):
+            at = Vector(
+                foot.station - reached / 2.0,
+                foot.half,
+                shape.top - BAR / 2.0 - reached / 2.0,
+            )
+            assert upright.is_inside(at) == solid, f"the knee is wrong {reached:.1f} along its 45"
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
