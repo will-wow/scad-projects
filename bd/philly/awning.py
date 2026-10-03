@@ -486,16 +486,6 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
 
     section = knee_section(awning.edge)
 
-    # A necked crossbar leaves a knee only the square between the stanchion and the
-    # cringle that clips on: the canvas's ring comes down round the neck and its
-    # outboard face stands `clip_length / 2` short of the stanchion's centreline.
-    # Cut back, it keeps its angle and simply becomes a smaller triangle.
-    def inboard(station: float, along: float) -> float:
-        clip = necked.get(station)
-        if clip is None:
-            return along
-        return min(along, shape.half_at(station) - clip - shape.clip_length / 2.0)
-
     for index, foot in enumerate(shape.feet):
         for side in (-1.0, 1.0):
             # One square column from the bars' tops to the socket's floor. Up to
@@ -521,10 +511,16 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             # Knees into every bar the stanchion runs into: the crossbar, inboard, and
             # each rail it has. An end stanchion has one rail, which is why it is the
             # one that wants them.
+            # Inboard along the crossbar, at full reach even where the canvas
+            # clips on. A knee used to be cut back to the neck there, on the
+            # grounds that the cringle comes down round it -- but a knee is the
+            # bar's flat wide and the cringle's mouth is wider than that, so it
+            # passes through the gap the mouth leaves and the two never touch.
+            # Cutting back left the end pairs with a stub where every other pair
+            # had a brace, and those are the pairs with only one rail.
             corner = (foot.station, side * foot.half, shape.top - BAR / 2.0)
             along, down = knee_reach(shape.top - BAR / 2.0 - foot.base)
-            across = inboard(foot.station, along)
-            parts.append(_knee(corner, -90.0 * side, section, across, across * down / along))
+            parts.append(_knee(corner, -90.0 * side, section, along, down))
             for other in (index - 1, index + 1):
                 if not 0 <= other < len(shape.nodes):
                     continue

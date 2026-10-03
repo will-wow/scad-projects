@@ -952,8 +952,26 @@ point -- the moment there is almost nothing, and what governs moves to the
 joint at the head or the brace in compression -- so there is no honest single
 multiplier to quote, only that it is strictly better than 46%.
 
-A capped knee keeps the angle and simply becomes a smaller triangle, which is
-what the two necked crossbars get.
+### The end pairs get their brace back
+
+The two end crossbars are necked where the canvas clips on, and a knee there
+used to be cut back to the neck -- 3.4mm against the 15 every other knee had --
+on the grounds that the cringle comes down round it. That left the two end
+pairs with a stub where the middle three had a brace, and those are the pairs
+with only one rail to begin with: the least braced stanchions in the frame were
+the two at the ends.
+
+It was not necessary. A knee is the bar's **flat** wide, 2.2mm, and a cringle's
+mouth is 2.457 -- wider. The knee runs down through the gap the mouth leaves
+and the two never touch, which the clash test confirms at 0.000 mm³ with the
+knees at full reach. The old cap was reasoning about where the ring sits along
+the bar without checking how wide the knee was across it.
+
+One thing comes with it. Over the 4.6mm the neck is long, the crossbar is only a
+2.5mm cylinder, so the knee's top face hangs 0.446mm under it rather than
+meeting a square face. That is a 4.6mm bridge, a fraction of a millimetre above
+material and held at both ends -- the same span the yards' own necks already
+bridge, and if it sags at all it sags onto the cylinder.
 
 ### Why the second pair moved to 0.545
 

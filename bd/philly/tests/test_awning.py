@@ -303,10 +303,15 @@ class TestCanvas:
         middle = Vector(0.5 * (shape.bars[0] + shape.bars[-1]), 0.0, shape.top + BAR / 2.0)
         assert not rigged.is_inside(middle), "the plate is sitting in the bars"
 
-    def test_the_end_crossbars_knees_leave_the_eyes_their_room(self, upright, rigged):
-        """A necked crossbar has only the square between the stanchion and the cringle to
-        put a knee in: the canvas's ring comes down round the neck, and a knee of
-        the full reach would fill the place it sits."""
+    def test_a_knee_passes_through_the_cringles_mouth(self, upright, rigged, shape):
+        """The end crossbars are necked for the canvas, and a knee there used to
+        be cut back to the neck on the grounds that the cringle comes down round
+        it. It does not have to be. A knee is the bar's flat wide and the
+        cringle's mouth is wider than that, so the knee runs through the gap the
+        mouth leaves and the two never meet -- which is worth a test, because it
+        is the only thing letting the end pairs have a brace at all."""
+        mouth = RIG.mouth * 2.0 * shape.neck
+        assert knee_section(AWNING.edge) < mouth, "a knee is too fat for the mouth"
         assert (upright & rigged).volume < 1e-6
 
     def test_the_necks_are_what_the_eyes_were_cut_for(self, shape, lines):
