@@ -27,7 +27,8 @@ from awning import (  # noqa: E402
     BOSS_ROUND,
     BOTTOM_PLANKING,
     FOOT_CHAMFER,
-    KNEE,
+    KNEE_ANGLE,
+    KNEE_CLEAR,
     KNEE_WEB,
     MOUTH_CHAMFER,
     SIDE_PLANKING,
@@ -35,6 +36,7 @@ from awning import (  # noqa: E402
     SOCKET_DROP,
     Awning,
     frame,
+    knee_reach,
     knee_section,
 )
 from hull import Deck, HullSpec, build, inner_half_width  # noqa: E402
@@ -173,44 +175,72 @@ class TestFrame:
                         f"cross {crossing:.2f}mm out, past the stanchion's {buried:.2f}mm"
                     )
 
+    def _crossbar_knee(self, shape, index: int):
+        """A middle pair's inboard knee: the one that runs straight down -y, so a
+        probe needs no bearing, and the one that gets its full reach."""
+        foot = shape.feet[index]
+        along, down = knee_reach(shape.top - BAR / 2.0 - foot.base)
+        corner = (foot.station, foot.half, shape.top - BAR / 2.0)
+
+        def on_the_diagonal(towards: float) -> Vector:
+            """A point `towards` of the way from the corner to the diagonal."""
+            return Vector(
+                corner[0], corner[1] - towards * along / 2.0, corner[2] - towards * down / 2.0
+            )
+
+        return foot, along, down, on_the_diagonal
+
     def test_a_knee_is_a_taper_rather_than_a_block(self, upright, shape):
-        """Its hypotenuse leans 45 degrees, so laid roof-down the material closes
-        back over the hole without bridging. Checked on a rail knee, which is the
-        one that gets the full reach."""
-        foot = shape.feet[2]
-        reach = KNEE + BAR / 2.0  # probed down the bar's centreline, where the knee is
-        for step, deep, wanted in ((0.45 * reach, 0.45, True), (0.55 * reach, 0.55, False)):
-            at = Vector(foot.station - step, foot.half, shape.top - BAR / 2.0 - deep * reach)
-            assert upright.is_inside(at) == wanted, f"the taper is wrong {step:.1f}mm along"
+        """Material inside its diagonal and air outside it, so the section a knee
+        adds to the stanchion goes to nothing at the toe instead of stopping in a
+        step. That taper is most of what a knee buys."""
+        _, _, _, on_the_diagonal = self._crossbar_knee(shape, 2)
+        for towards, solid in ((0.9, True), (1.1, False)):
+            assert upright.is_inside(on_the_diagonal(towards)) == solid, (
+                f"the diagonal is in the wrong place at {towards:.1f} of the way out"
+            )
 
     def test_a_knee_is_hollow_but_keeps_its_toes(self, upright, shape):
-        """The middle of a solid knee does little but hide the boat. What has to
-        stay is the taper at each toe, where the section it adds goes to nothing
-        instead of stopping in a step -- which is most of what a knee buys, and
-        what a bar landing flat on the stanchion would throw away.
+        """The middle of a solid knee does little but hide the boat, so it is cut
+        out, leaving a land down each leg and the diagonal between them. What has
+        to stay is the taper at each toe -- which is what a bar landing flat on
+        the stanchion would throw away.
 
-        Measured on the diagonal, where `along + down` is constant: the hole runs
-        from the inner corner out to the inner hypotenuse, and a land `KNEE_WEB`
-        wide lies either side of it.
+        Walked out from the right-angled corner toward the diagonal: land, then
+        hole, then land again.
         """
-        foot = shape.feet[2]
-        reach = KNEE + BAR / 2.0
-        inner = reach - (2.0 + math.sqrt(2.0)) * KNEE_WEB
-        assert inner > BAR, "this knee is too short to be hollow at all"
-        # The hole's two corners along the diagonal, and a point midway between.
-        near = 2.0 * KNEE_WEB
-        far = near + inner
-        for reached, solid in (
-            (near - 0.3, True),
-            (0.5 * (near + far), False),
-            (reach - 0.3, True),
+        _, along, down, on_the_diagonal = self._crossbar_knee(shape, 2)
+        radius = 0.5 * (along + down - math.hypot(along, down))
+        assert radius > KNEE_WEB, "this knee is too small to be hollow at all"
+        shrunk = 1.0 - KNEE_WEB / radius
+        # Where that walk enters and leaves the hole.
+        enters = 2.0 * KNEE_WEB / min(along, down)
+        leaves = shrunk + KNEE_WEB * (1.0 / along + 1.0 / down)
+        assert 0.0 < enters < leaves < 1.0, "the hole is not inside the knee"
+        for towards, solid in (
+            (0.5 * enters, True),
+            (0.5 * (enters + leaves), False),
+            (0.5 * (leaves + 1.0), True),
         ):
-            at = Vector(
-                foot.station - reached / 2.0,
-                foot.half,
-                shape.top - BAR / 2.0 - reached / 2.0,
+            assert upright.is_inside(on_the_diagonal(towards)) == solid, (
+                f"the knee is wrong {towards:.2f} of the way out to its diagonal"
             )
-            assert upright.is_inside(at) == solid, f"the knee is wrong {reached:.1f} along its 45"
+
+    def test_a_knee_braces_the_stanchion_down_to_its_boss(self, shape):
+        """The point of choosing the angle rather than inheriting 45 degrees: the
+        taper ends `KNEE_CLEAR` above the boss, so the whole of a stanchion is
+        braced rather than just its head. At 45 the taper stopped half way down
+        and the stanchion broke under the toe."""
+        for foot in shape.feet:
+            free = shape.top - BAR / 2.0 - foot.base
+            along, down = knee_reach(free)
+            # A knee stops adding section where its profile meets the stanchion's
+            # face, half a bar in from the centreline.
+            toe = down * (1.0 - BAR / (2.0 * along))
+            assert toe == pytest.approx(free - KNEE_CLEAR, abs=0.01), (
+                f"the knee at {foot.station:.0f}mm tapers out {free - toe:.2f}mm above its boss"
+            )
+            assert math.degrees(math.atan2(along, down)) == pytest.approx(KNEE_ANGLE, abs=1e-9)
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run

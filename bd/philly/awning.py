@@ -51,12 +51,36 @@ from rig import TOLERANCE, Rig, neck, neck_radius, sail
 # Square section for every member. The frame is handled, so nothing thinner.
 BAR = 3.4
 
-# How far a knee reaches along a bar and down a stanchion from the corner they
-# make, and how wide the three bars it is made of are. A knee is hollow: what it
-# is for is the taper at each toe and the diagonal between them, and the middle
-# of a solid one is material doing nothing but hiding the boat.
-KNEE = 12.0
+# How a knee is proportioned: the angle its diagonal leans off the stanchion,
+# how far short of the boss its taper ends, and how wide the three bars it is
+# made of are. A knee is hollow -- what it is for is the taper at each toe and
+# the diagonal between them, and the middle of a solid one is material doing
+# nothing but hiding the boat.
+#
+# The angle used to be 45 degrees because that is the model's overhang limit,
+# but nothing here was ever bound by it. Laid roof-down a knee's outer face
+# points up, so its profile shrinks going up whatever the angle; the only face
+# that leans is the hole's, and leaning the diagonal nearer the stanchion makes
+# that one shallower, not steeper. So it is free to be chosen for strength
+# instead, and the strongest place to take it is as far down the stanchion as
+# the boss allows.
+KNEE_ANGLE = 30.0
+KNEE_CLEAR = 1.0
 KNEE_WEB = 1.4
+
+
+def knee_reach(free: float) -> tuple[float, float]:
+    """How far one knee runs along its bar and down its stanchion.
+
+    `free` is the stanchion standing clear between the boss and the bar's
+    underside. A knee stops adding section where its profile meets the
+    stanchion's face, half a bar in, so the taper ends `reach - BAR / 2` below
+    the corner; putting that `KNEE_CLEAR` above the boss is what sets the size.
+    The triangle itself runs on past it, buried in the stanchion.
+    """
+    lean = np.tan(np.radians(KNEE_ANGLE))
+    along = (free - KNEE_CLEAR) * lean + BAR / 2.0
+    return float(along), float(along / lean)
 
 
 def knee_section(edge: float) -> float:
@@ -128,11 +152,15 @@ SIDE_PLANKING = 1.0
 class Awning:
     """The frame's extent and proportions. Fractions of the overall length."""
 
-    stanchions: tuple[float, ...] = (0.412, 0.57, 0.74, 0.82, 0.885)
+    stanchions: tuple[float, ...] = (0.412, 0.545, 0.74, 0.82, 0.885)
     """where the pairs of stanchions stand, which is also where the frame ends
 
     The first two pairs stand between the middle platform's knees, the second
-    of them between the two 9-pounders' carriages. The next two stand on the
+    of them midway between the two 9-pounders' carriages -- dead midway, which
+    it had not been. At 0.57 it stood 19mm clear of the forward carriage and
+    3.8 of the after one, and its knee reached down into the after one's
+    bracket once the knees were drawn to the boss. At 0.545 it has 11.5mm
+    either side and the gun can still run out under the frame. The next two stand on the
     quarterdeck's benches, and the last on the deck just aft of them, which
     carries the frame nearly to the transom as the museum's model has it.
     Further aft the hull closes in fast -- the inside narrows from 15mm of
@@ -381,13 +409,15 @@ def _span(
     return as_part(middle * (Rot(0.0, 0.0, angle) * bar), "a bar")
 
 
-def _knee(at: tuple[float, float, float], angle: float, section: float, reach: float) -> Part:
+def _knee(
+    at: tuple[float, float, float], angle: float, section: float, along: float, down: float
+) -> Part:
     """A triangular knee in a corner a stanchion makes with a bar, pointing along it.
 
-    `at` is the corner -- the stanchion's centreline at the bar's underside -- and
-    `reach` is measured from there, so a knee overlaps both members rather than
-    meeting them on a face. Right-angled and equal-legged, and hollow: a land
-    `KNEE_WEB` wide down each leg with the 45 degree diagonal between them.
+    `at` is the corner -- the stanchion's centreline at the bar's underside --
+    and both reaches are measured from there, so a knee overlaps both members
+    rather than meeting them on a face. Right-angled, and hollow: a land
+    `KNEE_WEB` wide down each leg with the diagonal between them.
 
     What a knee is for is the taper at its toes. The section it adds goes to
     nothing there instead of stopping in a step, and that is most of what it
@@ -395,26 +425,28 @@ def _knee(at: tuple[float, float, float], angle: float, section: float, reach: f
     one place the bending is worst. The middle of a solid one does little but
     hide the boat, so it is taken out.
 
-    Laid roof-down nothing in it overhangs. The outer hypotenuse faces up, and
-    the hole's own walls lean the same 45 degrees, so the material closes back
-    over it without bridging. Too short a knee has no middle worth taking out
-    and stays solid.
+    Laid roof-down nothing in it overhangs, at any angle. The outer face points
+    up, so each layer of the triangle is narrower than the one beneath it
+    whatever its proportions; the only face that leans is the hole's, and that
+    leans by `KNEE_ANGLE` off the stanchion. Too short a knee has no middle
+    worth taking out and stays solid.
 
     `section` is the bar's flat, not the bar: see `knee_section`.
     """
-    # Insetting all three edges of a right isoceles triangle by `KNEE_WEB`
-    # shortens its legs by (2 + root 2) times that; under about a bar's width
-    # of leg there is nothing left worth hollowing.
-    inner = reach - (2.0 + np.sqrt(2.0)) * KNEE_WEB
+    # Insetting every edge of a triangle by `KNEE_WEB` scales it about its
+    # incentre, and a right triangle's inradius is (a + b - c) / 2. Under about
+    # a bar's width of leg there is nothing left worth hollowing.
+    radius = 0.5 * (along + down - float(np.hypot(along, down)))
+    shrunk = 1.0 - KNEE_WEB / radius if radius > KNEE_WEB else 0.0
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
-            Polygon((0.0, 0.0), (reach, 0.0), (0.0, -reach), align=None)
-            if inner > BAR:
+            Polygon((0.0, 0.0), (along, 0.0), (0.0, -down), align=None)
+            if along * shrunk > BAR:
                 web = KNEE_WEB
                 Polygon(
                     (web, -web),
-                    (web + inner, -web),
-                    (web, -web - inner),
+                    (web + along * shrunk, -web),
+                    (web, -web - down * shrunk),
                     align=None,
                     mode=Mode.SUBTRACT,
                 )
@@ -457,12 +489,12 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
     # A necked crossbar leaves a knee only the square between the stanchion and the
     # cringle that clips on: the canvas's ring comes down round the neck and its
     # outboard face stands `clip_length / 2` short of the stanchion's centreline.
-    def inboard(station: float) -> float:
+    # Cut back, it keeps its angle and simply becomes a smaller triangle.
+    def inboard(station: float, along: float) -> float:
         clip = necked.get(station)
-        room = KNEE + BAR / 2.0
         if clip is None:
-            return room
-        return min(room, shape.half_at(station) - clip - shape.clip_length / 2.0)
+            return along
+        return min(along, shape.half_at(station) - clip - shape.clip_length / 2.0)
 
     for index, foot in enumerate(shape.feet):
         for side in (-1.0, 1.0):
@@ -490,14 +522,16 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             # each rail it has. An end stanchion has one rail, which is why it is the
             # one that wants them.
             corner = (foot.station, side * foot.half, shape.top - BAR / 2.0)
-            parts.append(_knee(corner, -90.0 * side, section, inboard(foot.station)))
+            along, down = knee_reach(shape.top - BAR / 2.0 - foot.base)
+            across = inboard(foot.station, along)
+            parts.append(_knee(corner, -90.0 * side, section, across, across * down / along))
             for other in (index - 1, index + 1):
                 if not 0 <= other < len(shape.nodes):
                     continue
                 run = shape.nodes[other][0] - foot.station
-                across = side * (shape.nodes[other][1] - foot.half)
-                angle = float(np.degrees(np.arctan2(across, run)))
-                parts.append(_knee(corner, angle, section, KNEE + BAR / 2.0))
+                reach = shape.nodes[other][1] - foot.half
+                angle = float(np.degrees(np.arctan2(side * reach, run)))
+                parts.append(_knee(corner, angle, section, along, down))
 
     whole = parts[0]
     for extra in parts[1:]:

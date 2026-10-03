@@ -924,10 +924,53 @@ the peak. It broke there, exactly where the diagram says it should.
 
 The cure is a longer knee, and the cost of a longer solid one is a lot of
 material and a lot of hidden boat: a triangle's area goes as the square of its
-reach. So they are hollow now -- a land `KNEE_WEB` wide down each leg with the
-45 degree diagonal between them. At 12mm the toe drops to **46%** of the peak,
-which is about one and a half times the force, and the knees went from 0.9 cm³
-to 1.65 rather than to the 3.5 a solid one would have cost.
+reach. So they are hollow -- a land `KNEE_WEB` wide down each leg with the
+diagonal between them -- which at 12mm dropped the toe to 46% of the peak for
+1.65 cm³ of knee rather than the 3.5 a solid one would have cost.
+
+### And then the angle stopped being 45 degrees
+
+Which it had been for no reason. 45 is the model's overhang limit and every
+other sloped face here is drawn to it, so the knees inherited it -- but nothing
+about a knee was ever bound by it. Laid roof-down a knee's outer face points
+*up*, so its profile shrinks going up whatever its proportions; the only face
+that leans is the hole's, and leaning the diagonal nearer the stanchion makes
+that one shallower. Measured on a knee laid the way it prints, the steepest
+downward face went from 45.0 degrees to 30.0 when the angle did.
+
+So the angle is free, and the thing worth spending it on is how far down the
+stanchion the knee reaches. A knee stops adding section where its profile meets
+the stanchion's face, half a bar in from the centreline, which is `reach -
+BAR / 2` below the corner -- and at 45 degrees and 12mm that was still **11.8mm
+short of the boss**. The whole lower half of a stanchion was unbraced.
+
+`knee_reach` turns that round: name the angle, put the toe `KNEE_CLEAR` above
+the boss, and let the reach along the bar fall out of it. At 30 degrees that is
+about 15mm along, and every stanchion is now braced from its head to a
+millimetre above its socket. The toe metric stops meaning anything at that
+point -- the moment there is almost nothing, and what governs moves to the
+joint at the head or the brace in compression -- so there is no honest single
+multiplier to quote, only that it is strictly better than 46%.
+
+A capped knee keeps the angle and simply becomes a smaller triangle, which is
+what the two necked crossbars get.
+
+### Why the second pair moved to 0.545
+
+The knees reaching the boss is what found it. The after 9-pounder's carriage
+stands at 0.606 and runs 174.8 to 188.8 along the boat; the second pair of
+stanchions stood at 0.57, which is x = 171 -- 19mm clear of the forward
+carriage and **3.8mm** clear of the after one. A knee drawn to the boss sweeps
+down through that 3.8mm and into the carriage's bracket, 4 mm³ of it, and the
+clash test said so.
+
+Steepening the angle does not fix it: even at 20 degrees the knee still grazes
+the bracket's forward corner, because it is the *depth* near the stanchion that
+fouls, not the reach along the bar. What fixes it is the pair standing where its
+own docstring always said it did. Midway between the two carriages is x = 163.4,
+or 0.545 of the length, which leaves 11.5mm either side. The pair's offset from
+the centreline does not move at all -- it comes out at 33.75mm either way -- so
+nothing else in the frame notices.
 
 Hollowing is only safe because of what a knee is actually for. The obvious
 lightening -- throw the triangle away and keep just the 45 degree bar -- throws

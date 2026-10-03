@@ -155,11 +155,11 @@ them with a bit more cooling rather than adding supports.
 
 Each one now carries **knees** where it meets the bars -- a 12mm triangle into
 the crossbar and into each rail -- because a dropped boat snapped a stanchion off at
-that corner. They are 12mm now and hollow -- a thin land down each leg with the
-45 degree diagonal between them -- because one broke under the toe of the old
-6mm knee. They cost 1.65 cm³ and print as part of the stanchion: the hypotenuse
-faces up and the hole's own walls lean the same 45 degrees, so nothing in one
-bridges. Each is 2.2mm wide rather than the bar's 3.4, which
+that corner. They are hollow now -- a thin land down each leg with the diagonal
+between them -- and drawn to reach a millimetre above the boss, because a
+stanchion broke under the toe of the old short one. They cost 2.4 cm³ and print
+as part of the stanchion: the outer face points up and the hole's own walls lean
+30 degrees off the stanchion, so nothing in one bridges. Each is 2.2mm wide rather than the bar's 3.4, which
 is the flat between the bar's rounded edges: as wide as the bar, a knee stood
 its outer lip on the round with nothing under it. The knees on the two necked crossbars are cut short,
 since the canvas's eye comes down into that square.
