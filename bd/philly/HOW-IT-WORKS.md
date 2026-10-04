@@ -997,16 +997,32 @@ goes to nothing instead of stopping in a step, and a bar landing flat on the
 stanchion puts that step back at the one height where the bending is worst. So
 the lands stay and the middle goes.
 
-Nothing in it overhangs: the outer hypotenuse faces up as before, and the hole's
-own walls lean the same 45 degrees, so the material closes back over it without
-bridging. Measured on a knee laid the way it prints, the steepest downward face
-is 45.0 degrees -- the same as the solid one's, and exactly the limit the rest of
-the model is drawn to. A knee too short to have a middle worth taking out stays
-solid, which is what the two necked crossbars get.
+Nothing in it overhangs: the outer hypotenuse faces up, so the profile shrinks
+going up whatever the proportions, and the only face that leans is the hole's.
+A knee too short to have a middle worth taking out stays solid.
 
-On the short rail spans aft the knees from neighbouring stanchions now reach past
-each other and cross. That is a union, not a clash, and what it leaves is an
-X-brace between those pairs.
+### Two knees on one bar leave daylight between them
+
+The land is also what went wrong when the knees got long. It lies against the
+bar for the knee's whole reach, and where two knees reach far enough to meet,
+their lands fuse into one unbroken strip running the length of the bar --
+2.2mm wide against the bar's 3.4, so it steps in and reads as a second rail hung
+under the first. Which is the very thing ruled out two sections below, arrived
+at by accident and without any of the strength that would have justified it.
+
+Three bars were short enough: the aftmost crossbar, where the hull has closed to
+14.1mm of half-width against a 15.6mm reach, so the port and starboard knees
+overlapped by 2.9mm; and the two rail spans aft, 24.7 and 21.8mm long, where the
+knees from neighbouring stanchions overlapped by 6.5 and 9.4. The diagonals
+crossing is a genuine X-brace and no loss. The lands fusing is not.
+
+So `knee_reach` takes the room it has as well as the height, and `KNEE_GAP` --
+a bar's width -- of daylight is left in the middle of every bar. What gives way
+is the **angle**, not the depth: a knee with less room steepens, down to 24.1,
+20.4 and 17.3 degrees on those three bars, and every one of the ten still tapers
+out exactly 1.00mm above its boss. It costs lever arm on the bar, which is the
+cheapest thing a knee has, and a steeper knee is if anything easier to print,
+since the hole's wall is the only leaning face and steepening stands it up.
 
 ### Why not a second rail under the first
 

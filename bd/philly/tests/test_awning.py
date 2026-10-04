@@ -29,6 +29,7 @@ from awning import (  # noqa: E402
     FOOT_CHAMFER,
     KNEE_ANGLE,
     KNEE_CLEAR,
+    KNEE_GAP,
     KNEE_WEB,
     MOUTH_CHAMFER,
     SIDE_PLANKING,
@@ -241,6 +242,34 @@ class TestFrame:
                 f"the knee at {foot.station:.0f}mm tapers out {free - toe:.2f}mm above its boss"
             )
             assert math.degrees(math.atan2(along, down)) == pytest.approx(KNEE_ANGLE, abs=1e-9)
+            # And the same where the bar is too short for the full reach: it is
+            # the angle that gives way, never the depth.
+            along, down = knee_reach(free, room=0.6 * along)
+            toe = down * (1.0 - BAR / (2.0 * along))
+            assert toe == pytest.approx(free - KNEE_CLEAR, abs=0.01), "a capped knee gave up depth"
+            assert math.degrees(math.atan2(along, down)) < KNEE_ANGLE
+
+    def test_two_knees_on_one_bar_leave_daylight_between_them(self, upright, shape):
+        """A knee keeps a land against the bar it sits under, and two that meet
+        fuse theirs into one strip running the bar's whole length -- which reads
+        as a second rail hung under the first and is not one. The aftmost
+        crossbar is 14.1mm to the centreline against a 15.6mm reach, so its two
+        did meet; the short rail spans aft are the same."""
+        deep = shape.top - BAR / 2.0 - KNEE_WEB / 2.0  # in the land, under the bar
+        aft = shape.feet[-1]
+        rail = [0.5 * (a + b) for a, b in zip(shape.nodes[-2], shape.nodes[-1], strict=True)]
+        for name, (x, y) in (
+            ("the aftmost crossbar", (aft.station, 0.0)),
+            ("the aftmost rail span", (rail[0], rail[1])),
+        ):
+            assert not upright.is_inside(Vector(x, y, deep)), f"the knees meet under {name}"
+        # Not just by being short: the crossbar's reach to within half a gap of
+        # the middle, with the toe thick enough to probe a millimetre inboard.
+        toe = aft.half - knee_reach(shape.top - BAR / 2.0 - aft.base, aft.half - KNEE_GAP / 2.0)[0]
+        assert toe == pytest.approx(KNEE_GAP / 2.0, abs=0.01)
+        assert upright.is_inside(Vector(aft.station, toe + 1.0, deep)), (
+            "the knee is short of its cap"
+        )
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run

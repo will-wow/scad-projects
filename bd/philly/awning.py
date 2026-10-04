@@ -68,18 +68,33 @@ KNEE_ANGLE = 30.0
 KNEE_CLEAR = 1.0
 KNEE_WEB = 1.4
 
+# Daylight left in the middle of a bar both its knees reach along. A knee keeps
+# a land `KNEE_WEB` deep against the bar it sits under, and two that meet fuse
+# their lands into one unbroken strip running the bar's whole length -- which
+# reads as a second rail hung under the first and is not one.
+KNEE_GAP = BAR
 
-def knee_reach(free: float) -> tuple[float, float]:
+
+def knee_reach(free: float, room: float | None = None) -> tuple[float, float]:
     """How far one knee runs along its bar and down its stanchion.
 
     `free` is the stanchion standing clear between the boss and the bar's
-    underside. A knee stops adding section where its profile meets the
-    stanchion's face, half a bar in, so the taper ends `reach - BAR / 2` below
-    the corner; putting that `KNEE_CLEAR` above the boss is what sets the size.
-    The triangle itself runs on past it, buried in the stanchion.
+    underside, and `room` the most the knee may run along the bar. A knee stops
+    adding section where its profile meets the stanchion's face, half a bar in,
+    so the taper ends `KNEE_CLEAR` above the boss whatever the angle; the
+    triangle itself runs on past it, buried in the stanchion.
+
+    So a knee short of room steepens rather than shortening: it gives up lever
+    arm on the bar, which is worth least, and keeps the depth down the stanchion,
+    which is what the whole length of it was for.
     """
+    drop = free - KNEE_CLEAR
     lean = np.tan(np.radians(KNEE_ANGLE))
-    along = (free - KNEE_CLEAR) * lean + BAR / 2.0
+    along = drop * lean + BAR / 2.0
+    if room is not None and room < along:
+        if room <= BAR:
+            raise ValueError(f"{room:.1f}mm along the bar is no room for a knee")
+        along, lean = room, (room - BAR / 2.0) / drop
     return float(along), float(along / lean)
 
 
@@ -510,16 +525,15 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
 
             # Knees into every bar the stanchion runs into: the crossbar, inboard, and
             # each rail it has. An end stanchion has one rail, which is why it is the
-            # one that wants them.
-            # Inboard along the crossbar, at full reach even where the canvas
-            # clips on. A knee used to be cut back to the neck there, on the
-            # grounds that the cringle comes down round it -- but a knee is the
-            # bar's flat wide and the cringle's mouth is wider than that, so it
-            # passes through the gap the mouth leaves and the two never touch.
-            # Cutting back left the end pairs with a stub where every other pair
-            # had a brace, and those are the pairs with only one rail.
+            # one that wants them. Each gets the room up to the middle of its own
+            # bar, where the knee reaching back the other way wants the same.
+            #
+            # The crossbar's runs at full reach even where the canvas clips on: a
+            # knee is the bar's flat wide and the cringle's mouth is wider than
+            # that, so it passes through the gap the mouth leaves.
             corner = (foot.station, side * foot.half, shape.top - BAR / 2.0)
-            along, down = knee_reach(shape.top - BAR / 2.0 - foot.base)
+            free = shape.top - BAR / 2.0 - foot.base
+            along, down = knee_reach(free, foot.half - KNEE_GAP / 2.0)
             parts.append(_knee(corner, -90.0 * side, section, along, down))
             for other in (index - 1, index + 1):
                 if not 0 <= other < len(shape.nodes):
@@ -527,7 +541,10 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
                 run = shape.nodes[other][0] - foot.station
                 reach = shape.nodes[other][1] - foot.half
                 angle = float(np.degrees(np.arctan2(side * reach, run)))
-                parts.append(_knee(corner, angle, section, along, down))
+                span = float(np.hypot(run, reach))
+                parts.append(
+                    _knee(corner, angle, section, *knee_reach(free, (span - KNEE_GAP) / 2.0))
+                )
 
     whole = parts[0]
     for extra in parts[1:]:
