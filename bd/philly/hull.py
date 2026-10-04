@@ -146,6 +146,52 @@ class Well:
             )
 
 
+@dataclass(frozen=True)
+class Bottom:
+    """The seams between the strakes of the hull's bottom, cut on the outside.
+
+    The bottom's planks run fore and aft, as every plank in the boat does: they
+    are laid over the floors, which are transverse timbers, so they can run no
+    other way. Like a well's they are two numbers rather than one, because the
+    strake down the middle is the wider one -- it lies where a keel would, and
+    the scan reads it half again as wide as the rest. The model has no keel, the
+    faired bottom having absorbed it, so this is not a garboard in the proper
+    sense of the strake wrought next the keel. Nothing stands on the outside of
+    the bottom, so unlike a well there is nothing for a seam to keep clear of.
+
+    Its own width and depth rather than `Seams`', because this is the one face
+    the printer lays first. A groove here is a slot in the first layer, and a
+    first layer is squashed into the bed, so a deck's 0.5mm by 0.2 would close
+    up again. See PRINTING.md.
+    """
+
+    plank: float
+    """the width of its strakes, in millimetres of the finished model"""
+    clear: float
+    """how far out from the centreline the innermost seam stands
+
+    Half the width of the centre strake, in other words, which is not half a
+    plank: see above.
+    """
+    width: float = 0.8
+    """wider than a deck's seam: two nozzle widths rather than one, so the
+    spread of the first layer narrows it instead of closing it"""
+    depth: float = 0.3
+    """and deeper, so it is a whole layer at any height a hull is sliced at"""
+    margin: float = 1.0
+    """how far short of the chine each seam stops, leaving that corner whole"""
+
+    def __post_init__(self) -> None:
+        if self.plank <= 0.0:
+            raise ValueError(f"a plank must have some width, got {self.plank}")
+        if self.clear <= 0.0:
+            raise ValueError(f"the first seam cannot stand on the centreline, got {self.clear}")
+        if self.width <= 0.0 or self.margin < 0.0:
+            raise ValueError("a seam needs some width, and cannot run into the chine")
+        if self.depth <= 0.0:
+            raise ValueError(f"a seam must have some depth, got {self.depth}")
+
+
 def clear_of_seams(
     spec: HullSpec, deck: Deck, edges: tuple[float, ...], outboard: float = math.inf
 ) -> float:
@@ -254,6 +300,10 @@ class HullSpec:
     # bare. Not a plank width on its own: something stands on every well's
     # ceiling, so the innermost seam has to be placed clear of it.
     wells: Well | None = None
+    # And on the outside of the bottom, which is the same planking seen from
+    # underneath. Its own sizes, not `Seams`': it is the face the printer lays
+    # first.
+    bottom: Bottom | None = None
     # The boat's joinery, which details.py fits once the hull is built: knees on
     # the platforms, benches along the sides and the keelson showing in the wells.
     knees: tuple[Knee, ...] = ()
@@ -871,6 +921,68 @@ def _well_ceiling(
     return max(heights)
 
 
+def _bottom_seams(
+    lines: HullLines,
+    bottom: Bottom,
+    planking: float,
+    factor: float,
+    bow: Bow,
+) -> list[Part]:
+    """The grooves between the bottom's strakes, in the source's units like `_cut`.
+
+    Cut on the outside, from `clear` out, each groove running only as far as the
+    bottom stays `margin` wider than it. So they stop short of both ends on
+    their own as the hull narrows, the outer ones first, and the chine's corner
+    is never nicked. Straight and parallel, where a real bottom's strakes
+    converge towards the stem -- the same approximation every deck here already
+    makes.
+
+    The flat is what they are cut into. Forward of `bow.start` the bottom
+    sweeps up round the forefoot, and a straight groove held at the flat's own
+    height would run inside the planking there rather than along the face of
+    it, so the run is clipped there. That costs nothing: the bottom is a
+    handful of inches wide by then, and even the innermost groove has run out
+    long before.
+    """
+    if bottom.depth >= 0.5 * planking:
+        raise ValueError(
+            f"a {bottom.depth:.2f}mm groove takes half or more of {planking:.2f}mm of planking; "
+            "the bottom is the one place where the water is on the other side"
+        )
+    plank, width = bottom.plank / factor, bottom.width / factor
+    depth, margin = bottom.depth / factor, bottom.margin / factor
+
+    along = np.linspace(bow.start, lines.span[1], SEAM_SAMPLES)
+    heights = [_outline(lines, float(x), bow).z_chine for x in along]
+    if max(heights) - min(heights) > depth:
+        raise ValueError(
+            "the bottom has no flat to groove: it rises "
+            f"{(max(heights) - min(heights)) / depth:.0f} times a seam's depth along it"
+        )
+    floor = max(heights)
+    room = np.array([lines.chine_half_width.value(float(x)) for x in along]) - (
+        margin + 0.5 * width
+    )
+
+    grooves: list[Part] = []
+    for y in np.arange(bottom.clear / factor, float(room.max()), plank):
+        fits = along[room >= y]
+        low, high = float(fits.min()), float(fits.max())
+        if high - low <= width:
+            continue
+        for side in (-1.0, 1.0):
+            grooves.append(
+                Pos(0.5 * (low + high), side * float(y), floor)
+                * Box(high - low, width, 2.0 * depth)
+            )
+    if not grooves:
+        raise ValueError(
+            f"no seam fits the bottom: a {bottom.plank}mm plank is wider than it is, "
+            "or the margin leaves nothing between the chines"
+        )
+    return grooves
+
+
 def _hollow(
     hull: Part,
     spec: HullSpec,
@@ -1112,6 +1224,14 @@ def build(spec: HullSpec | None = None, lines: HullLines | None = None) -> Part:
 
     if spec.deck_open:
         hull = _hollow(hull, spec, lines, np.concatenate([forefoot[:-1], main]), factor, bow)
+
+        # After the hollowing rather than before it, which is free: the cavity
+        # never reaches the outside of the bottom, so the two cuts cannot meet.
+        # Only ever with planking to cut into -- a hull built with none is the
+        # bare loft, used for the envelope the flotation sums need.
+        if spec.bottom is not None:
+            grooves = _bottom_seams(lines, spec.bottom, spec.planking, factor, bow)
+            hull = as_part(hull - Part(Compound(grooves).wrapped), "cutting the bottom's seams")
 
     return as_part(scale(hull, factor), "scaling")
 

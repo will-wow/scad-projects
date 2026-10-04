@@ -1298,6 +1298,56 @@ which is also the only way `MESH_TOLERANCE` actually means 0.05mm. Both fixes
 are needed: with the clearance off, a neck 0.01mm wide will not mesh at any
 setting.
 
+### The bottom's seams
+
+The bottom is planked too, on the _outside_, from `Bottom`. It is the same idea
+turned over: straight grooves fore and aft, each solved for its own length
+against `chine_half_width` instead of the inside of the hull, so they stop short
+as the bottom narrows at each end and none of them nicks the chine's corner. The
+cut goes in `build` rather than `_hollow`, after it: the cavity never reaches the
+outside of the bottom, so the two cannot meet.
+
+Three things are different, and each is the bottom being the bottom.
+
+**It has only one flat.** Forward of `bow.start` the bottom sweeps up round the
+forefoot, so the run is clipped there before a straight groove held at the
+flat's height could run inside the planking instead of along the face of it.
+That costs nothing in practice: the bottom is a few inches wide by then and even
+the innermost groove ran out long before.
+
+**It is two numbers, not one.** Like `Well`, `Bottom` takes a plank width and a
+`clear`, because the strake down the middle is the wider one. The scan is the
+reason, and it is the worst-measured surface on the boat: she sits in a cradle
+and her bottom is the most eroded part of her, so a height profile across the
+beam reads as noise. What does survive is the seams as lines the scan never
+meshed, the way the decks' show. Those are weak enough on their own that
+`measure_scan.bottom` only believes the ones that come out symmetric about the
+centreline, which noise would not: it finds the centreline by mirroring the
+coverage and correlating, and reports the dips that pair across it. Four do, at
+200, 570, 875 and 1430mm out. The 555 between the last two is about two strakes,
+and the scan has a dip at 1135 on the port side only, which the run of spacings
+either side of it corroborates -- so that one is taken as well, and the five give
+a strake of 308mm average, 5.6mm printed. The centre strake is 400mm, so `clear`
+is 3.7. That strake lies where a keel would; the faired bottom has absorbed the
+keel, so it is not a garboard in the proper sense of the strake wrought next the
+keel, and [vocabulary.md](vocabulary.md) says so rather than reaching for the
+word.
+
+**It is the first layer.** A deck's seam is cut into a face that prints in open
+air; this one is cut into the face squashed against the bed. So it is drawn to
+its own rule -- buy legibility with width, not depth -- and comes out 0.8mm wide
+by 0.3 deep against a deck's 0.5 by 0.2. Width costs first-layer area, which a
+300mm footprint has to spare. Depth costs planking on the one surface with the
+lake on the other side of it, so `_bottom_seams` refuses a groove taking half of
+it or more. PRINTING.md has the rest.
+
+One thing falls out of all this that is worth saying plainly: the wells' grooves
+and the bottom's are cut into opposite faces of the same planking, and they do
+not line up -- 0.84mm apart at the nearest, placed as they are from the keelson
+on one side and the centre strake on the other. So no line of the bottom loses
+material twice, and the thinnest it gets anywhere is 1.7 of 2mm. That is luck
+rather than design, which is why a test asserts it on the spec's own numbers.
+
 ## Making your own hull
 
 If you want to do this for a different boat:
@@ -1309,7 +1359,8 @@ If you want to do this for a different boat:
    to however far apart you drew the two views.
 3. **Set the spec** in [`main.py`](main.py): `length`, `planking`, `decks`,
    `bulge`, and any joinery -- `knees`, `benches`, `keelson`, a plank width per
-   deck with `seams`, and `wells` for the floors they leave over.
+   deck with `seams`, `wells` for the floors they leave over, and `bottom` for
+   the outside of it.
 4. **Run `just watch`** and tune by eye.
 
 If your boat has a _rounded_ bilge rather than a hard chine, `_side_profile` is
