@@ -258,6 +258,7 @@ audit and rejected.
 | **fairlead** | 19th-c. | **bull's-eye**, **leading block**, **sheave hole** |
 | **stringer** | iron shipbuilding | **clamp**, **shelf**, **sleeper**, **thick stuff** |
 | **chine log** | 19th-c. American scow work | describe it, or **chine piece** with a caveat |
+| **garboard** (on this hull) | the word is good Georgian, but it means the strake wrought *next the keel*, and this model has no keel -- the faired bottom absorbed it | **the centre strake**, the one the scan reads half again as wide as the rest |
 | **companionway** | later compound, and this boat has no cabin | **scuttle**, **hatchway** |
 | **rib** | layman's word | **timber**, **frame**, **futtock** |
 | **porthole** | modern | **port** (gun), **light** or **scuttle** (window) |

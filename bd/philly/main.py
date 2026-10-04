@@ -19,7 +19,7 @@ import lines as hull_lines
 import rig as rigging
 from cannon.cannon import NINE_POUNDER
 from cannon.carriage import CarriageSpec, carriage
-from hull import Bench, Bulge, Deck, HullSpec, Knee, Seams, Well, build
+from hull import Bench, Bottom, Bulge, Deck, HullSpec, Knee, Seams, Well, build
 from preview import preview_mode
 
 HULL = HullSpec(
@@ -44,6 +44,17 @@ HULL = HullSpec(
         Deck(0.71, 1.0, 0.30, plank=5.9),
     ),
     seams=Seams(),
+    # The seams between the bottom's own strakes, cut on the outside. Read off
+    # the scan's underside, which is the one surface it measures badly -- the
+    # boat sits in a cradle and the bottom is the most eroded part of her -- so
+    # the seams are found as the lines the scan never meshed rather than as
+    # grooves in the surface, and only believed because they come out symmetric
+    # about the centreline: four pair across it, at 200, 570, 875 and 1430mm
+    # out, and a fifth at 1135 shows on one side only, filling a gap of two
+    # strakes between the last two. That is a strake of 308mm average, 5.6mm
+    # printed, with a wider one down the middle where a keel would be -- 400mm,
+    # so the first seam stands 3.7mm out.
+    bottom=Bottom(plank=5.6, clear=3.7),
     # How far the sides bow out between chine and rail, as a fraction of the
     # side's slant height. The lines plan gives straight panels; the scan's
     # topsides swell. Dial this by eye against the scan -- 0 is the old shape.

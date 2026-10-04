@@ -16,6 +16,7 @@ from build123d import Plane, Vector
 from conftest import DECKS, _main
 
 from hull import (
+    Bottom,
     Bulge,
     Deck,
     HullSpec,
@@ -33,6 +34,7 @@ from hull import (
     open_stretches,
 )
 from lines import STEM_DEPTH
+from rig import step
 
 STATIONS = 12
 
@@ -335,6 +337,160 @@ class TestWellSeams:
     def test_a_plank_with_no_width_is_refused(self):
         with pytest.raises(ValueError, match="width"):
             Well(plank=0.0, clear=6.0)
+
+
+class TestBottomSeams:
+    """The same grooves on the outside of the bottom, between its strakes.
+
+    The only ones cut on a surface the water touches and the printer lays
+    first, so they are their own size and the planking left under them is what
+    these check.
+    """
+
+    BOTTOM = Bottom(plank=5.6, clear=3.7)
+
+    @pytest.fixture(scope="class")
+    def grooved(self, lines):
+        spec = HullSpec(stations=STATIONS, decks=TestSeams.DECKS, bottom=self.BOTTOM)
+        return build(spec, lines)
+
+    @pytest.fixture(scope="class")
+    def bare(self, lines):
+        return build(HullSpec(stations=STATIONS, decks=TestSeams.DECKS), lines)
+
+    def _bottom(self, lines) -> tuple[float, float, float]:
+        """Amidships, the outside of the bottom, and its half-breadth there."""
+        spec = HullSpec()
+        factor = spec.length / lines.length
+        x = 0.5 * spec.length
+        return (
+            x,
+            lines.chine_height.value(0.5 * lines.length) * factor,
+            lines.chine_half_width.value(0.5 * lines.length) * factor,
+        )
+
+    def _seams(self, lines) -> np.ndarray:
+        _, _, half = self._bottom(lines)
+        return np.arange(self.BOTTOM.clear, half - self.BOTTOM.margin, self.BOTTOM.plank)
+
+    def test_a_seam_is_cut_along_every_strake(self, grooved, lines):
+        x, z, _ = self._bottom(lines)
+        depth = self.BOTTOM.depth
+        for y in self._seams(lines):
+            for side in (-1.0, 1.0):
+                at = Vector(x, side * float(y), z + 0.5 * depth)
+                assert not grooved.is_inside(at), f"no seam {y:.1f} out at {x:.0f}mm"
+
+    def test_the_strakes_between_them_are_left_whole(self, grooved, lines):
+        """Including the wide one down the middle, where a keel would be."""
+        x, z, _ = self._bottom(lines)
+        seams = self._seams(lines)
+        assert grooved.is_inside(Vector(x, 0.0, z + 0.05)), "the centre strake is cut"
+        for y in seams[:-1] + 0.5 * self.BOTTOM.plank:
+            assert grooved.is_inside(Vector(x, float(y), z + 0.05)), f"cut {y:.1f} out"
+
+    def test_a_seam_does_not_go_through_the_planking(self, grooved, lines):
+        """The one face with water on the other side of it."""
+        x, z, _ = self._bottom(lines)
+        for y in self._seams(lines):
+            under = Vector(x, float(y), z + self.BOTTOM.depth + 0.05)
+            assert grooved.is_inside(under), f"the seam {y:.1f} out went through the bottom"
+
+    def test_no_seam_runs_into_the_chine(self, grooved, lines):
+        """A groove reaching the chine would nick the corner of the hull.
+
+        Stopping a hair short of the corner itself, which is a surface rather
+        than material: a probe on it reads as outside however whole it is.
+        """
+        x, z, half = self._bottom(lines)
+        for y in np.arange(half - self.BOTTOM.margin + 0.05, half - 0.05, 0.05):
+            assert grooved.is_inside(Vector(x, float(y), z + 0.05)), (
+                f"the chine is cut {half - y:.2f} in from its corner"
+            )
+
+    def test_the_bottom_still_sits_flat_on_the_bed(self, grooved, bare):
+        """The grooves are cut upward into the planking, so the lowest point of
+        the hull is where it was: the boat does not rock on twelve ridges."""
+        assert pytest.approx(bare.bounding_box().min.Z) == grooved.bounding_box().min.Z
+
+    def test_the_grooves_are_the_only_material_taken(self, grooved, bare):
+        lost = bare.volume - grooved.volume
+        assert 0.0 < lost < 0.01 * bare.volume
+
+    def test_the_forefoot_is_left_alone(self, grooved, lines):
+        """Forward of the flat the bottom sweeps up to the stem. A groove held
+        at the flat's height would run inside the planking there instead of
+        along its face, so none is cut."""
+        factor = HullSpec().length / lines.length
+        start = _bow(lines).start * factor
+        z = lines.chine_height.value(0.5 * lines.length) * factor
+        for y in self._seams(lines):
+            at = Vector(start - 2.0, float(y), z + 0.5 * self.BOTTOM.depth)
+            assert not grooved.is_inside(at), "the forefoot is grooved"
+
+    def test_a_bare_bottom_is_the_default(self):
+        assert HullSpec().bottom is None
+
+    def test_a_groove_through_half_the_planking_is_refused(self, lines):
+        spec = HullSpec(stations=8, planking=0.6, bottom=replace(self.BOTTOM, depth=0.3))
+        with pytest.raises(ValueError, match="half or more"):
+            build(spec, lines)
+
+    def test_a_plank_with_no_width_is_refused(self):
+        with pytest.raises(ValueError, match="width"):
+            Bottom(plank=0.0, clear=3.7)
+
+    def test_a_seam_on_the_centreline_is_refused(self):
+        """There is a strake there, not a seam, and `clear` is half its width."""
+        with pytest.raises(ValueError, match="centreline"):
+            Bottom(plank=5.6, clear=0.0)
+
+    def test_a_plank_wider_than_the_bottom_is_refused(self, lines):
+        spec = HullSpec(stations=8, bottom=Bottom(plank=5.6, clear=200.0))
+        with pytest.raises(ValueError, match="no seam fits"):
+            build(spec, lines)
+
+
+def test_the_bottom_is_never_thinned_from_both_sides(lines):
+    """The wells' grooves are cut inside the bottom and the bottom's outside it,
+    and the two sets of lines do not coincide -- the wells' innermost seam is
+    placed clear of the keelson and the mast's tube, the bottom's is half the
+    centre strake out. So no line of the planking loses material twice, and the
+    thinnest it ever gets is one groove's depth.
+
+    Arithmetic on the model's own spec rather than a probe: it is the numbers
+    that have to miss each other, and a probe would only find the one place it
+    was pointed at.
+    """
+    spec = _main().HULL
+    assert spec.bottom is not None and spec.wells is not None and spec.seams is not None
+    half = lines.chine_half_width.value(0.5 * lines.length) * spec.length / lines.length
+
+    outside = np.arange(spec.bottom.clear, half, spec.bottom.plank)
+    inside = np.arange(spec.wells.clear, half, spec.wells.plank)
+    for out in outside:
+        for inn in inside:
+            apart = abs(float(out) - float(inn))
+            assert apart > 0.5 * (spec.bottom.width + spec.seams.width), (
+                f"the seam {out:.2f} out on the bottom meets the one {inn:.2f} out "
+                f"on the wells' ceiling, leaving "
+                f"{spec.planking - spec.bottom.depth - spec.seams.depth:.2f}mm of planking"
+            )
+
+
+def test_no_bottom_seam_runs_under_the_masts_bore(lines):
+    """The bore stops at the ceiling and leaves the planking under it whole. A
+    groove in the bottom there would take `depth` off the only thing between
+    the mast's heel and the lake."""
+    main = _main()
+    spec = main.HULL
+    assert spec.bottom is not None
+    seat = step(spec, lines, main.RIG)
+    # The bore is on the centreline, so the innermost seam is the only one in
+    # reach of it, and the centre strake is what has to be wide enough.
+    assert spec.bottom.clear - 0.5 * spec.bottom.width > seat.bore_radius, (
+        f"the seam {spec.bottom.clear:.2f} out cuts under a bore {seat.bore_radius:.2f} in radius"
+    )
 
 
 def test_overlapping_decks_are_refused(lines):

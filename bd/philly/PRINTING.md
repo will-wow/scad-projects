@@ -227,10 +227,45 @@ but it means a hull leak floods the boat directly rather than merely wetting
 the infill. Worth a sink test before painting.
 
 Their floors are planked like the decks, which takes 0.029 cm³ in all. The
-grooves are 0.2mm deep and cut on the _inside_ only, leaving 1.8mm of floor and
-not touching the skin the water sees; with 5–6 bottom layers and three wall
-loops there is still no infill path through it. The seams start 6mm out from the
-centreline, clear of the keelson and of the mast's tube.
+grooves are 0.2mm deep, leaving 1.8mm of floor; with 5–6 bottom layers and three
+wall loops there is still no infill path through it. The seams start 6mm out
+from the centreline, clear of the keelson and of the mast's tube.
+
+## The bottom's seams, which are in the first layer
+
+The bottom is planked on the _outside_ too — twelve grooves between its strakes,
+0.584 cm³ in all. They are the only cut this model makes on a surface the water
+touches, and they land in the layer the printer puts down first, so they are
+worth knowing about.
+
+**The rule they are drawn to: buy legibility with width, not depth.** Width costs
+first-layer area, which this hull has in abundance. Depth costs planking on the
+one face with the lake on the other side of it. So a bottom seam is 0.8mm wide
+where a deck's is 0.5, and only 0.3mm deep where a deck's is 0.2.
+
+- **1.7mm of the 2mm planking is left.** Under a groove the solid bottom layers
+  start 0.3mm higher and are just as thick, so with 5–6 of them there is still no
+  infill path through the seam.
+- **They never line up with the wells' seams inside.** The two sets of lines are
+  placed from different things — the wells' innermost seam dodges the keelson and
+  the mast's tube, the bottom's is half the centre strake out — and the nearest
+  pair misses by 0.84mm, more than their two half-widths together. So no line of
+  the planking is thinned from both sides, and 1.7mm is the worst it gets
+  anywhere. A test asserts that on the model's own numbers rather than trusting
+  the two to stay apart.
+- **The first layer goes from 14,938 mm² to 12,982** — 13% away, in strips 4.8mm
+  wide running most of the length of the boat. Nothing for bed adhesion on a
+  footprint this size.
+- **A 0.5mm slot would have closed up.** The first layer is squashed into the
+  bed and spreads sideways; 0.8mm is two nozzle widths, so it comes out narrowed
+  rather than gone. Elephant's-foot compensation takes that spread back, so it
+  makes these read better, not worse.
+- **Nothing bridges.** The groove's roof is 0.3mm up, so the second layer
+  crosses a 0.8mm gap over a flat ledge on each side.
+
+If you would rather have a plain bottom — a first layer with nothing in it, or a
+smooth surface to paint — set `bottom=None` in `main.py`'s `HULL`. Nothing else
+in the model depends on it.
 
 ## Recomputing these numbers
 

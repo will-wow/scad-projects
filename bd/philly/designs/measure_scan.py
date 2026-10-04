@@ -499,6 +499,124 @@ def seams(boat: Boat, deck: np.ndarray) -> None:
     print()
 
 
+# The stretch of bottom worth reading: aft of the forefoot's sweep and forward
+# of where she narrows into the stern, and no higher above the keel than the
+# bottom itself gets.
+BOTTOM_RUN = (3500.0, 14000.0)
+BOTTOM_HEIGHT = 130.0
+# How far from a mirrored seam its twin may be and still be the same seam.
+BOTTOM_PAIR = 110.0
+
+
+def bottom(boat: Boat, hull_mesh: tuple[np.ndarray, np.ndarray]) -> None:
+    """The bottom's strakes, which are the worst-measured thing on the boat.
+
+    She sits in a cradle and her bottom is the most eroded part of her, so a
+    height profile across the beam is noise -- no groove survives in the
+    surface. What does survive is the seams as lines the scan never meshed,
+    the way the decks' show, found as columns of thin coverage. Those are weak
+    enough on their own that they are only believed if they come out symmetric
+    about the centreline, which noise would not: so the centreline is found by
+    mirroring the coverage and correlating, and only the seams that pair across
+    it are reported.
+    """
+    points, faces = hull_mesh
+    frame = np.c_[points[:, 0] - boat.centre, points[:, 1] - boat.keel, boat.bow - points[:, 2]]
+    tri = frame[faces]
+    # Near-horizontal triangles low down: the bottom, not the sides or the inside.
+    normal = np.cross(tri[:, 1] - tri[:, 0], tri[:, 2] - tri[:, 0])
+    length = np.linalg.norm(normal, axis=1)
+    length[length == 0.0] = 1.0
+    middle = tri.mean(axis=1)
+    tri = tri[
+        (np.abs(normal[:, 1] / length) > 0.80)
+        & (middle[:, 1] < BOTTOM_HEIGHT)
+        & (middle[:, 2] > BOTTOM_RUN[0])
+        & (middle[:, 2] < BOTTOM_RUN[1])
+    ]
+    edges = np.linalg.norm(tri - np.roll(tri, 1, axis=1), axis=2).max(axis=1)
+    counts = np.clip(np.ceil(edges / SAMPLE), 1, 60).astype(int)
+    spread = []
+    for n in np.unique(counts):
+        u, v = np.meshgrid(np.arange(n + 1), np.arange(n + 1))
+        keep = u + v <= n
+        u = (u[keep] / n)[None, :, None]
+        v = (v[keep] / n)[None, :, None]
+        t = tri[counts == n]
+        spread.append(
+            (t[:, None, 0] * (1 - u - v) + t[:, None, 1] * u + t[:, None, 2] * v).reshape(-1, 3)
+        )
+    s = np.concatenate(spread)
+
+    cell, low, high = 10.0, -1900.0, 1900.0
+    bins = np.arange(low, high, cell)
+    along = ((s[:, 2] - s[:, 2].min()) // cell).astype(int)
+    across = ((s[:, 0] - low) // cell).astype(int)
+    grid = np.zeros((len(bins), along.max() + 1), dtype=bool)
+    inside = (across >= 0) & (across < len(bins))
+    grid[across[inside], along[inside]] = True
+    cover = grid.mean(axis=1)
+
+    # The centreline: the shift that makes the coverage most nearly its own mirror.
+    middle_band = slice(60, len(bins) - 60)
+    shifts = np.arange(-150.0, 151.0, cell)
+    fits = [
+        np.corrcoef(
+            np.roll(cover, -int(d / cell))[middle_band],
+            np.roll(cover, -int(d / cell))[::-1][middle_band],
+        )[0, 1]
+        for d in shifts
+    ]
+    shift = float(shifts[int(np.argmax(fits))])
+    x = bins - shift + cell / 2.0
+    print("The bottom's strakes, from the seams the scan never meshed:")
+    print(f"  centreline {shift:+.0f} off the beam's midpoint, mirrored fit {max(fits):.2f}")
+
+    gaps = [
+        x[i]
+        for i in range(6, len(cover) - 7)
+        if cover[i] < 0.55 * max(cover[i - 6 : i - 1].max(), cover[i + 2 : i + 7].max())
+        and cover[i] == cover[i - 2 : i + 3].min()
+    ]
+    port = sorted(-g for g in gaps if g < 0.0)
+    starboard = sorted(g for g in gaps if g > 0.0)
+    out, alone = [], list(port) + list(starboard)
+    for p in port:
+        twin = [q for q in starboard if abs(q - p) < BOTTOM_PAIR]
+        if twin:
+            q = min(twin, key=lambda q: abs(q - p))
+            out.append(0.5 * (p + q))
+            alone.remove(p)
+            alone.remove(q)
+    if len(out) < 2:
+        print("  too few seams paired across the centreline to read a strake\n")
+        return
+
+    # A gap of about two strakes is one seam the scan lost on both sides at
+    # once. Where it has it on one side only, that dip is taken: the run of
+    # spacings either side of it is the second check the mirror would have been.
+    out = sorted(out)
+    run = float(np.median(np.diff(out)))
+    for near, far in list(zip(out, out[1:], strict=False)):
+        if far - near < 1.5 * run:
+            continue
+        inside = [a for a in alone if near < a < far]
+        if inside:
+            found = min(inside, key=lambda a: abs(a - 0.5 * (near + far)))
+            out.append(found)
+            print(f"  seam {found:5.0f} out, on one side only, fills a gap of {far - near:.0f}")
+
+    out = np.array(sorted(out))
+    for seam in out:
+        print(f"  seam {seam:5.0f} out = {boat.printed(seam):5.2f}mm printed")
+    strake = float(np.mean(np.diff(out)))
+    print(
+        f"  strake {strake:.0f} = {boat.printed(strake):.1f}mm printed; "
+        f"centre strake {2 * out[0]:.0f} = {boat.printed(2 * out[0]):.1f}mm, "
+        f"so the first seam stands {boat.printed(out[0]):.1f}mm out\n"
+    )
+
+
 def main() -> None:
     boat = Boat(vertices(DECK), vertices(HULL))
     print(
@@ -517,6 +635,7 @@ def main() -> None:
     keelson(boat, deck)
     stem(boat, hull)
     seams(boat, deck)
+    bottom(boat, mesh(HULL))
 
 
 if __name__ == "__main__":

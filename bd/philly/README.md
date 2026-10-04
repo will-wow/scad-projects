@@ -97,7 +97,7 @@ at the rail. The lines are the planking's only; the stem is not drawn.
 `details.py` merges the boat's joinery into the hull, all sized from the scan:
 the knees and cross-beams on the middle platform, benches down both sides of
 the quarterdeck, and the keelson along each well. The decks get shallow seams
-between fore-and-aft planks.
+between fore-and-aft planks, and so does the bottom, on the outside.
 
 ## Looking at it headlessly
 
@@ -166,11 +166,15 @@ length against the inside of the hull instead of intersecting a comb with the
 cavity -- the same shape at a quarter of the cost. The floors of the open wells
 are grooved the same way, from `Well`; there the innermost seam is placed rather
 than centred, since the keelson runs down the middle of every well and the
-mast's tube stands in the forward one.
+mast's tube stands in the forward one. The outside of the bottom is grooved from
+`Bottom`, which is also two numbers: the scan reads the strake down the middle,
+where a keel would be, half again as wide as the rest.
 
 The grooves are 0.2mm deep, which is shallow for a reason: `fit_guns` probes
 0.3mm under each corner of a carriage for deck, and a seam there must not read
-as a hole. `clear_of_seams` is the other half of that -- anything standing on a
+as a hole. The bottom's are their own size -- 0.8mm wide by 0.3 deep -- because
+they land in the layer the printer puts down first and a narrower slot would
+close up under the squash; see PRINTING.md. `clear_of_seams` is the other half of that -- anything standing on a
 planked deck is moved until none of its edges is within a millimetre of a seam,
 because a strip thinner than that gets dropped by the mesher and the export ends
 up with a hole in the deck.
