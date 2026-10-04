@@ -68,33 +68,17 @@ KNEE_ANGLE = 30.0
 KNEE_CLEAR = 1.0
 KNEE_WEB = 1.4
 
-# Daylight left in the middle of a bar both its knees reach along. A knee keeps
-# a land `KNEE_WEB` deep against the bar it sits under, and two that meet fuse
-# their lands into one unbroken strip running the bar's whole length -- which
-# reads as a second rail hung under the first and is not one.
-KNEE_GAP = BAR
 
-
-def knee_reach(free: float, room: float | None = None) -> tuple[float, float]:
+def knee_reach(free: float) -> tuple[float, float]:
     """How far one knee runs along its bar and down its stanchion.
 
     `free` is the stanchion standing clear between the boss and the bar's
-    underside, and `room` the most the knee may run along the bar. A knee stops
-    adding section where its profile meets the stanchion's face, half a bar in,
-    so the taper ends `KNEE_CLEAR` above the boss whatever the angle; the
-    triangle itself runs on past it, buried in the stanchion.
-
-    So a knee short of room steepens rather than shortening: it gives up lever
-    arm on the bar, which is worth least, and keeps the depth down the stanchion,
-    which is what the whole length of it was for.
+    underside. A knee stops adding section where its profile meets the
+    stanchion's face, half a bar in, so the taper ends `KNEE_CLEAR` above the
+    boss; the triangle itself runs on past it, buried in the stanchion.
     """
-    drop = free - KNEE_CLEAR
     lean = np.tan(np.radians(KNEE_ANGLE))
-    along = drop * lean + BAR / 2.0
-    if room is not None and room < along:
-        if room <= BAR:
-            raise ValueError(f"{room:.1f}mm along the bar is no room for a knee")
-        along, lean = room, (room - BAR / 2.0) / drop
+    along = (free - KNEE_CLEAR) * lean + BAR / 2.0
     return float(along), float(along / lean)
 
 
@@ -431,37 +415,42 @@ def _knee(
 
     `at` is the corner -- the stanchion's centreline at the bar's underside --
     and both reaches are measured from there, so a knee overlaps both members
-    rather than meeting them on a face. Right-angled, and hollow: a land
-    `KNEE_WEB` wide down each leg with the diagonal between them.
+    rather than meeting them on a face. What is left of the right-angled
+    triangle is its diagonal, `KNEE_WEB` wide, and the toe at each end of it.
 
-    What a knee is for is the taper at its toes. The section it adds goes to
-    nothing there instead of stopping in a step, and that is most of what it
-    buys -- a bar landing flat on the stanchion would put the step back at the
-    one place the bending is worst. The middle of a solid one does little but
-    hide the boat, so it is taken out.
+    The toes are what a knee is for. The section it adds goes to nothing there
+    instead of stopping in a step, and a bar landing flat on the stanchion would
+    put that step back at the one height where the bending is worst.
+
+    Nothing else in it earns its keep. The hole is cut up through the bar's own
+    face rather than stopping short of it, so no land is left lying along the
+    bar: such a land is a knee's section wide against the bar's full width and
+    reads as a second rail hung under the first. Where the diagonal lands on the
+    bar instead, the toe is `KNEE_WEB / sin` long, which makes that bond and the
+    diagonal it anchors equally strong whatever the angle. The land down the
+    stanchion stays, being buried inside the stanchion and costing nothing.
 
     Laid roof-down nothing in it overhangs, at any angle. The outer face points
     up, so each layer of the triangle is narrower than the one beneath it
-    whatever its proportions; the only face that leans is the hole's, and that
-    leans by `KNEE_ANGLE` off the stanchion. Too short a knee has no middle
-    worth taking out and stays solid.
+    whatever its proportions; the diagonal is anchored on the bar at its toe and
+    leans `KNEE_ANGLE` off the stanchion from there. Too small a knee has
+    nothing worth taking out and stays solid.
 
     `section` is the bar's flat, not the bar: see `knee_section`.
     """
-    # Insetting every edge of a triangle by `KNEE_WEB` scales it about its
-    # incentre, and a right triangle's inradius is (a + b - c) / 2. Under about
-    # a bar's width of leg there is nothing left worth hollowing.
-    radius = 0.5 * (along + down - float(np.hypot(along, down)))
-    shrunk = 1.0 - KNEE_WEB / radius if radius > KNEE_WEB else 0.0
+    # Insetting the diagonal by `KNEE_WEB` scales the triangle about its right
+    # angle, by `shrunk`. The hole's other two edges are the stanchion's land
+    # and the bar's face, which it is carried up through.
+    shrunk = 1.0 - KNEE_WEB * float(np.hypot(along, down)) / (along * down)
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
             Polygon((0.0, 0.0), (along, 0.0), (0.0, -down), align=None)
-            if along * shrunk > BAR:
-                web = KNEE_WEB
+            if along * shrunk > 2.0 * KNEE_WEB:
+                web, over = KNEE_WEB, BAR
                 Polygon(
-                    (web, -web),
-                    (web + along * shrunk, -web),
-                    (web, -web - down * shrunk),
+                    (web, over),
+                    (along * (shrunk + over / down), over),
+                    (web, -down * (shrunk - web / along)),
                     align=None,
                     mode=Mode.SUBTRACT,
                 )
@@ -525,15 +514,15 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
 
             # Knees into every bar the stanchion runs into: the crossbar, inboard, and
             # each rail it has. An end stanchion has one rail, which is why it is the
-            # one that wants them. Each gets the room up to the middle of its own
-            # bar, where the knee reaching back the other way wants the same.
+            # one that wants them. Two knees sharing a bar may cross, which is a
+            # union and leaves an X-brace between those two stanchions.
             #
             # The crossbar's runs at full reach even where the canvas clips on: a
             # knee is the bar's flat wide and the cringle's mouth is wider than
             # that, so it passes through the gap the mouth leaves.
             corner = (foot.station, side * foot.half, shape.top - BAR / 2.0)
             free = shape.top - BAR / 2.0 - foot.base
-            along, down = knee_reach(free, foot.half - KNEE_GAP / 2.0)
+            along, down = knee_reach(free)
             parts.append(_knee(corner, -90.0 * side, section, along, down))
             for other in (index - 1, index + 1):
                 if not 0 <= other < len(shape.nodes):
@@ -541,10 +530,7 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
                 run = shape.nodes[other][0] - foot.station
                 reach = shape.nodes[other][1] - foot.half
                 angle = float(np.degrees(np.arctan2(side * reach, run)))
-                span = float(np.hypot(run, reach))
-                parts.append(
-                    _knee(corner, angle, section, *knee_reach(free, (span - KNEE_GAP) / 2.0))
-                )
+                parts.append(_knee(corner, angle, section, along, down))
 
     whole = parts[0]
     for extra in parts[1:]:

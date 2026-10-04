@@ -153,18 +153,17 @@ The stanchions are the thing to watch: 3.4mm square and up to 28.5mm standing fr
 above their bosses, ten of them. Slow the outer walls down, and if the tops ring or lean, print
 them with a bit more cooling rather than adding supports.
 
-Each one now carries **knees** where it meets the bars -- a 12mm triangle into
-the crossbar and into each rail -- because a dropped boat snapped a stanchion off at
-that corner. They are hollow now -- a thin land down each leg with the diagonal
-between them -- and drawn to reach a millimetre above the boss, because a
-stanchion broke under the toe of the old short one. They cost 2.4 cm³ and print
-as part of the stanchion: the outer face points up and the hole's own walls lean
-30 degrees off the stanchion, so nothing in one bridges. The one exception is
-where a knee crosses a necked crossbar: for the 4.6mm the neck is long it hangs
-0.446mm under the cylinder, which bridges the same span the yards' necks do. Each is 2.2mm wide rather than the bar's 3.4, which
-is the flat between the bar's rounded edges: as wide as the bar, a knee stood
-its outer lip on the round with nothing under it. The knees on the two necked crossbars are cut short,
-since the canvas's eye comes down into that square.
+Each one now carries **knees** where it meets the bars -- one into the crossbar
+and one into each rail it has -- because a dropped boat snapped a stanchion off
+at that corner. Each is a bar leaning 30 degrees off the stanchion, about 15mm
+along and 27 down, reaching to a millimetre above the boss, because a stanchion
+then broke under the toe of the old short one. They cost 2.02 cm³ and print as
+part of the stanchion: the outer face points up, the diagonal is anchored on the
+bar at its toe and leans away from there, and nothing in one bridges or
+overhangs. Each is 2.2mm wide rather than the bar's 3.4, which is the flat
+between the bar's rounded edges: as wide as the bar, a knee stood its outer lip
+on the round with nothing under it. Two sharing a short bar aft cross, which is
+a union and leaves an X-brace.
 
 Each stanchion now runs into its socket at full section rather than stepping down to a
 round peg, and **its foot is chamfered 0.8mm** against a **0.6mm chamfer round

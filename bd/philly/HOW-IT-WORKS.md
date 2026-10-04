@@ -924,8 +924,7 @@ the peak. It broke there, exactly where the diagram says it should.
 
 The cure is a longer knee, and the cost of a longer solid one is a lot of
 material and a lot of hidden boat: a triangle's area goes as the square of its
-reach. So they are hollow -- a land `KNEE_WEB` wide down each leg with the
-diagonal between them -- which at 12mm dropped the toe to 46% of the peak for
+reach. So they are hollow, which at 12mm dropped the toe to 46% of the peak for
 1.65 cm³ of knee rather than the 3.5 a solid one would have cost.
 
 ### And then the angle stopped being 45 degrees
@@ -967,11 +966,11 @@ and the two never touch, which the clash test confirms at 0.000 mm³ with the
 knees at full reach. The old cap was reasoning about where the ring sits along
 the bar without checking how wide the knee was across it.
 
-One thing comes with it. Over the 4.6mm the neck is long, the crossbar is only a
-2.5mm cylinder, so the knee's top face hangs 0.446mm under it rather than
-meeting a square face. That is a 4.6mm bridge, a fraction of a millimetre above
-material and held at both ends -- the same span the yards' own necks already
-bridge, and if it sags at all it sags onto the cylinder.
+That left one thing behind it, for a while. Over the 4.6mm the neck is long the
+crossbar is only a 2.5mm cylinder, so the knee's land hung 0.446mm under it
+rather than meeting a square face -- a short bridge, held at both ends, but a
+bridge. Cutting the land away took it with it: the neck falls inside the hole
+now, and there is no knee material at that height to hang over anything.
 
 ### Why the second pair moved to 0.545
 
@@ -1001,28 +1000,36 @@ Nothing in it overhangs: the outer hypotenuse faces up, so the profile shrinks
 going up whatever the proportions, and the only face that leans is the hole's.
 A knee too short to have a middle worth taking out stays solid.
 
-### Two knees on one bar leave daylight between them
+### And then the land along the bar went too
 
-The land is also what went wrong when the knees got long. It lies against the
-bar for the knee's whole reach, and where two knees reach far enough to meet,
-their lands fuse into one unbroken strip running the length of the bar --
-2.2mm wide against the bar's 3.4, so it steps in and reads as a second rail hung
-under the first. Which is the very thing ruled out two sections below, arrived
-at by accident and without any of the strength that would have justified it.
+Insetting all three edges of the triangle left a land lying against the bar for
+the knee's whole reach. That land is the knee's section wide, 2.2mm, against the
+bar's 3.4 -- so it steps in on both sides and reads as a second bar hung under
+the first. Ten of them in a row read as a second **rail**, which is the very
+thing ruled out below, arrived at by accident and without any of the strength
+that would have justified it. Worse where two knees met: the aftmost crossbar is
+14.1mm to the centreline against a 15.6mm reach, so its port and starboard lands
+overlapped by 2.9mm and fused into one unbroken strip the width of the boat, and
+the rail spans aft did the same by 6.5 and 9.4.
 
-Three bars were short enough: the aftmost crossbar, where the hull has closed to
-14.1mm of half-width against a 15.6mm reach, so the port and starboard knees
-overlapped by 2.9mm; and the two rail spans aft, 24.7 and 21.8mm long, where the
-knees from neighbouring stanchions overlapped by 6.5 and 9.4. The diagonals
-crossing is a genuine X-brace and no loss. The lands fusing is not.
+It was buying nothing. Cutting the hole up through the bar's own face instead
+leaves the diagonal landing on the bar at a toe `KNEE_WEB / sin` long, and that
+is not an arbitrary number: it makes the bond and the diagonal it anchors
+equally strong at any angle. At 30 degrees the toe is 1.62mm, so 3.56mm² of
+layer bond taking the diagonal's thrust at 0.87 of its axis -- **123 N** -- and
+the diagonal is 1.4 by 2.2 taken across the layers at the same lean -- **123 N**.
+The sine cancels, so steepening a knee does not change which end gives first.
 
-So `knee_reach` takes the room it has as well as the height, and `KNEE_GAP` --
-a bar's width -- of daylight is left in the middle of every bar. What gives way
-is the **angle**, not the depth: a knee with less room steepens, down to 24.1,
-20.4 and 17.3 degrees on those three bars, and every one of the ten still tapers
-out exactly 1.00mm above its boss. It costs lever arm on the bar, which is the
-cheapest thing a knee has, and a steeper knee is if anything easier to print,
-since the hole's wall is the only leaning face and steepening stands it up.
+What a knee loses with the land is lever arm on nothing: the land is bonded
+along its whole length to a bar that is already the chord, and the only other
+thing it did was stiffen the rail in bending, which is not what breaks. The land
+down the **stanchion** stays, because at `KNEE_WEB` from the centreline it is
+inside the stanchion's own 1.7mm half-width -- invisible, and free.
+
+So a knee is now its diagonal and its two toes: 11.90 cm³ of frame against
+12.74. The corner itself is left to the stanchion, which runs up through the
+bars to the roof and fills it. And two knees sharing a short bar may now cross
+without consequence -- a union, and a genuine X-brace between those stanchions.
 
 ### Why not a second rail under the first
 

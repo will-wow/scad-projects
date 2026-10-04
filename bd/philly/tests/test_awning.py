@@ -29,7 +29,6 @@ from awning import (  # noqa: E402
     FOOT_CHAMFER,
     KNEE_ANGLE,
     KNEE_CLEAR,
-    KNEE_GAP,
     KNEE_WEB,
     MOUTH_CHAMFER,
     SIDE_PLANKING,
@@ -126,21 +125,25 @@ class TestFrame:
         rail the stanchion has. An end stanchion has one rail, which is why it is the stanchion
         that wants them.
 
-        Probed a hair past the corner of the stanchion's own square, so it is the knee
-        answering and not the column.
+        Probed in the middle of the diagonal, which outside the stanchion's own
+        square is the whole of a knee: the corner itself is filled by the
+        stanchion, which runs up through the bars to the roof.
         """
-        step = BAR / 2.0 * math.sqrt(2.0) + 0.2
         for index, foot in enumerate(shape.feet):
             ends = index in (0, len(shape.feet) - 1)
             beside = [shape.nodes[i] for i in (index - 1, index + 1) if 0 <= i < len(shape.feet)]
+            reach, drop = knee_reach(shape.top - BAR / 2.0 - foot.base)
+            # Half way across the diagonal, between the hole and the outer face.
+            towards = 0.5 * (2.0 - KNEE_WEB * math.hypot(reach, drop) / (reach * drop))
             for side in (-1.0, 1.0):
-                corner = Vector(foot.station, side * foot.half, shape.top - BAR / 2.0 - 0.2)
+                corner = Vector(foot.station, side * foot.half, shape.top - BAR / 2.0)
                 along = [Vector(0.0, -side, 0.0)] + [
                     Vector(x - foot.station, side * (half - foot.half), 0.0) for x, half in beside
                 ]
                 assert len(along) == (2 if ends else 3)
                 for bar in along:
-                    at = corner + bar.normalized() * step
+                    at = corner + bar.normalized() * (towards * reach / 2.0)
+                    at -= Vector(0.0, 0.0, towards * drop / 2.0)
                     assert upright.is_inside(at), f"a bar at {foot.station:.0f}mm has no knee"
 
     def test_a_knee_sits_on_the_flat_of_its_bar(self):
@@ -201,31 +204,47 @@ class TestFrame:
                 f"the diagonal is in the wrong place at {towards:.1f} of the way out"
             )
 
-    def test_a_knee_is_hollow_but_keeps_its_toes(self, upright, shape):
+    def test_a_knee_is_a_diagonal_and_two_toes(self, upright, shape):
         """The middle of a solid knee does little but hide the boat, so it is cut
-        out, leaving a land down each leg and the diagonal between them. What has
-        to stay is the taper at each toe -- which is what a bar landing flat on
-        the stanchion would throw away.
+        out. What has to stay is the diagonal and the taper at each toe -- which
+        is what a bar landing flat on the stanchion would throw away.
 
-        Walked out from the right-angled corner toward the diagonal: land, then
-        hole, then land again.
+        Walked out from the right-angled corner toward the diagonal: the land
+        buried in the stanchion, then the hole, then the diagonal.
         """
         _, along, down, on_the_diagonal = self._crossbar_knee(shape, 2)
-        radius = 0.5 * (along + down - math.hypot(along, down))
-        assert radius > KNEE_WEB, "this knee is too small to be hollow at all"
-        shrunk = 1.0 - KNEE_WEB / radius
-        # Where that walk enters and leaves the hole.
-        enters = 2.0 * KNEE_WEB / min(along, down)
-        leaves = shrunk + KNEE_WEB * (1.0 / along + 1.0 / down)
-        assert 0.0 < enters < leaves < 1.0, "the hole is not inside the knee"
+        shrunk = 1.0 - KNEE_WEB * math.hypot(along, down) / (along * down)
+        enters = 2.0 * KNEE_WEB / along
+        assert 0.0 < enters < shrunk < 1.0, "the hole is not inside the knee"
         for towards, solid in (
             (0.5 * enters, True),
-            (0.5 * (enters + leaves), False),
-            (0.5 * (leaves + 1.0), True),
+            (0.5 * (enters + shrunk), False),
+            (0.5 * (shrunk + 1.0), True),
         ):
             assert upright.is_inside(on_the_diagonal(towards)) == solid, (
                 f"the knee is wrong {towards:.2f} of the way out to its diagonal"
             )
+
+    def test_no_knee_leaves_a_land_lying_along_its_bar(self, upright, shape):
+        """The hole is cut up through the bar's own face, so what meets the bar
+        is the diagonal's toe and nothing else. A land left along there is a
+        knee's section wide against the bar's full width, and a row of them
+        reads as a second rail hung under the first.
+
+        Probed just under the bar, between the stanchion and the toe.
+        """
+        foot, along, down, _ = self._crossbar_knee(shape, 2)
+        shrunk = 1.0 - KNEE_WEB * math.hypot(along, down) / (along * down)
+        under = shape.top - BAR / 2.0 - KNEE_WEB / 2.0
+        for name, out in (
+            ("mid-reach", 0.5 * along),
+            ("just inboard of the toe", along * shrunk - KNEE_WEB),
+        ):
+            at = Vector(foot.station, foot.half - out, under)
+            assert not upright.is_inside(at), f"the knee lands on its bar {name}"
+        # The toe itself is still there, and tapers.
+        toe = Vector(foot.station, foot.half - 0.5 * along * (1.0 + shrunk), under)
+        assert upright.is_inside(toe), "the knee has no toe on its bar"
 
     def test_a_knee_braces_the_stanchion_down_to_its_boss(self, shape):
         """The point of choosing the angle rather than inheriting 45 degrees: the
@@ -242,34 +261,6 @@ class TestFrame:
                 f"the knee at {foot.station:.0f}mm tapers out {free - toe:.2f}mm above its boss"
             )
             assert math.degrees(math.atan2(along, down)) == pytest.approx(KNEE_ANGLE, abs=1e-9)
-            # And the same where the bar is too short for the full reach: it is
-            # the angle that gives way, never the depth.
-            along, down = knee_reach(free, room=0.6 * along)
-            toe = down * (1.0 - BAR / (2.0 * along))
-            assert toe == pytest.approx(free - KNEE_CLEAR, abs=0.01), "a capped knee gave up depth"
-            assert math.degrees(math.atan2(along, down)) < KNEE_ANGLE
-
-    def test_two_knees_on_one_bar_leave_daylight_between_them(self, upright, shape):
-        """A knee keeps a land against the bar it sits under, and two that meet
-        fuse theirs into one strip running the bar's whole length -- which reads
-        as a second rail hung under the first and is not one. The aftmost
-        crossbar is 14.1mm to the centreline against a 15.6mm reach, so its two
-        did meet; the short rail spans aft are the same."""
-        deep = shape.top - BAR / 2.0 - KNEE_WEB / 2.0  # in the land, under the bar
-        aft = shape.feet[-1]
-        rail = [0.5 * (a + b) for a, b in zip(shape.nodes[-2], shape.nodes[-1], strict=True)]
-        for name, (x, y) in (
-            ("the aftmost crossbar", (aft.station, 0.0)),
-            ("the aftmost rail span", (rail[0], rail[1])),
-        ):
-            assert not upright.is_inside(Vector(x, y, deep)), f"the knees meet under {name}"
-        # Not just by being short: the crossbar's reach to within half a gap of
-        # the middle, with the toe thick enough to probe a millimetre inboard.
-        toe = aft.half - knee_reach(shape.top - BAR / 2.0 - aft.base, aft.half - KNEE_GAP / 2.0)[0]
-        assert toe == pytest.approx(KNEE_GAP / 2.0, abs=0.01)
-        assert upright.is_inside(Vector(aft.station, toe + 1.0, deep)), (
-            "the knee is short of its cap"
-        )
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
