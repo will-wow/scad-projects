@@ -1050,13 +1050,17 @@ mouth plane carries added material and the mouth plane carries none. The work in
 the sections above made the bare band at the bottom the weakest thing in the
 part.
 
-Two things fix it, and the first is nearly free. The mouth's lead-in chamfer is
-a 45 degree funnel opening to 5.16mm at the boss's top face, and a plain square
-stanchion passes straight through it leaving that annulus full of air. Filling
-it, and mirroring the same 45 degrees above so it is not a ledge the printer has
-to start in mid-air, puts 4.6mm square on the mouth plane for 0.06 cm³. It
-inherits the bore's own clearance rather than needing one of its own, since
-`swell / 2 + TOLERANCE == bore / 2 + MOUTH_CHAMFER` exactly.
+The first answer to it was nearly free. The mouth's lead-in chamfer is a 45
+degree funnel opening to 5.16mm at the boss's top face, and a plain square
+stanchion passes straight through it leaving that annulus full of air. A collar
+filling it put 4.6mm square on the mouth plane for 0.06 cm³, inheriting the
+bore's own clearance rather than needing one of its own.
+
+It is gone again, and the reason is worth keeping. It read as a neck on every
+stanchion, which is a lot of visual noise for what it bought -- and what it
+bought, once the triangle below arrived, was only section *fore and aft*: it
+carried that from 2.44x to 3.22x and left athwartships untouched. Athwartships is
+the way the frame fails. So it went, and the triangle grew instead.
 
 ### A foot that is actually a foot
 
@@ -1068,7 +1072,9 @@ Opening the boss toward the centreline lifts the cap. The socket becomes a
 keyhole -- the bore, plus a channel running `FOOT_REACH` inboard of it -- and the
 stanchion grows a solid **right triangle** on its inboard face: the square
 corner on the mouth plane, one leg running inboard along it, the other running
-down the stanchion to the bottom of the socket, and the hypotenuse closing them.
+down the stanchion to the bottom of the socket, and the hypotenuse closing them
+at `FOOT_ANGLE` off the leg. The angle is what is named and the reach falls out
+of it, since the other leg is the socket's own depth.
 
 A triangle rather than a swelling, and this is the whole of it: a swelling that
 tapers back in leaves a stub below itself, and a stub is what snaps. The first
@@ -1079,14 +1085,13 @@ instead, the triangle backs every height of the spigot, and above the mouth
 plane the knee has taken over before the triangle runs out. No length of leg is
 plain bar anywhere.
 
-On the mouth plane the section stops being 3.4 square and becomes 32.72 mm² in
-two slabs:
+On the mouth plane the section stops being 3.4 square and becomes 3.4 by 8.31,
+28.25 mm²:
 
 | | section modulus | against a plain stanchion |
 | --- | --- | --- |
-| athwartships, head going outboard | 39.20 mm³ | **5.98x** |
-| athwartships, head going inboard | 45.26 mm³ | **6.91x** |
-| fore and aft | 21.06 mm³ | **3.22x** |
+| athwartships | 39.13 mm³ | **5.97x** |
+| fore and aft | 16.01 mm³ | **2.44x** |
 
 Inboard rather than any other way because the frame fails by splaying: a
 stanchion whose head goes outboard is in tension on its inboard face, which is
@@ -1094,15 +1099,24 @@ where the wedge puts its material. Nothing limits the reach but taste -- all ten
 feet probed clear to the centreline, the old carriage clash having been a knee
 running *along* the boat where this runs across it.
 
-Two details carry the design. The short taper **above** the mouth plane is not
-structure, it is the printer's: the frame lies roof-down with its feet uppermost,
-so the triangle's broad end would otherwise be a ledge `FOOT_REACH` wide starting
-in mid-air. Running it back to the face over that same distance makes the face a
-45 degree overhang, the steepest the model allows. The long hypotenuse below
-needs no such care, since it narrows as the print rises. And the channel is
+One detail carries the design, and one is a known cost. The channel is
 **prismatic** where the triangle tapers -- constant in plan, the socket's full
 depth -- because a channel cut to the triangle's own shape would be a dovetail
 and the frame would never lift out.
+
+The cost is the square corner. The frame lies roof-down with its feet uppermost,
+so each layer is laid on the one below it and "below in the print" means *above
+in the boat*. The hypotenuse is safe either way: it narrows as the print rises
+and wants nothing under it, at `FOOT_ANGLE` or at any other. But probing boat-
+upward from the mouth plane, under where that square face lands, there is
+**nothing** -- 0.00mm of material a tenth of a millimetre above it, 0.56 at 2mm
+up, 2.30 at 5mm, the knee climbing inboard far too slowly and far too late. So
+it prints as a flat shelf `FOOT_REACH` wide, held along one edge only, and the
+layers that droop off it land on the one plane this whole section is about.
+
+A 45 degree run back to the leg would fix it and cost `FOOT_REACH` of height
+standing above the boss. That is a trade between a print defect and a spike on
+every stanchion, and it is the printer's to call, not the model's.
 
 It costs little of the boat. Most of the channel is cut inside the boss, which
 stands 8mm proud on bare deck; inboard of the boss it leaves a groove 2.5mm long,

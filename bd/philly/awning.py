@@ -120,23 +120,18 @@ SOCKET_DROP = 0.5
 # them a pair dropped in a millimetre out of true still finds its holes rather
 # than standing on their rims. The mouth's is the smaller of the two because it
 # is cut out of the boss's collar, which is only 1.5mm thick to begin with.
-#
-# The mouth's chamfer does a second job. A stanchion swells to fill it and
-# stands the same height proud above it, which puts its widest section exactly
-# on the mouth plane -- see `upright_frame`. The swell is the funnel's own 45
-# degrees, so it inherits the bore's clearance rather than needing one of its
-# own: TOLERANCE all round at every height.
 FOOT_CHAMFER = 0.8
 MOUTH_CHAMFER = 0.6
 
 # The foot proper: a solid right triangle on the stanchion's inboard face, its
-# square corner on the mouth plane and its hypotenuse running down to the bottom
-# of the socket. How far it reaches in from that face is `FOOT_REACH`.
+# square corner on the mouth plane, its hypotenuse leaning `FOOT_ANGLE` off the
+# leg and running to the bottom of the socket. The reach inboard falls out of
+# that angle and the socket's depth.
 #
-# The point of a triangle rather than a swelling is that no length of the leg is
-# left plain bar. A swelling that tapers back in leaves a stub below it, and a
-# stub is what snaps: the whole of the spigot is backed now, and above the mouth
-# plane the knee takes over before the triangle has run out.
+# A triangle rather than a swelling because no length of the leg may be left
+# plain bar. A swelling that tapers back in leaves a stub below it, and a stub
+# is what snaps -- so the triangle backs the whole of the spigot, and above the
+# mouth plane the knee carries the leg.
 #
 # A square peg in a closed hole can be no thicker than its bore, so the only
 # section the mouth plane could ever have was the bar's own -- and the mouth
@@ -145,12 +140,9 @@ MOUTH_CHAMFER = 0.6
 # inboard from the bore, and the foot can be as deep as the deck inboard of it
 # is clear. Inboard rather than any other way because the frame fails by
 # splaying: a stanchion whose head goes outboard is in tension on its inboard
-# face, exactly where the wedge puts its material.
-#
-# 45 degrees on both faces, because the frame prints roof-down with its feet
-# uppermost. The under face is then the overhang, and a flat upper face would be
-# a ledge cantilevered off the stanchion with nothing beneath it to print on.
-FOOT_REACH = 4.0
+# face, exactly where the triangle puts its material.
+FOOT_ANGLE = 30.0
+FOOT_REACH = float(SOCKET_DEPTH * np.tan(np.radians(FOOT_ANGLE)))
 
 # The least a stanchion stands off the inside of the hull.
 SIDE_GAP = 0.3
@@ -488,39 +480,36 @@ def _knee(
     return as_part(Pos(*at) * (Rot(0.0, 0.0, angle) * knee.part), "a knee")
 
 
-def _wedge(foot: Foot, side: float) -> Part:
-    """The wedge on a stanchion's inboard face that makes its foot a foot.
+def _foot_triangle(foot: Foot, side: float) -> Part:
+    """The right triangle on a stanchion's inboard face that makes its foot a foot.
 
     Drawn in the athwartships plane and extruded the stanchion's own width, so
     it is solid rather than a fin: it deepens the section against the frame
     splaying and widens it against the frame racking fore and aft at once.
 
-    A right triangle with its square corner on the mouth plane: one leg runs
-    inboard along that plane, the other runs down the stanchion to the bottom of
-    the socket, and the hypotenuse closes them. So no length of the leg is ever
-    plain bar -- the triangle backs the whole of the spigot, and above the mouth
-    plane the knee takes over.
+    The square corner is on the mouth plane. One leg runs inboard along that
+    plane, the other runs down the stanchion to the bottom of the socket, and
+    the hypotenuse closes them at `FOOT_ANGLE` off the leg. So no length of the
+    leg is ever plain bar: the triangle backs the whole of the spigot, and above
+    the mouth plane the knee carries it.
 
-    The short taper above the mouth plane is not structure, it is the printer's.
-    The frame lies roof-down with its feet uppermost, so the triangle's broad end
-    would otherwise be a ledge `FOOT_REACH` wide starting in mid-air. Running it
-    back to the face over the same `FOOT_REACH` makes that face a 45 degree
-    overhang, the steepest this model allows. The long taper below needs no such
-    care: it narrows as the print rises.
+    The frame lies roof-down with its feet uppermost, so the hypotenuse narrows
+    as the print rises and wants nothing under it. The square corner is a ledge
+    the width of the reach -- see `foot_overhang`.
     """
     face = side * (foot.half - BAR / 2.0)
     tip = side * (foot.half - BAR / 2.0 - FOOT_REACH)
-    with BuildPart() as wedge:
+    with BuildPart() as block:
         with BuildSketch(Plane.YZ.offset(foot.station - BAR / 2.0)):
             Polygon(
                 (face, foot.socket_floor),
-                (face, foot.base + FOOT_REACH),
+                (face, foot.base),
                 (tip, foot.base),
                 align=None,
             )
         extrude(amount=BAR)
-    assert wedge.part is not None
-    return as_part(wedge.part, "a wedge")
+    assert block.part is not None
+    return as_part(block.part, "a foot")
 
 
 def _crossbar(shape: Frame, station: float, edge: float, clip: float | None) -> Part:
@@ -576,23 +565,10 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             footed = chamfer(stanchion.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
             parts.append(as_part(footed, "a stanchion"))
 
-            # The wedge that makes it a foot, and the swell round the rest of
-            # the mouth plane, which is where the bending peaks.
-            # The socket is deep and the foot has little room to rock in, so it
-            # bears rather than hinging: a held foot puts a second peak in the
-            # bending right where the stanchion leaves its boss, as big as the
-            # one at the head. The knees reach to a millimetre above the boss, so
-            # every section above that plane is braced and the plane itself was
-            # bare. Swelling above the boss alone would not answer it -- the peak
-            # is *at* the mouth, so the break would only move into the spigot and
-            # stay in the hole -- and the funnel is the one place a stanchion may
-            # be thicker than its bore.
-            swell = BAR + 2.0 * MOUTH_CHAMFER
-            cone = extrude(Rectangle(swell, swell), amount=MOUTH_CHAMFER, taper=45.0)
-            seat = Pos(foot.station, side * foot.half, foot.base)
-            parts.append(as_part(seat * cone, "swelling a foot"))
-            parts.append(as_part(seat * (Rot(180.0, 0.0, 0.0) * cone), "swelling a foot"))
-            parts.append(_wedge(foot, side))
+            # The foot, which carries the whole of the leg below the knee: the
+            # socket holds it rather than hinging on it, so the bending peaks
+            # again right where the stanchion leaves its boss.
+            parts.append(_foot_triangle(foot, side))
 
             # Knees into every bar the stanchion runs into: the crossbar, inboard, and
             # each rail it has. An end stanchion has one rail, which is why it is the

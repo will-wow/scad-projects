@@ -263,35 +263,26 @@ class TestFrame:
             )
             assert math.degrees(math.atan2(along, down)) == pytest.approx(KNEE_ANGLE, abs=1e-9)
 
-    def test_a_stanchion_swells_where_it_leaves_its_boss(self, upright, shape):
-        """The socket is deep and the foot has little room to rock in, so it bears
-        rather than hinging. A held foot puts a second peak in the bending right
-        on the mouth plane, as big as the one at the head -- and since the knees
-        reach to a millimetre above the boss, every section above that plane is
-        braced and the plane itself was the bare bar. One snapped there.
-
-        Swelling above the boss would not answer it: the peak is *at* the mouth,
-        so the break would only move into the spigot and stay in the hole. So the
-        swell fills the mouth's own funnel, which is the one place a stanchion may
-        be thicker than its bore, and mirrors it above.
+    def test_a_foot_is_the_bar_wide_and_no_wider(self, upright, shape):
+        """Nothing stands proud of the leg but the triangle, and that only
+        inboard. The lead-in round the mouth is the hull's alone now: a collar
+        that filled it bought section fore and aft, but read as a neck on every
+        stanchion, and the triangle is worth more than it was.
         """
-        swell = BAR + 2.0 * MOUTH_CHAMFER
-        # It inherits the bore's clearance rather than needing one of its own.
-        bore = BAR + 2.0 * rigging.TOLERANCE
-        assert swell / 2.0 + rigging.TOLERANCE == pytest.approx(bore / 2.0 + MOUTH_CHAMFER)
         for foot in shape.feet:
-            for under, wide in (
-                (0.0, swell),
-                (0.5 * MOUTH_CHAMFER, 0.5 * (swell + BAR)),
-                (MOUTH_CHAMFER, BAR),
-                (-MOUTH_CHAMFER, BAR),
-            ):
+            for under in (0.0, 1.0, 0.5 * SOCKET_DEPTH):
                 z = foot.base - under
                 for off, solid in ((-0.05, True), (0.05, False)):
-                    at = Vector(foot.station, foot.half + wide / 2.0 + off, z)
+                    at = Vector(foot.station, foot.half + BAR / 2.0 + off, z)
                     assert upright.is_inside(at) == solid, (
-                        f"the foot at {foot.station:.0f}mm is not {wide:.2f} wide "
-                        f"{under:.2f} under its mouth"
+                        f"the foot at {foot.station:.0f}mm is not the bar's width "
+                        f"outboard, {under:.2f} under its mouth"
+                    )
+                for off, solid in ((-0.05, True), (0.05, False)):
+                    at = Vector(foot.station + BAR / 2.0 + off, foot.half, z)
+                    assert upright.is_inside(at) == solid, (
+                        f"the foot at {foot.station:.0f}mm is not the bar's width "
+                        f"fore and aft, {under:.2f} under its mouth"
                     )
 
     def test_no_length_of_a_leg_is_left_plain_bar(self, upright, shape):
