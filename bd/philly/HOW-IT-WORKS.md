@@ -1084,59 +1084,75 @@ The swell is all a closed socket can give, and it is not enough: a square peg in
 a round-or-square hole can never be thicker than its bore, so the mouth plane was
 capped at the bar's own section by the shape of the joint, not by any choice.
 
-Opening the boss toward the centreline lifts the cap. The stanchion grows a
-solid **right triangle** on its inboard face, standing on the deck like a foot
-on the ground: the sole along the deck, the other leg up the stanchion to
-`FOOT_RISE` above the mouth plane, and the hypotenuse closing them at
-`FOOT_ANGLE`. The boss is notched the bore's own width and its whole height to
-let it down -- prismatic, though the triangle inside it tapers, or the frame
-would be a dovetail and would never lift out.
+Opening the boss toward the centreline lifts the cap. The stanchion grows solid
+material on its inboard face: a taper off the leg at `FOOT_ANGLE`, from an apex
+`FOOT_RISE` above the mouth plane down to a toe standing `FOOT_TOE` in, running
+straight from there to the bottom of the socket. The socket becomes a keyhole --
+the bore, and a slot beside it the same depth -- so the foot goes the whole way
+down with the leg.
 
-It took three tries to get the shape right, and each wrong one is worth keeping.
-A **kite**, widest on the mouth plane and tapering away either side, left 4.2mm
-of plain bar at the end of every leg -- the same straight stick as before, only
-shorter, and a stick is what snaps. Drawn **down into the socket** instead, it
-backed the spigot, but the spigot was never the problem: the socket holds it on
-every side. And it put a flat shelf the width of the reach out over open air,
-which printing feet-up means a cantilever with nothing beneath it.
+It took four tries, and each wrong one is worth keeping. A **kite**, widest on
+the mouth plane and tapering away either side, left 4.2mm of plain bar at the
+end of every leg -- the same straight stick as before, only shorter, and a stick
+is what snaps. Drawn **down into the socket** instead, it backed the spigot, but
+it also put a flat shelf the width of the reach out over open air, which
+printing feet-up means a cantilever with nothing beneath it.
 
-The right way up is the obvious one. The sole is on the ground, the hypotenuse
-climbs the leg, and printed feet-up that hypotenuse *grows* as the print rises,
-by `FOOT_ANGLE` off the vertical -- inside the limit -- while the sole is a top
-surface wanting nothing under it. Nothing in the foot overhangs at all.
+The third one **stood on the deck and stopped there**, sole flat on the ground.
+That one printed cleanly and looked right, and it was still wrong -- it took a
+screenshot of the sliced plate to see it. It is exactly right for a pair on bare
+deck, where the boss stands 8mm proud and the socket's floor is only half a
+millimetre below the sole. On the
+quarterdeck benches it is not: a seat is 6.2mm up and the socket still reaches
+8.5mm down, so **6.7mm of the leg below the sole was plain 3.4mm bar**, buried
+where nobody looks for it. Three pairs looked right and two broke.
 
-It goes to the deck rather than stopping on the boss because the boss stands 8mm
-proud on bare deck, and a foot sitting on that is a post on a pedestal with its
-toe in the air. On the deck it bears, so the bending goes into the deck over the
-whole length of the sole instead of into the spigot.
+Laid out, the five pairs went:
 
-The hypotenuse is one straight line from the apex down to whatever the pair
-stands on, so a foot is as long as its own boss is tall: 9.53mm of sole on bare
-deck, 5.95 on the benches. The mouth plane gets the same 4.91mm either way,
-since it is the same line -- all the extra length is below it, on the ground.
+| pair | stands on | plain bar below the sole |
+| --- | --- | --- |
+| 123.6, 166.5 | deck | 0.50mm |
+| 222.0, 246.0 | **benches** | **6.70mm** |
+| 265.5 | deck | 0.50mm |
 
-On the mouth plane the section stops being 3.4 square and becomes 3.4 by 8.31,
-28.25 mm²:
+So the foot runs to the bottom of the leg and the slot is bored the full depth
+of the socket, cut clean through the bench. There is no sole any more: the
+inboard face runs straight from the knuckle down to the socket's floor, and the
+leg's bottom is one face 3.4 by 7.4 with the lead-in chamfer round all of it.
+
+The taper's point is cut off at the toe so that **everything at and below the
+mouth plane is prismatic**, which is what lets the slot be a plain rectangular
+cut -- a slot following the taper would be a dovetail and the frame would never
+lift out. It is also less reach inboard toward the carriages: the old straight
+hypotenuse was 9.53mm in at the deck, this is 4.
+
+Printed feet-up the taper *grows* as the print rises, by `FOOT_ANGLE` off the
+vertical -- inside the limit -- and the bottom of the leg is a top surface
+wanting nothing under it. Nothing in the foot overhangs at all.
+
+The section stops being 3.4 square and becomes 3.4 by 7.4, 25.16 mm², and does
+so over the whole length of the leg rather than at one plane:
 
 | | section modulus | against a plain stanchion |
 | --- | --- | --- |
-| athwartships | 39.13 mm³ | **5.97x** |
-| fore and aft | 16.01 mm³ | **2.44x** |
+| athwartships | 31.03 mm³ | **4.74x** |
+| fore and aft | 14.26 mm³ | **2.18x** |
+
+A little less at the mouth plane than the 5.97x the pointed foot gave there, and
+a great deal more everywhere else, which is where it was breaking.
 
 Inboard rather than any other way because the frame fails by splaying: a
 stanchion whose head goes outboard is in tension on its inboard face, which is
-where the wedge puts its material. Nothing limits the reach but taste -- all ten
-feet probed clear to the centreline, the old carriage clash having been a knee
-running *along* the boat where this runs across it.
+where the material goes.
 
-One detail carries the design, and one is a known cost. The channel is
-**prismatic** where the triangle tapers -- constant in plan, the socket's full
-depth -- because a channel cut to the triangle's own shape would be a dovetail
-and the frame would never lift out.
-
-It costs little of the boat: the boss's inboard wall is only 1.8mm thick beside
-the bore, and that is all the foot actually cuts through. The rest of the notch
-is air above the deck.
+The cost is paid by the benches. A 4mm toe is wider than the bench has room for:
+a bench reaches 8.8mm in from the side and those two pairs are pulled further
+inboard than the others by their own bosses, so the slot comes out through the
+front face of the seat. Measured on the built hull, the toe stands 0.25mm proud
+at 222 and 0.55mm at 246, and each bench carries an open notch at its front
+rather than a blind pocket. Taken deliberately: the alternative was a 3mm toe
+everywhere, which stays buried but gives up a quarter of the section modulus,
+and section is what this whole part keeps running out of.
 
 
 

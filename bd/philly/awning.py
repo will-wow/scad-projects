@@ -57,13 +57,11 @@ BAR = 3.4
 # the diagonal between them, and the middle of a solid one is material doing
 # nothing but hiding the boat.
 #
-# The angle used to be 45 degrees because that is the model's overhang limit,
-# but nothing here was ever bound by it. Laid roof-down a knee's outer face
-# points up, so its profile shrinks going up whatever the angle; the only face
-# that leans is the hole's, and leaning the diagonal nearer the stanchion makes
-# that one shallower, not steeper. So it is free to be chosen for strength
-# instead, and the strongest place to take it is as far down the stanchion as
-# the boss allows.
+# Laid roof-down a knee's outer face points up, so its profile shrinks going up
+# whatever the angle; the only face that leans is the hole's, and leaning the
+# diagonal nearer the stanchion makes that one shallower. So the angle is free
+# to be chosen for strength, and the strongest place to take it is as far down
+# the stanchion as the boss allows.
 KNEE_ANGLE = 30.0
 KNEE_CLEAR = 1.0
 KNEE_WEB = 1.4
@@ -85,15 +83,14 @@ def knee_reach(free: float) -> tuple[float, float]:
 def knee_section(edge: float) -> float:
     """How wide a knee is: the flat of the bar it sits under, between its fillets.
 
-    As wide as the bar, a knee stood its outer edge on the bar's rounded corner
-    and left a lip hanging over nothing. Narrowing it to the flat fixes a second
-    thing for free. Knees meet at a stanchion from the directions its bars run, and
-    two slabs of half-width w crossing at an angle t overlap out to w / sin(t/2)
-    from the stanchion's centre. The tightest angle in this frame is 64 degrees, where
-    a rail meets the crossbar on the trapezoid stretch aft: at the bar's full
-    width that reaches 3.2mm, past the stanchion's 2.4mm half-diagonal, so the two
-    hypotenuses crossed in open air and left a spike. At the flat's width it
-    reaches 2.07mm and the crossing is buried inside the stanchion.
+    The flat rather than the full width, so a knee's outer edge stands on flat
+    bar instead of on the bar's rounded corner. It also keeps the crossings
+    buried: knees meet at a stanchion from the directions its bars run, and two
+    slabs of half-width w crossing at an angle t overlap out to w / sin(t/2)
+    from the stanchion's centre. The tightest angle in this frame is 64 degrees,
+    where a rail meets the crossbar on the trapezoid stretch aft, and at the
+    flat's width that reaches 2.07mm -- inside the stanchion's 2.4mm
+    half-diagonal.
     """
     return BAR - 2.0 * edge
 
@@ -123,32 +120,29 @@ SOCKET_DROP = 0.5
 FOOT_CHAMFER = 0.8
 MOUTH_CHAMFER = 0.6
 
-# The foot proper: a solid right triangle on the stanchion's inboard face, its
-# square corner on the mouth plane, its hypotenuse leaning `FOOT_ANGLE` off the
-# leg and standing flat on the deck, like a foot on the ground. `FOOT_RISE` is
-# how far it runs up the leg above the mouth plane; the hypotenuse carries on
-# from there in one straight line down to whatever the pair stands on, so a foot
-# is as long as its own boss is tall -- see `Foot.spread`.
+# The foot: solid material on the stanchion's inboard face, running the whole
+# length of the leg from the bottom of the socket up. It tapers off the leg at
+# `FOOT_ANGLE`, from an apex `FOOT_RISE` above the mouth plane down to a toe
+# standing `FOOT_TOE` in, and runs straight from there to the bottom. No length
+# of leg anywhere is the bar's own square section.
 #
-# It goes to the deck rather than stopping on the boss because the boss stands
-# 8mm proud on bare deck, and a foot that sits on top of that is a post on a
-# pedestal with its toe in the air. On the deck it bears, and the bending is
-# carried into the deck over the whole length of the sole instead of into the
-# spigot. The boss is notched toward the centreline to let it through.
+# The taper's point is cut off so that everything at and below the mouth plane
+# is prismatic. The socket is then a plain keyhole the frame lifts straight out
+# of, bored to its full depth, and the toe reaches less far inboard toward the
+# carriages than a point would.
 #
 # Inboard rather than any other way because the frame fails by splaying: a
 # stanchion whose head goes outboard is in tension on its inboard face, which is
-# where the triangle puts its material. The rise carries it past the knee's toe
-# at `KNEE_CLEAR` above the boss, so foot and knee overlap and no length of leg
-# is left plain bar between them.
+# where the material goes. The rise carries it past the knee's toe at
+# `KNEE_CLEAR` above the boss, so foot and knee overlap.
 #
-# Printed feet-up the hypotenuse grows as the print rises, by `FOOT_ANGLE` off
-# the vertical, and the flat sole is a top surface wanting nothing beneath it.
-# That is why this way up and not the other: the same triangle inverted puts a
-# flat shelf the width of the reach out over open air.
+# Printed feet-up the taper grows as the print rises, by `FOOT_ANGLE` off the
+# vertical, and the bottom of the leg is a top surface wanting nothing beneath
+# it. Nothing in the foot overhangs.
 FOOT_ANGLE = 30.0
 FOOT_RISE = 8.5
-FOOT_REACH = float(FOOT_RISE * np.tan(np.radians(FOOT_ANGLE)))
+FOOT_TOE = 4.0
+FOOT_TAPER = float(FOOT_TOE / np.tan(np.radians(FOOT_ANGLE)))
 
 # The least a stanchion stands off the inside of the hull.
 SIDE_GAP = 0.3
@@ -169,8 +163,7 @@ BOTTOM_PLANKING = 2.0
 # close to it, so every millimetre a hole drops below the deck costs about a
 # fifth of one off the planking beside it. At the bottom of the hull the inside
 # is 3 to 4.5mm narrower than where the stanchions step, so a socket bored to the
-# bilge would come out through the side. Dropping 2mm below the deck, as they
-# used to, left 0.67mm beside the aft pair.
+# bilge would come out through the side.
 SIDE_PLANKING = 1.0
 
 
@@ -182,19 +175,14 @@ class Awning:
     """where the pairs of stanchions stand, which is also where the frame ends
 
     The first two pairs stand between the middle platform's knees, which is
-    tighter than it sounds: a boss is 7mm square and a foot notches its boss a
-    bore's width further, so a pair bars 2.8mm either side of its own station,
-    and the platform's knees bar 126.2-133.9, 141.5-147.1, 160.4-166.0 and
-    174.5-180.1. The carriages bar 137.9-151.9 and 174.8-188.8. That leaves two
-    windows between the guns, 151.9-160.4 and 166.0-174.5, and the midpoint
-    between them -- 163.4 -- is in neither: the knees at 0.544 stand there.
-
-    The second pair has been through all of it. At 0.57 it stood 3.8mm clear of
-    the after carriage and its own knee reached down into that carriage's
-    bracket. At 0.545 it had 11.5mm either side of the guns, but sat on the
-    0.544 knees: its boss took the outboard 6mm of their low arms, and the foot
-    would have taken the rest. At 0.555 it is 3.3mm clear of those knees and
-    8.3mm clear of the after carriage, which is more than twice what failed.
+    tighter than it sounds: a boss is 7mm square and its socket is bored wider
+    still toward the centreline, so a pair bars 2.8mm either side of its own
+    station, and the platform's knees bar 126.2-133.9, 141.5-147.1, 160.4-166.0
+    and 174.5-180.1. The carriages bar 137.9-151.9 and 174.8-188.8. That leaves
+    two windows between the guns, 151.9-160.4 and 166.0-174.5, and the midpoint
+    between them -- 163.4 -- is in neither, the knees at 0.544 standing there.
+    So 0.555: 3.3mm clear of those knees, 8.3mm clear of the after carriage, and
+    the gun can still run out under the frame.
     The next two stand on the
     quarterdeck's benches, and the last on the deck just aft of them, which
     carries the frame nearly to the transom as the museum's model has it.
@@ -262,16 +250,6 @@ class Foot:
         return self.socket_floor + SOCKET_DEPTH
 
     @property
-    def spread(self) -> float:
-        """How far the foot's toe stands in from the stanchion's inboard face.
-
-        The hypotenuse is one straight line from the apex on the leg down to the
-        ground, so a pair on bare deck -- with eight millimetres of boss to get
-        past -- has a longer sole than a pair on a bench.
-        """
-        return float((self.boss + FOOT_RISE) * np.tan(np.radians(FOOT_ANGLE)))
-
-    @property
     def boss(self) -> float:
         """How far the boss stands proud of what the pair steps on.
 
@@ -316,12 +294,10 @@ def _pad(half: float, round_: float) -> list[tuple[float, float]]:
     As (along, outboard) offsets from the socket's centre. Only the outboard
     half, since that is the side the planking is on.
 
-    This is sampled rather than measured at one station because the side of the
-    boat falls away in plan as well as in section. The after pair stands where it
-    falls away fastest: its boss's corner nearest the transom reached 2.1mm
-    outside the planking and printed as a blister on the hull. Measured at the
-    station alone -- which is what the socket needs, being narrow -- the boss
-    looked as though it fitted.
+    Sampled rather than measured at the station alone, which is all a socket
+    needs, because the side of the boat falls away in plan as well as in
+    section and a boss is wide enough to notice. The after pair stands where it
+    falls away fastest.
     """
     straight = half - round_
     edge = [(along, half) for along in np.linspace(-straight, straight, PAD_SAMPLES)]
@@ -469,12 +445,10 @@ def _knee(
     put that step back at the one height where the bending is worst.
 
     Nothing else in it earns its keep. The hole is cut up through the bar's own
-    face rather than stopping short of it, so no land is left lying along the
-    bar: such a land is a knee's section wide against the bar's full width and
-    reads as a second rail hung under the first. Where the diagonal lands on the
-    bar instead, the toe is `KNEE_WEB / sin` long, which makes that bond and the
-    diagonal it anchors equally strong whatever the angle. The land down the
-    stanchion stays, being buried inside the stanchion and costing nothing.
+    face, so the diagonal lands on the bar at a toe `KNEE_WEB / sin` long, which
+    makes that bond and the diagonal it anchors equally strong whatever the
+    angle. The land down the stanchion stays, being buried inside it and costing
+    nothing.
 
     Laid roof-down nothing in it overhangs, at any angle. The outer face points
     up, so each layer of the triangle is narrower than the one beneath it
@@ -505,27 +479,37 @@ def _knee(
     return as_part(Pos(*at) * (Rot(0.0, 0.0, angle) * knee.part), "a knee")
 
 
-def _foot_triangle(foot: Foot, side: float) -> Part:
-    """The right triangle on a stanchion's inboard face that makes its foot a foot.
+def _foot_block(foot: Foot, side: float) -> Part:
+    """The foot on a stanchion's inboard face, from the bottom of the leg up.
 
     Drawn in the athwartships plane and extruded the stanchion's own width, so
     it is solid rather than a fin: it deepens the section against the frame
     splaying and widens it against the frame racking fore and aft at once.
 
-    The square corner is on the ground, at the stanchion's inboard face. The
-    sole lies along the deck and runs inboard, the other leg runs up the
-    stanchion to `FOOT_RISE` above the mouth plane, and the hypotenuse closes
-    them at `FOOT_ANGLE`. It stands on the deck rather than on the boss, which
-    is both where the bending wants it and the way it prints.
+    The profile runs up the leg from the bottom of the socket to the apex
+    `FOOT_RISE` above the mouth plane, out along the taper at `FOOT_ANGLE` to
+    the knuckle where the toe stands `FOOT_TOE` in, then straight down to the
+    bottom again. Everything at and below the mouth plane is that straight
+    stretch, which is what lets the socket be prismatic and the frame lift out.
+
+    Carried back to the stanchion's centreline rather than stopping on its
+    inboard face, so the two fuse into one solid with a single face across the
+    bottom and the lead-in chamfer goes round the whole of it. The taper starts
+    at the face, where it is the first material that is actually the foot's; the
+    strip behind it is buried in the stanchion.
     """
+    centre = side * foot.half
     face = side * (foot.half - BAR / 2.0)
-    tip = side * (foot.half - BAR / 2.0 - foot.spread)
+    toe = side * (foot.half - BAR / 2.0 - FOOT_TOE)
+    apex = foot.base + FOOT_RISE
     with BuildPart() as block:
         with BuildSketch(Plane.YZ.offset(foot.station - BAR / 2.0)):
             Polygon(
-                (face, foot.step),
-                (face, foot.base + FOOT_RISE),
-                (tip, foot.step),
+                (centre, foot.socket_floor),
+                (centre, apex),
+                (face, apex),
+                (toe, apex - FOOT_TAPER),
+                (toe, foot.socket_floor),
                 align=None,
             )
         extrude(amount=BAR)
@@ -570,26 +554,23 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             # those rather than to the middle plane because the rails and the
             # crossbars both stop at the stanchion's centre, and the stanchion
             # is what fills the corner they leave, so it prints flat to the end.
-            #
-            # Down into the socket at full section, where it used to step to a
-            # round peg at the boss. That step was the weakest thing in the
-            # frame -- 3.9mm^3 of section against the stanchion's 6.6, with a sharp
-            # shoulder on it where the bending is worst -- and the feet snapped
-            # off it. The socket is a square hole now, so there is nothing to
-            # step down to, and the stanchion beds on the hole's floor.
+            # Down into the socket at full section, bedding on the hole's floor.
             height = shape.top + BAR / 2.0 - foot.socket_floor
             stanchion = Pos(foot.station, side * foot.half, foot.socket_floor + height / 2.0) * Box(
                 BAR, BAR, height
             )
-            # The foot chamfered, so a frame dropped in a little out of place
-            # finds its holes instead of standing on their rims.
-            footed = chamfer(stanchion.faces().sort_by(Axis.Z)[0].edges(), FOOT_CHAMFER)
-            parts.append(as_part(footed, "a stanchion"))
-
-            # The foot, which carries the whole of the leg below the knee: the
-            # socket holds it rather than hinging on it, so the bending peaks
-            # again right where the stanchion leaves its boss.
-            parts.append(_foot_triangle(foot, side))
+            # The foot joined on before the lead-in is cut, so the chamfer runs
+            # round the whole bottom of the leg and a frame dropped in a little
+            # out of place finds its holes instead of standing on their rims.
+            leg = stanchion + _foot_block(foot, side)
+            bottom = leg.faces().sort_by(Axis.Z)[0]
+            if bottom.area < BAR * (BAR + FOOT_TOE) - 1e-6:
+                raise RuntimeError(
+                    f"the leg at {foot.station:.0f}mm did not fuse to its foot: "
+                    f"{bottom.area:.2f}mm2 across the bottom, not "
+                    f"{BAR * (BAR + FOOT_TOE):.2f}"
+                )
+            parts.append(as_part(chamfer(bottom.edges(), FOOT_CHAMFER), "a stanchion"))
 
             # Knees into every bar the stanchion runs into: the crossbar, inboard, and
             # each rail it has. An end stanchion has one rail, which is why it is the
@@ -703,8 +684,9 @@ def fit_awning(
     A pair standing on a bench gets its boss on the seat, so the bench has to be
     fitted first.
 
-    The holes are square, like the stanchions: a round one needed the stanchion to step down
-    to a round peg, and the peg was the weakest section in the frame.
+    The holes are keyholes: square for the stanchion, with a slot beside it
+    running toward the centreline for its foot, both bored to the same depth so
+    the foot can run the whole length of the leg.
 
     Nothing here is clipped to the hull: `frame` has already pulled each pair in
     far enough that its boss fits. See `_pad`.
@@ -755,15 +737,16 @@ def fit_awning(
             mouth = Pos(*place, foot.base - MOUTH_CHAMFER) * extrude(
                 Rectangle(bore, bore), amount=MOUTH_CHAMFER, taper=-45.0
             )
-            # The boss notched toward the centreline, so the foot comes down
-            # through it to the deck. Prismatic, though the triangle inside it
-            # tapers, or the frame would be a dovetail and would not lift out.
-            run = foot.spread
-            deep = foot.boss + 1.0
-            notch = Pos(
-                foot.station,
-                side * (foot.half - bore / 2.0 - run / 2.0),
-                foot.base + 1.0 - deep / 2.0,
-            ) * Box(bore, run, deep)
-            fitted = as_part(fitted - hole - mouth - notch, "boring an awning socket")
+            # The slot the foot runs in, toward the centreline and as deep as
+            # the bore, so it is cut clean through a bench instead of stopping
+            # on the seat and leaving the leg below it plain bar. Prismatic,
+            # like the stretch of foot that goes in it.
+            beside = side * (foot.half - bore / 2.0 - FOOT_TOE / 2.0)
+            slot = Pos(foot.station, beside, foot.socket_floor + depth / 2.0) * Box(
+                bore, FOOT_TOE, depth
+            )
+            lead = Pos(foot.station, beside, foot.base - MOUTH_CHAMFER) * extrude(
+                Rectangle(bore, FOOT_TOE), amount=MOUTH_CHAMFER, taper=-45.0
+            )
+            fitted = as_part(fitted - hole - mouth - slot - lead, "boring an awning socket")
     return fitted

@@ -165,32 +165,38 @@ between the bar's rounded edges: as wide as the bar, a knee stood its outer lip
 on the round with nothing under it. Two sharing a short bar aft cross, which is
 a union and leaves an X-brace.
 
-And each stanchion now has a **foot**: a solid right triangle on its inboard
-face, standing flat on the deck like a foot on the ground, with the hypotenuse
-climbing the leg to 8.5mm above the top of the boss. The sole is 9.53mm long
-where the boss stands 8mm proud and 5.95 on the benches; the boss is notched
-toward the centreline to let the foot down to the deck. The knees answer the head of a stanchion, and the socket holds the
-other end rather than hinging on it, so the bending peaks again right where the
-stanchion leaves its boss -- which the knees had left as the one bare section in
-the part, and which is where two of them snapped. The foot takes that section
-from 3.4mm square to 32.72 mm², six times the strength against the frame
-splaying. The boss is open toward the centreline to let it down: the socket is a
-keyhole rather than a hole.
+And each stanchion has a **foot**: solid material down its inboard face,
+tapering off the leg at 30 degrees from an apex 8.5mm above the top of the boss
+to a toe standing 4mm in, and running straight from there to the bottom of the
+socket. The knees answer the head of a stanchion; the foot answers everything
+below them, which the knees had left as bare 3.4mm bar and which is where they
+keep snapping. Over the whole of that length the section is 3.4 by 7.4,
+25.16 mm², **4.7 times** the strength against the frame splaying.
+
+The socket is a **keyhole** rather than a hole -- the bore, with a slot beside
+it running toward the centreline, bored to the same depth. That matters most on
+the quarterdeck benches: a seat stands 6.2mm above the deck while the socket
+still reaches 8.5mm down, so a foot that stopped on the seat left 6.7mm of plain
+stick below it. The slot is cut clean through the bench instead.
+
+One thing to expect on the benches. The slot comes out through the front face
+of each seat, so there is an open notch there rather than a blind pocket, with
+the toe standing 0.25mm proud at the forward pair and 0.55 at the after one.
+That is deliberate, and it is what a 4mm toe costs.
 
 Nothing in the foot needs support. The frame lies roof-down with its feet
-uppermost, so the hypotenuse grows as the print rises -- 30 degrees off the
-vertical, inside the limit -- and the sole is a top surface with nothing beneath
-it to bridge. This is the one orientation of the triangle that is free of
-overhang: inverted, its sole becomes a shelf the width of the reach hanging over
-open air. The channel in the boss is straight-sided though the wedge inside it
-tapers, which is what lets the frame still lift out.
+uppermost, so the taper *grows* as the print rises -- 30 degrees off the
+vertical, inside the limit -- and the bottom of the leg is a top surface with
+nothing beneath it to bridge. Everything at and below the mouth plane is
+straight-sided, which is both what prints cleanly and what lets the frame lift
+back out: a slot cut to the taper's own shape would be a dovetail.
 
-Each stanchion now runs into its socket at full section rather than stepping down to a
-round peg, and **its foot is chamfered 0.8mm** against a **0.6mm chamfer round
-the mouth of each socket**, so the frame finds its holes when it is dropped in
-slightly askew. The feet are the last thing the printer lays,
-at the top of the part, so the chamfer faces up and asks nothing of it -- but it
-does mean the very tips are small and want the same slow walls the stanchion tops do.
+Each stanchion runs into its socket at full section, and **the bottom of each
+leg is chamfered 0.8mm** all round -- across the foot as well as the bar --
+against a **0.6mm chamfer round the mouth of each socket**, so the frame finds
+its holes when it is dropped in slightly askew. The feet are the last thing the
+printer lays, at the top of the part, so the chamfer faces up and asks nothing
+of it.
 
 The bar across the forward well **bridges about 34.4mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would

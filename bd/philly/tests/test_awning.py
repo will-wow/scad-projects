@@ -28,8 +28,9 @@ from awning import (  # noqa: E402
     BOTTOM_PLANKING,
     FOOT_ANGLE,
     FOOT_CHAMFER,
-    FOOT_REACH,
     FOOT_RISE,
+    FOOT_TAPER,
+    FOOT_TOE,
     KNEE_ANGLE,
     KNEE_CLEAR,
     KNEE_WEB,
@@ -250,10 +251,8 @@ class TestFrame:
         assert upright.is_inside(toe), "the knee has no toe on its bar"
 
     def test_a_knee_braces_the_stanchion_down_to_its_boss(self, shape):
-        """The point of choosing the angle rather than inheriting 45 degrees: the
-        taper ends `KNEE_CLEAR` above the boss, so the whole of a stanchion is
-        braced rather than just its head. At 45 the taper stopped half way down
-        and the stanchion broke under the toe."""
+        """The taper ends `KNEE_CLEAR` above the boss, so the whole of a
+        stanchion is braced rather than just its head."""
         for foot in shape.feet:
             free = shape.top - BAR / 2.0 - foot.base
             along, down = knee_reach(free)
@@ -266,10 +265,8 @@ class TestFrame:
             assert math.degrees(math.atan2(along, down)) == pytest.approx(KNEE_ANGLE, abs=1e-9)
 
     def test_a_foot_is_the_bar_wide_and_no_wider(self, upright, shape):
-        """Nothing stands proud of the leg but the triangle, and that only
-        inboard. The lead-in round the mouth is the hull's alone now: a collar
-        that filled it bought section fore and aft, but read as a neck on every
-        stanchion, and the triangle is worth more than it was.
+        """Nothing stands proud of the leg but the foot, and that only inboard.
+        The lead-in round the mouth is the hull's alone.
         """
         for foot in shape.feet:
             for under in (0.0, 1.0, 0.5 * SOCKET_DEPTH):
@@ -288,41 +285,64 @@ class TestFrame:
                     )
 
     def test_no_length_of_a_leg_is_left_plain_bar(self, upright, shape):
-        """What snaps is a straight stick, so there is not one. The foot stands
-        on the mouth plane at its full reach -- which is where the socket's grip
-        ends and the bending peaks -- and tapers up the leg until the knee has
-        taken over. Below the mouth plane the socket holds the spigot on every
-        side.
+        """What snaps is a straight stick, so there is not one anywhere on a leg.
 
-        Walked up the leg, measuring how far the foot stands in from the
-        stanchion's inboard face. The knee may add more; it may not add less.
+        Walked the whole length of it, from the bottom of the socket to the
+        apex, measuring how far the foot stands in from the stanchion's inboard
+        face. At and below the mouth plane it is the full `FOOT_TOE`; above the
+        knuckle it tapers away at `FOOT_ANGLE`, and by then the knee has taken
+        over. The knee may add more; it may not add less.
         """
         assert FOOT_RISE > KNEE_CLEAR, "the knee does not reach the foot"
+        assert FOOT_TAPER < FOOT_RISE, "the taper runs below the mouth plane"
         for foot in shape.feet:
             for side in (-1.0, 1.0):
                 face = foot.half - BAR / 2.0
                 for up in (0.05, 0.25 * FOOT_RISE, 0.5 * FOOT_RISE, 0.75 * FOOT_RISE):
-                    want = FOOT_REACH * (1.0 - up / FOOT_RISE)
+                    want = min(FOOT_TOE, (FOOT_RISE - up) * math.tan(math.radians(FOOT_ANGLE)))
                     at = Vector(foot.station, side * (face - want + 0.1), foot.base + up)
                     assert upright.is_inside(at), (
                         f"the foot at {foot.station:.0f}mm is not {want:.2f}mm in, "
                         f"{up:.2f}mm up its leg"
                     )
-                # And below the mouth plane it keeps widening, on the same
-                # straight hypotenuse, until it reaches what the pair stands on.
-                for down in (0.2, 0.5 * foot.boss, foot.boss - 0.2):
-                    want = FOOT_REACH + down * math.tan(math.radians(FOOT_ANGLE))
-                    at = Vector(foot.station, side * (face - want + 0.1), foot.base - down)
+                # And at the mouth plane and below it, all the way to the bottom
+                # of the socket, it is the toe's full width and prismatic.
+                buried = foot.base - foot.socket_floor
+                for down in (0.0, 0.3 * buried, 0.7 * buried, buried - FOOT_CHAMFER - 0.1):
+                    at = Vector(foot.station, side * (face - FOOT_TOE + 0.1), foot.base - down)
                     assert upright.is_inside(at), (
-                        f"the foot at {foot.station:.0f}mm is not {want:.2f}mm in, "
+                        f"the foot at {foot.station:.0f}mm is not {FOOT_TOE}mm in, "
                         f"{down:.2f}mm below its mouth"
                     )
-                assert foot.spread == pytest.approx(
-                    (foot.boss + FOOT_RISE) * math.tan(math.radians(FOOT_ANGLE))
+
+    def test_the_bottom_of_a_stanchion_is_wider_than_its_bar(self, upright, shape):
+        """The one that stops this coming back. Every time a leg has snapped it
+        has snapped where the section was the bar's own 3.4mm square, and the
+        bottom of the leg is the last place that was still true: the foot used
+        to stop on the deck, which left the two pairs on the benches 6.7mm of
+        plain stick below it, because a seat stands 6.2mm up while the socket
+        still reaches 8.5mm down.
+
+        Measured athwartships across the bottom of each leg, above the lead-in
+        chamfer, by walking inboard from the stanchion's own face.
+        """
+        for foot in shape.feet:
+            for side in (-1.0, 1.0):
+                face = foot.half - BAR / 2.0
+                z = foot.socket_floor + FOOT_CHAMFER + 0.1
+                reach = 0.0
+                for step in range(1, int(FOOT_TOE / 0.05) + 4):
+                    at = Vector(foot.station, side * (face - step * 0.05), z)
+                    if not upright.is_inside(at):
+                        break
+                    reach = step * 0.05
+                assert reach == pytest.approx(FOOT_TOE, abs=0.06), (
+                    f"the bottom of the leg at {foot.station:.0f}mm is "
+                    f"{BAR + reach:.2f}mm across, not {BAR + FOOT_TOE:.2f}"
                 )
-                # The sole is on the ground and nothing hangs under it.
-                sole = Vector(foot.station, side * (face - foot.spread / 2.0), foot.step - 0.2)
-                assert not upright.is_inside(sole), "the foot digs into the deck"
+                assert reach >= BAR / 2.0, (
+                    "the bottom of the leg is barely wider than the bar it is made of"
+                )
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
@@ -458,13 +478,13 @@ class TestSockets:
 
     def test_nothing_it_adds_stands_outside_the_hull(self, fitted, lines):
         """A boss is wider than its socket and reaches further fore and aft, and
-        the side of the boat falls away in plan as well as in section. The after
-        pair's boss put its corner nearest the transom 1.1mm outside the
-        planking, which prints as a blister on the outside of the hull.
+        the side of the boat falls away in plan as well as in section, so a boss
+        aft can stand outside the planking and print as a blister.
 
         The beam will not catch it: that pair stands nowhere near the widest part
-        of the boat, so the blister left `max.Y` untouched. The bare hull's own
-        outer loft is the only honest judge, and a test can afford to build one.
+        of the boat, so a blister there leaves `max.Y` untouched. The bare hull's
+        own outer loft is the only honest judge, and a test can afford to build
+        one.
         """
         outline = build(replace(HULL, planking=0.0), lines)
         assert (fitted - outline).volume == pytest.approx(0.0, abs=1e-6)
@@ -491,36 +511,53 @@ class TestSockets:
                 assert not fitted.is_inside(corner), "the boss still has a square corner"
                 assert fitted.is_inside(flat), "the rounding ate the boss's flat"
 
-    def test_a_boss_is_notched_to_let_its_foot_down_to_the_deck(self, fitted, shape):
-        """The boss stands 8mm proud on bare deck, so a foot that stopped on top
-        of it would be a post on a pedestal with its toe in the air. It is cut
-        through toward the centreline instead, the bore's own width and the
-        boss's whole height, and the foot comes down to the deck.
+    def test_a_socket_is_a_keyhole_bored_the_whole_way_down(self, fitted, shape):
+        """The foot runs the full length of the leg, so the slot beside the bore
+        is cut to the full depth of it -- clean through a bench rather than
+        stopping on the seat, which is what left the pairs standing on them a
+        length of plain bar underneath.
 
-        Prismatic, though the triangle inside it tapers, or the frame would be a
-        dovetail and would not lift out.
+        Probed at the toe's own offset, which is the furthest in the slot has to
+        reach, at heights taken right through whatever the pair stands on.
         """
         bore = BAR + 2.0 * rigging.TOLERANCE
         for foot in shape.feet:
+            deep = foot.base - foot.socket_floor
             for side in (-1.0, 1.0):
-                for up in (0.2, foot.boss - 0.2):
-                    for inboard in (bore / 2.0 + 0.2, bore / 2.0 + foot.spread - 0.3):
+                for inboard in (bore / 2.0 + 0.2, BAR / 2.0 + FOOT_TOE - 0.1):
+                    for up in (0.1, 0.25 * deep, 0.5 * deep, 0.75 * deep, deep - 0.1):
                         at = Vector(
                             foot.station,
                             side * (foot.half - inboard),
-                            foot.step + up,
+                            foot.socket_floor + up,
                         )
                         assert not fitted.is_inside(at), (
-                            f"the notch at {foot.station:.0f}mm is blocked "
-                            f"{inboard:.1f}mm in, {up:.1f}mm up"
+                            f"the slot at {foot.station:.0f}mm is blocked "
+                            f"{inboard:.1f}mm in, {up:.1f}mm off its floor"
                         )
+                # And the floor is still there to bed the leg on.
+                under = Vector(
+                    foot.station,
+                    side * (foot.half - BAR / 2.0 - FOOT_TOE + 0.1),
+                    foot.socket_floor - 0.3,
+                )
+                assert fitted.is_inside(under), (
+                    f"the slot at {foot.station:.0f}mm was bored through its floor"
+                )
                 # Only the bore's width of it: the boss is whole fore and aft.
                 beside = Vector(
                     foot.station + bore / 2.0 + 0.3,
                     side * (foot.half - BOSS / 2.0 + 0.2),
                     foot.step + 0.2,
                 )
-                assert fitted.is_inside(beside), "the notch is wider than the bore"
+                assert fitted.is_inside(beside), "the slot is wider than the bore"
+
+    def test_a_leg_and_its_foot_drop_into_the_hull_without_touching(self, fitted, lines):
+        """Which is the whole point of the part. Every clearance in it -- the
+        bore, the slot beside it, the two halves of the lead-in -- comes down to
+        this one measurement."""
+        upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
+        assert (fitted & upright).volume == pytest.approx(0.0, abs=1e-6)
 
     def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, built_hull):
         assert fitted.is_valid
@@ -530,9 +567,7 @@ class TestSockets:
 
     def test_a_leg_fits_its_socket_with_clearance(self):
         """Loose enough to lift out, which is the point of the whole part. The
-        stanchion goes in at full section: it used to step down to a round peg here,
-        and the peg -- 3.9mm^3 of section against the stanchion's 6.6, with a sharp
-        shoulder on it -- is what snapped off."""
+        stanchion goes in at full section, and its foot with it."""
         assert (
             pytest.approx(rigging.TOLERANCE, abs=1e-9)
             == (BAR + 2.0 * rigging.TOLERANCE) / 2.0 - BAR / 2.0
