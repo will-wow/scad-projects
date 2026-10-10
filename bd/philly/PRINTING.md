@@ -165,6 +165,21 @@ between the bar's rounded edges: as wide as the bar, a knee stood its outer lip
 on the round with nothing under it. Two sharing a short bar aft cross, which is
 a union and leaves an X-brace.
 
+And each stanchion now has a **foot**: a solid wedge on its inboard face,
+reaching 4mm in at the top of the boss and tapering back at 45 degrees 4mm above
+and below. The knees answer the head of a stanchion, and the socket holds the
+other end rather than hinging on it, so the bending peaks again right where the
+stanchion leaves its boss -- which the knees had left as the one bare section in
+the part, and which is where two of them snapped. The foot takes that section
+from 3.4mm square to 32.72 mm², six times the strength against the frame
+splaying. The boss is open toward the centreline to let it down: the socket is a
+keyhole rather than a hole.
+
+Nothing about it needs support. The frame lies roof-down with its feet uppermost,
+so the wedge's under face is a 45 degree overhang and its upper face is the same
+in reverse. The channel in the boss is straight-sided though the wedge inside it
+tapers, which is what lets the frame still lift out.
+
 Each stanchion now runs into its socket at full section rather than stepping down to a
 round peg, and **its foot is chamfered 0.8mm** against a **0.6mm chamfer round
 the mouth of each socket**, so the frame finds its holes when it is dropped in

@@ -27,6 +27,7 @@ from awning import (  # noqa: E402
     BOSS_ROUND,
     BOTTOM_PLANKING,
     FOOT_CHAMFER,
+    FOOT_REACH,
     KNEE_ANGLE,
     KNEE_CLEAR,
     KNEE_WEB,
@@ -262,6 +263,37 @@ class TestFrame:
             )
             assert math.degrees(math.atan2(along, down)) == pytest.approx(KNEE_ANGLE, abs=1e-9)
 
+    def test_a_stanchion_swells_where_it_leaves_its_boss(self, upright, shape):
+        """The socket is deep and the foot has little room to rock in, so it bears
+        rather than hinging. A held foot puts a second peak in the bending right
+        on the mouth plane, as big as the one at the head -- and since the knees
+        reach to a millimetre above the boss, every section above that plane is
+        braced and the plane itself was the bare bar. One snapped there.
+
+        Swelling above the boss would not answer it: the peak is *at* the mouth,
+        so the break would only move into the spigot and stay in the hole. So the
+        swell fills the mouth's own funnel, which is the one place a stanchion may
+        be thicker than its bore, and mirrors it above.
+        """
+        swell = BAR + 2.0 * MOUTH_CHAMFER
+        # It inherits the bore's clearance rather than needing one of its own.
+        bore = BAR + 2.0 * rigging.TOLERANCE
+        assert swell / 2.0 + rigging.TOLERANCE == pytest.approx(bore / 2.0 + MOUTH_CHAMFER)
+        for foot in shape.feet:
+            for under, wide in (
+                (0.0, swell),
+                (0.5 * MOUTH_CHAMFER, 0.5 * (swell + BAR)),
+                (MOUTH_CHAMFER, BAR),
+                (-MOUTH_CHAMFER, BAR),
+            ):
+                z = foot.base - under
+                for off, solid in ((-0.05, True), (0.05, False)):
+                    at = Vector(foot.station, foot.half + wide / 2.0 + off, z)
+                    assert upright.is_inside(at) == solid, (
+                        f"the foot at {foot.station:.0f}mm is not {wide:.2f} wide "
+                        f"{under:.2f} under its mouth"
+                    )
+
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
         up to their tops, or each end corner prints with a notch in the roof."""
@@ -361,10 +393,12 @@ class TestSockets:
             )
 
     def test_the_sockets_are_bored_and_the_bosses_are_solid(self, fitted, shape):
+        """Probed fore of the hole rather than beside it: a boss is open toward
+        the centreline, where the foot's wedge comes through it."""
         for foot in shape.feet:
             for side in (-1.0, 1.0):
                 bore = Vector(foot.station, side * foot.half, foot.base - SOCKET_DEPTH / 2.0)
-                beside = Vector(foot.station, side * foot.half + BAR, foot.step + 1.0)
+                beside = Vector(foot.station + BOSS / 2.0 - 0.3, side * foot.half, foot.step + 1.0)
                 assert not fitted.is_inside(bore), "the socket was not bored"
                 assert fitted.is_inside(beside), "there is no boss around the socket"
 
@@ -376,9 +410,9 @@ class TestSockets:
         out = bore / 2.0 + MOUTH_CHAMFER / 2.0
         for foot in shape.feet:
             for side in (-1.0, 1.0):
-                flared = Vector(foot.station, side * foot.half + out, foot.base - 0.05)
+                flared = Vector(foot.station + out, side * foot.half, foot.base - 0.05)
                 straight = Vector(
-                    foot.station, side * foot.half + out, foot.base - MOUTH_CHAMFER - 0.5
+                    foot.station + out, side * foot.half, foot.base - MOUTH_CHAMFER - 0.5
                 )
                 assert not fitted.is_inside(flared), (
                     f"the socket at {foot.station:.0f}mm has no chamfered mouth"
@@ -419,9 +453,42 @@ class TestSockets:
                 corner = Vector(
                     foot.station + reach + 0.1, side * (foot.half - reach - 0.1), middle
                 )
-                flat = Vector(foot.station, side * (foot.half - BOSS / 2.0 + 0.1), middle)
+                flat = Vector(
+                    foot.station + BAR / 2.0 + 0.4,
+                    side * (foot.half - BOSS / 2.0 + 0.1),
+                    middle,
+                )
                 assert not fitted.is_inside(corner), "the boss still has a square corner"
                 assert fitted.is_inside(flat), "the rounding ate the boss's flat"
+
+    def test_a_boss_is_open_toward_the_centreline(self, fitted, shape):
+        """A square peg in a closed hole can be no thicker than its bore, and the
+        mouth plane -- where a held foot bends hardest -- is the one section that
+        could never be made deeper. So the socket is a keyhole: a channel running
+        inboard from the bore, which the foot's wedge comes down into.
+
+        Prismatic, though the wedge inside it tapers, or the frame would be a
+        dovetail and would not lift out.
+        """
+        bore = BAR + 2.0 * rigging.TOLERANCE
+        for foot in shape.feet:
+            for side in (-1.0, 1.0):
+                for under in (0.1, FOOT_REACH - 0.2):
+                    z = foot.base - under
+                    for inboard in (bore / 2.0 + 0.2, bore / 2.0 + FOOT_REACH - 0.2):
+                        at = Vector(foot.station, side * (foot.half - inboard), z)
+                        assert not fitted.is_inside(at), (
+                            f"the channel at {foot.station:.0f}mm is blocked "
+                            f"{inboard:.1f}mm in, {under:.1f}mm down"
+                        )
+                # And it is only the bore's own width: the boss is whole fore
+                # and aft of it, which is what still holds the stanchion there.
+                beside = Vector(
+                    foot.station + bore / 2.0 + 0.3,
+                    side * (foot.half - bore / 2.0 - 1.0),
+                    foot.base - 0.5,
+                )
+                assert fitted.is_inside(beside), "the channel is wider than the bore"
 
     def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, built_hull):
         assert fitted.is_valid

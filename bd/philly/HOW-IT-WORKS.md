@@ -915,12 +915,14 @@ a brace. The stress concentration was most of the benefit anyway.
 
 ### Then it broke under the knee, so the knees went long and hollow
 
-Which is what the arithmetic above says should happen. The stanchion is a column
-pinned in its socket and built in at the frame's corner, so under racking the
-moment runs from nothing at the foot to its worst at the head: `M(z) = F·z`
+Which is what the arithmetic says should happen, if the foot is taken as a pin:
+a column pinned in its socket and built in at the frame's corner carries a
+moment running from nothing at the foot to its worst at the head, `M(z) = F·z`
 measured up from the socket. The knee carries the head, which moves the worst
 *plain* section down to its toe -- and at 6mm that toe still sat at **70%** of
 the peak. It broke there, exactly where the diagram says it should.
+
+That model is wrong, and the next two sections are the cost of it. Keep reading.
 
 The cure is a longer knee, and the cost of a longer solid one is a lot of
 material and a lot of hidden boat: a triangle's area goes as the square of its
@@ -1030,6 +1032,67 @@ So a knee is now its diagonal and its two toes: 11.90 cm³ of frame against
 12.74. The corner itself is left to the stanchion, which runs up through the
 bars to the roof and fills it. And two knees sharing a short bar may now cross
 without consequence -- a union, and a genuine X-brace between those stanchions.
+
+### The foot is held, not hinged, and everything above was the wrong end
+
+Twice more a stanchion snapped, and both times just where it left its boss --
+which the model above says is the *least* loaded section in the whole column.
+
+The socket is 8.5mm deep and the foot has `TOLERANCE` to rock in, so it tilts
+4.0 degrees and then bears on the socket's walls. That is a built-in foot, not a
+pinned one, and a column built in at both ends carries `F·L/2` at each of them
+rather than `F·L` at one. So there is a second peak, as big as the one at the
+head, sitting exactly on the mouth plane.
+
+Every knee in this frame answers the head. Worse, they answer it so thoroughly
+-- tapering out a millimetre above the boss -- that every section above the
+mouth plane carries added material and the mouth plane carries none. The work in
+the sections above made the bare band at the bottom the weakest thing in the
+part.
+
+Two things fix it, and the first is nearly free. The mouth's lead-in chamfer is
+a 45 degree funnel opening to 5.16mm at the boss's top face, and a plain square
+stanchion passes straight through it leaving that annulus full of air. Filling
+it, and mirroring the same 45 degrees above so it is not a ledge the printer has
+to start in mid-air, puts 4.6mm square on the mouth plane for 0.06 cm³. It
+inherits the bore's own clearance rather than needing one of its own, since
+`swell / 2 + TOLERANCE == bore / 2 + MOUTH_CHAMFER` exactly.
+
+### A foot that is actually a foot
+
+The swell is all a closed socket can give, and it is not enough: a square peg in
+a round-or-square hole can never be thicker than its bore, so the mouth plane was
+capped at the bar's own section by the shape of the joint, not by any choice.
+
+Opening the boss toward the centreline lifts the cap. The socket becomes a
+keyhole -- the bore, plus a channel running `FOOT_REACH` inboard of it -- and the
+stanchion grows a solid wedge on its inboard face, its point on the mouth plane
+and tapering back to the face 4mm above and below. The section there stops being
+3.4 square and becomes 32.72 mm² in two slabs:
+
+| | section modulus | against a plain stanchion |
+| --- | --- | --- |
+| athwartships, head going outboard | 39.20 mm³ | **5.98x** |
+| athwartships, head going inboard | 45.26 mm³ | **6.91x** |
+| fore and aft | 21.06 mm³ | **3.22x** |
+
+Inboard rather than any other way because the frame fails by splaying: a
+stanchion whose head goes outboard is in tension on its inboard face, which is
+where the wedge puts its material. Nothing limits the reach but taste -- all ten
+feet probed clear to the centreline, the old carriage clash having been a knee
+running *along* the boat where this runs across it.
+
+Two details carry the design. The wedge is 45 degrees on **both** faces, because
+the frame prints roof-down with its feet uppermost: the under face is the
+overhang, and a flat upper face would be a ledge cantilevered off the stanchion
+with nothing beneath it to print onto. And the channel is **prismatic** where the
+wedge tapers -- constant in plan, full depth -- because a channel cut to the
+wedge's own shape would be a dovetail and the frame would never lift out.
+
+It costs less of the boat than it sounds. A pair standing on bare deck has 8mm of
+boss above the deck and the channel is only 4.3 deep, so it is cut entirely
+inside the boss and the deck is not touched at all; only the two pairs on the
+benches take it into the bench, 2.5mm of the 6.2 there.
 
 ### Why not a second rail under the first
 
