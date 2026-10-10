@@ -26,8 +26,10 @@ from awning import (  # noqa: E402
     BOSS,
     BOSS_ROUND,
     BOTTOM_PLANKING,
+    FOOT_ANGLE,
     FOOT_CHAMFER,
     FOOT_REACH,
+    FOOT_RISE,
     KNEE_ANGLE,
     KNEE_CLEAR,
     KNEE_WEB,
@@ -286,33 +288,41 @@ class TestFrame:
                     )
 
     def test_no_length_of_a_leg_is_left_plain_bar(self, upright, shape):
-        """What snaps is a straight stick, so there is not one. The foot is a
-        right triangle with its square corner on the mouth plane, running down
-        to the bottom of the socket, so every height of the spigot is backed;
-        above the mouth plane it tapers off, and the knee has taken over by
-        then.
+        """What snaps is a straight stick, so there is not one. The foot stands
+        on the mouth plane at its full reach -- which is where the socket's grip
+        ends and the bending peaks -- and tapers up the leg until the knee has
+        taken over. Below the mouth plane the socket holds the spigot on every
+        side.
 
-        Walked down the leg, measuring how far the foot stands in from the
-        stanchion's inboard face.
+        Walked up the leg, measuring how far the foot stands in from the
+        stanchion's inboard face. The knee may add more; it may not add less.
         """
+        assert FOOT_RISE > KNEE_CLEAR, "the knee does not reach the foot"
         for foot in shape.feet:
             for side in (-1.0, 1.0):
-                deep = foot.base - foot.socket_floor
-                for under in (0.2, 0.25 * deep, 0.5 * deep, 0.75 * deep, deep - 0.4):
-                    want = FOOT_REACH * (1.0 - under / deep)
-                    face = foot.half - BAR / 2.0
-                    for off, solid in ((-0.1, True), (0.1, False)):
-                        at = Vector(
-                            foot.station,
-                            side * (face - want - off),
-                            foot.base - under,
-                        )
-                        assert upright.is_inside(at) == solid, (
-                            f"the foot at {foot.station:.0f}mm is not {want:.2f}mm "
-                            f"in, {under:.2f}mm under its mouth"
-                        )
-                # The knee is already carrying the leg where the triangle ends.
-                assert FOOT_REACH > KNEE_CLEAR, "there is a plain band above the mouth plane"
+                face = foot.half - BAR / 2.0
+                for up in (0.05, 0.25 * FOOT_RISE, 0.5 * FOOT_RISE, 0.75 * FOOT_RISE):
+                    want = FOOT_REACH * (1.0 - up / FOOT_RISE)
+                    at = Vector(foot.station, side * (face - want + 0.1), foot.base + up)
+                    assert upright.is_inside(at), (
+                        f"the foot at {foot.station:.0f}mm is not {want:.2f}mm in, "
+                        f"{up:.2f}mm up its leg"
+                    )
+                # And below the mouth plane it keeps widening, on the same
+                # straight hypotenuse, until it reaches what the pair stands on.
+                for down in (0.2, 0.5 * foot.boss, foot.boss - 0.2):
+                    want = FOOT_REACH + down * math.tan(math.radians(FOOT_ANGLE))
+                    at = Vector(foot.station, side * (face - want + 0.1), foot.base - down)
+                    assert upright.is_inside(at), (
+                        f"the foot at {foot.station:.0f}mm is not {want:.2f}mm in, "
+                        f"{down:.2f}mm below its mouth"
+                    )
+                assert foot.spread == pytest.approx(
+                    (foot.boss + FOOT_RISE) * math.tan(math.radians(FOOT_ANGLE))
+                )
+                # The sole is on the ground and nothing hangs under it.
+                sole = Vector(foot.station, side * (face - foot.spread / 2.0), foot.step - 0.2)
+                assert not upright.is_inside(sole), "the foot digs into the deck"
 
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
@@ -481,35 +491,36 @@ class TestSockets:
                 assert not fitted.is_inside(corner), "the boss still has a square corner"
                 assert fitted.is_inside(flat), "the rounding ate the boss's flat"
 
-    def test_a_boss_is_open_toward_the_centreline(self, fitted, shape):
-        """A square peg in a closed hole can be no thicker than its bore, and the
-        mouth plane -- where a held foot bends hardest -- is the one section that
-        could never be made deeper. So the socket is a keyhole: a channel running
-        inboard from the bore, which the foot's wedge comes down into.
+    def test_a_boss_is_notched_to_let_its_foot_down_to_the_deck(self, fitted, shape):
+        """The boss stands 8mm proud on bare deck, so a foot that stopped on top
+        of it would be a post on a pedestal with its toe in the air. It is cut
+        through toward the centreline instead, the bore's own width and the
+        boss's whole height, and the foot comes down to the deck.
 
-        Prismatic, though the triangle inside it tapers, or the frame would be
-        a dovetail and would not lift out -- and the socket's whole depth, since
-        the triangle runs to the bottom of it.
+        Prismatic, though the triangle inside it tapers, or the frame would be a
+        dovetail and would not lift out.
         """
         bore = BAR + 2.0 * rigging.TOLERANCE
         for foot in shape.feet:
             for side in (-1.0, 1.0):
-                for under in (0.1, FOOT_REACH - 0.2, SOCKET_DEPTH - 0.3):
-                    z = foot.base - under
-                    for inboard in (bore / 2.0 + 0.2, bore / 2.0 + FOOT_REACH - 0.2):
-                        at = Vector(foot.station, side * (foot.half - inboard), z)
-                        assert not fitted.is_inside(at), (
-                            f"the channel at {foot.station:.0f}mm is blocked "
-                            f"{inboard:.1f}mm in, {under:.1f}mm down"
+                for up in (0.2, foot.boss - 0.2):
+                    for inboard in (bore / 2.0 + 0.2, bore / 2.0 + foot.spread - 0.3):
+                        at = Vector(
+                            foot.station,
+                            side * (foot.half - inboard),
+                            foot.step + up,
                         )
-                # And it is only the bore's own width: the boss is whole fore
-                # and aft of it, which is what still holds the stanchion there.
+                        assert not fitted.is_inside(at), (
+                            f"the notch at {foot.station:.0f}mm is blocked "
+                            f"{inboard:.1f}mm in, {up:.1f}mm up"
+                        )
+                # Only the bore's width of it: the boss is whole fore and aft.
                 beside = Vector(
                     foot.station + bore / 2.0 + 0.3,
-                    side * (foot.half - bore / 2.0 - 1.0),
-                    foot.base - 0.5,
+                    side * (foot.half - BOSS / 2.0 + 0.2),
+                    foot.step + 0.2,
                 )
-                assert fitted.is_inside(beside), "the channel is wider than the bore"
+                assert fitted.is_inside(beside), "the notch is wider than the bore"
 
     def test_fitting_the_awning_leaves_one_solid_no_wider_than_before(self, fitted, built_hull):
         assert fitted.is_valid

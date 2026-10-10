@@ -974,7 +974,7 @@ rather than meeting a square face -- a short bridge, held at both ends, but a
 bridge. Cutting the land away took it with it: the neck falls inside the hole
 now, and there is no knee material at that height to hang over anything.
 
-### Why the second pair moved to 0.545
+### Why the second pair moved twice
 
 The knees reaching the boss is what found it. The after 9-pounder's carriage
 stands at 0.606 and runs 174.8 to 188.8 along the boat; the second pair of
@@ -985,11 +985,27 @@ clash test said so.
 
 Steepening the angle does not fix it: even at 20 degrees the knee still grazes
 the bracket's forward corner, because it is the *depth* near the stanchion that
-fouls, not the reach along the bar. What fixes it is the pair standing where its
-own docstring always said it did. Midway between the two carriages is x = 163.4,
-or 0.545 of the length, which leaves 11.5mm either side. The pair's offset from
-the centreline does not move at all -- it comes out at 33.75mm either way -- so
-nothing else in the frame notices.
+fouls, not the reach along the bar. So it went to midway between the carriages,
+x = 163.4 or 0.545, which leaves 11.5mm either side.
+
+Which turned out to be the one station it could not have. The middle platform
+carries a pair of knees at **0.544**, x = 163.2, and the awning's own boss was
+already taking the outboard 6mm of their low arms -- silently, because the one
+test that probes those arms probes them further inboard than a 7mm boss reaches.
+The foot made it plain: a foot notches its boss a bore's width to get down to
+the deck, and that notch cut what was left of them.
+
+Laid out, the room is thin. A pair bars 2.8mm either side of its own station,
+being half a notch plus half a knee's siding. The platform's knees bar
+126.2-133.9, 141.5-147.1, 160.4-166.0 and 174.5-180.1; the carriages bar
+137.9-151.9 and 174.8-188.8. Between the guns that leaves two windows,
+151.9-160.4 and 166.0-174.5 -- and the midpoint of the guns, the 163.4 above,
+falls between them.
+
+So **0.555**, x = 166.5: 3.3mm clear of the 0.544 knees and 8.3mm clear of the
+after carriage, which is more than twice the 3.8 that failed. The pair's offset
+from the centreline does not move -- 33.75mm at either station -- so nothing
+else in the frame notices.
 
 Hollowing is only safe because of what a knee is actually for. The obvious
 lightening -- throw the triangle away and keep just the 45 degree bar -- throws
@@ -1068,22 +1084,36 @@ The swell is all a closed socket can give, and it is not enough: a square peg in
 a round-or-square hole can never be thicker than its bore, so the mouth plane was
 capped at the bar's own section by the shape of the joint, not by any choice.
 
-Opening the boss toward the centreline lifts the cap. The socket becomes a
-keyhole -- the bore, plus a channel running `FOOT_REACH` inboard of it -- and the
-stanchion grows a solid **right triangle** on its inboard face: the square
-corner on the mouth plane, one leg running inboard along it, the other running
-down the stanchion to the bottom of the socket, and the hypotenuse closing them
-at `FOOT_ANGLE` off the leg. The angle is what is named and the reach falls out
-of it, since the other leg is the socket's own depth.
+Opening the boss toward the centreline lifts the cap. The stanchion grows a
+solid **right triangle** on its inboard face, standing on the deck like a foot
+on the ground: the sole along the deck, the other leg up the stanchion to
+`FOOT_RISE` above the mouth plane, and the hypotenuse closing them at
+`FOOT_ANGLE`. The boss is notched the bore's own width and its whole height to
+let it down -- prismatic, though the triangle inside it tapers, or the frame
+would be a dovetail and would never lift out.
 
-A triangle rather than a swelling, and this is the whole of it: a swelling that
-tapers back in leaves a stub below itself, and a stub is what snaps. The first
-try at this was a kite, widest on the mouth plane and tapering away 4mm either
-side, which left **4.2mm of plain 3.4mm bar** at the end of every leg -- the
-same straight stick as before, just shorter. Drawn to the bottom of the socket
-instead, the triangle backs every height of the spigot, and above the mouth
-plane the knee has taken over before the triangle runs out. No length of leg is
-plain bar anywhere.
+It took three tries to get the shape right, and each wrong one is worth keeping.
+A **kite**, widest on the mouth plane and tapering away either side, left 4.2mm
+of plain bar at the end of every leg -- the same straight stick as before, only
+shorter, and a stick is what snaps. Drawn **down into the socket** instead, it
+backed the spigot, but the spigot was never the problem: the socket holds it on
+every side. And it put a flat shelf the width of the reach out over open air,
+which printing feet-up means a cantilever with nothing beneath it.
+
+The right way up is the obvious one. The sole is on the ground, the hypotenuse
+climbs the leg, and printed feet-up that hypotenuse *grows* as the print rises,
+by `FOOT_ANGLE` off the vertical -- inside the limit -- while the sole is a top
+surface wanting nothing under it. Nothing in the foot overhangs at all.
+
+It goes to the deck rather than stopping on the boss because the boss stands 8mm
+proud on bare deck, and a foot sitting on that is a post on a pedestal with its
+toe in the air. On the deck it bears, so the bending goes into the deck over the
+whole length of the sole instead of into the spigot.
+
+The hypotenuse is one straight line from the apex down to whatever the pair
+stands on, so a foot is as long as its own boss is tall: 9.53mm of sole on bare
+deck, 5.95 on the benches. The mouth plane gets the same 4.91mm either way,
+since it is the same line -- all the extra length is below it, on the ground.
 
 On the mouth plane the section stops being 3.4 square and becomes 3.4 by 8.31,
 28.25 mm²:
@@ -1104,25 +1134,11 @@ One detail carries the design, and one is a known cost. The channel is
 depth -- because a channel cut to the triangle's own shape would be a dovetail
 and the frame would never lift out.
 
-The cost is the square corner. The frame lies roof-down with its feet uppermost,
-so each layer is laid on the one below it and "below in the print" means *above
-in the boat*. The hypotenuse is safe either way: it narrows as the print rises
-and wants nothing under it, at `FOOT_ANGLE` or at any other. But probing boat-
-upward from the mouth plane, under where that square face lands, there is
-**nothing** -- 0.00mm of material a tenth of a millimetre above it, 0.56 at 2mm
-up, 2.30 at 5mm, the knee climbing inboard far too slowly and far too late. So
-it prints as a flat shelf `FOOT_REACH` wide, held along one edge only, and the
-layers that droop off it land on the one plane this whole section is about.
+It costs little of the boat: the boss's inboard wall is only 1.8mm thick beside
+the bore, and that is all the foot actually cuts through. The rest of the notch
+is air above the deck.
 
-A 45 degree run back to the leg would fix it and cost `FOOT_REACH` of height
-standing above the boss. That is a trade between a print defect and a spike on
-every stanchion, and it is the printer's to call, not the model's.
 
-It costs little of the boat. Most of the channel is cut inside the boss, which
-stands 8mm proud on bare deck; inboard of the boss it leaves a groove 2.5mm long,
-a bore wide and 0.5mm deep in the deck's surface, that being all the socket's
-floor is below it. The two pairs on the benches take it through the bench as
-well, 6.2mm of seat.
 
 ### Why not a second rail under the first
 

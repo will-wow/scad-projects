@@ -166,9 +166,10 @@ on the round with nothing under it. Two sharing a short bar aft cross, which is
 a union and leaves an X-brace.
 
 And each stanchion now has a **foot**: a solid right triangle on its inboard
-face, its square corner at the top of the boss, reaching 4.91mm in there and
-running down the hypotenuse to the bottom of the socket, so that no length of the
-leg is ever plain bar. The knees answer the head of a stanchion, and the socket holds the
+face, standing flat on the deck like a foot on the ground, with the hypotenuse
+climbing the leg to 8.5mm above the top of the boss. The sole is 9.53mm long
+where the boss stands 8mm proud and 5.95 on the benches; the boss is notched
+toward the centreline to let the foot down to the deck. The knees answer the head of a stanchion, and the socket holds the
 other end rather than hinging on it, so the bending peaks again right where the
 stanchion leaves its boss -- which the knees had left as the one bare section in
 the part, and which is where two of them snapped. The foot takes that section
@@ -176,13 +177,12 @@ from 3.4mm square to 32.72 mm², six times the strength against the frame
 splaying. The boss is open toward the centreline to let it down: the socket is a
 keyhole rather than a hole.
 
-The hypotenuse needs no support: the frame lies roof-down with its feet
-uppermost, so it narrows as the print rises. **Watch the square corner**, which
-does. It is a flat shelf 4.91mm wide held along one edge, with nothing under it
--- measured, there is no material at all a tenth of a millimetre beneath it --
-and the layers that droop off it land on the mouth plane, which is the section
-the foot exists to strengthen. If the first print shows it, the cure is a 45
-degree run back to the leg, at the cost of a 4.91mm spike above each boss. The channel in the boss is straight-sided though the wedge inside it
+Nothing in the foot needs support. The frame lies roof-down with its feet
+uppermost, so the hypotenuse grows as the print rises -- 30 degrees off the
+vertical, inside the limit -- and the sole is a top surface with nothing beneath
+it to bridge. This is the one orientation of the triangle that is free of
+overhang: inverted, its sole becomes a shelf the width of the reach hanging over
+open air. The channel in the boss is straight-sided though the wedge inside it
 tapers, which is what lets the frame still lift out.
 
 Each stanchion now runs into its socket at full section rather than stepping down to a
