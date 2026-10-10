@@ -1066,9 +1066,21 @@ capped at the bar's own section by the shape of the joint, not by any choice.
 
 Opening the boss toward the centreline lifts the cap. The socket becomes a
 keyhole -- the bore, plus a channel running `FOOT_REACH` inboard of it -- and the
-stanchion grows a solid wedge on its inboard face, its point on the mouth plane
-and tapering back to the face 4mm above and below. The section there stops being
-3.4 square and becomes 32.72 mm² in two slabs:
+stanchion grows a solid **right triangle** on its inboard face: the square
+corner on the mouth plane, one leg running inboard along it, the other running
+down the stanchion to the bottom of the socket, and the hypotenuse closing them.
+
+A triangle rather than a swelling, and this is the whole of it: a swelling that
+tapers back in leaves a stub below itself, and a stub is what snaps. The first
+try at this was a kite, widest on the mouth plane and tapering away 4mm either
+side, which left **4.2mm of plain 3.4mm bar** at the end of every leg -- the
+same straight stick as before, just shorter. Drawn to the bottom of the socket
+instead, the triangle backs every height of the spigot, and above the mouth
+plane the knee has taken over before the triangle runs out. No length of leg is
+plain bar anywhere.
+
+On the mouth plane the section stops being 3.4 square and becomes 32.72 mm² in
+two slabs:
 
 | | section modulus | against a plain stanchion |
 | --- | --- | --- |
@@ -1082,17 +1094,21 @@ where the wedge puts its material. Nothing limits the reach but taste -- all ten
 feet probed clear to the centreline, the old carriage clash having been a knee
 running *along* the boat where this runs across it.
 
-Two details carry the design. The wedge is 45 degrees on **both** faces, because
-the frame prints roof-down with its feet uppermost: the under face is the
-overhang, and a flat upper face would be a ledge cantilevered off the stanchion
-with nothing beneath it to print onto. And the channel is **prismatic** where the
-wedge tapers -- constant in plan, full depth -- because a channel cut to the
-wedge's own shape would be a dovetail and the frame would never lift out.
+Two details carry the design. The short taper **above** the mouth plane is not
+structure, it is the printer's: the frame lies roof-down with its feet uppermost,
+so the triangle's broad end would otherwise be a ledge `FOOT_REACH` wide starting
+in mid-air. Running it back to the face over that same distance makes the face a
+45 degree overhang, the steepest the model allows. The long hypotenuse below
+needs no such care, since it narrows as the print rises. And the channel is
+**prismatic** where the triangle tapers -- constant in plan, the socket's full
+depth -- because a channel cut to the triangle's own shape would be a dovetail
+and the frame would never lift out.
 
-It costs less of the boat than it sounds. A pair standing on bare deck has 8mm of
-boss above the deck and the channel is only 4.3 deep, so it is cut entirely
-inside the boss and the deck is not touched at all; only the two pairs on the
-benches take it into the bench, 2.5mm of the 6.2 there.
+It costs little of the boat. Most of the channel is cut inside the boss, which
+stands 8mm proud on bare deck; inboard of the boss it leaves a groove 2.5mm long,
+a bore wide and 0.5mm deep in the deck's surface, that being all the socket's
+floor is below it. The two pairs on the benches take it through the bench as
+well, 6.2mm of seat.
 
 ### Why not a second rail under the first
 

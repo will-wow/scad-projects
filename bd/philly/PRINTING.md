@@ -165,9 +165,10 @@ between the bar's rounded edges: as wide as the bar, a knee stood its outer lip
 on the round with nothing under it. Two sharing a short bar aft cross, which is
 a union and leaves an X-brace.
 
-And each stanchion now has a **foot**: a solid wedge on its inboard face,
-reaching 4mm in at the top of the boss and tapering back at 45 degrees 4mm above
-and below. The knees answer the head of a stanchion, and the socket holds the
+And each stanchion now has a **foot**: a solid right triangle on its inboard
+face, its square corner at the top of the boss, reaching 4mm in there and running
+down the hypotenuse to the bottom of the socket, so that no length of the leg is
+ever plain bar. The knees answer the head of a stanchion, and the socket holds the
 other end rather than hinging on it, so the bending peaks again right where the
 stanchion leaves its boss -- which the knees had left as the one bare section in
 the part, and which is where two of them snapped. The foot takes that section
@@ -176,8 +177,8 @@ splaying. The boss is open toward the centreline to let it down: the socket is a
 keyhole rather than a hole.
 
 Nothing about it needs support. The frame lies roof-down with its feet uppermost,
-so the wedge's under face is a 45 degree overhang and its upper face is the same
-in reverse. The channel in the boss is straight-sided though the wedge inside it
+so the hypotenuse narrows as the print rises, and the short taper on the other
+side of the square corner is a 45 degree overhang. The channel in the boss is straight-sided though the wedge inside it
 tapers, which is what lets the frame still lift out.
 
 Each stanchion now runs into its socket at full section rather than stepping down to a

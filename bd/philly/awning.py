@@ -129,9 +129,14 @@ SOCKET_DROP = 0.5
 FOOT_CHAMFER = 0.8
 MOUTH_CHAMFER = 0.6
 
-# The foot proper: a solid wedge on the stanchion's inboard face, widest on the
-# mouth plane and tapering away at 45 degrees above and below it. How far it
-# reaches in from that face is `FOOT_REACH`.
+# The foot proper: a solid right triangle on the stanchion's inboard face, its
+# square corner on the mouth plane and its hypotenuse running down to the bottom
+# of the socket. How far it reaches in from that face is `FOOT_REACH`.
+#
+# The point of a triangle rather than a swelling is that no length of the leg is
+# left plain bar. A swelling that tapers back in leaves a stub below it, and a
+# stub is what snaps: the whole of the spigot is backed now, and above the mouth
+# plane the knee takes over before the triangle has run out.
 #
 # A square peg in a closed hole can be no thicker than its bore, so the only
 # section the mouth plane could ever have was the bar's own -- and the mouth
@@ -490,16 +495,25 @@ def _wedge(foot: Foot, side: float) -> Part:
     it is solid rather than a fin: it deepens the section against the frame
     splaying and widens it against the frame racking fore and aft at once.
 
-    Its point is on the mouth plane, `FOOT_REACH` in from the stanchion's
-    inboard face, and it runs back to that face `FOOT_REACH` above and below --
-    the 45 degrees `_foot_channel` cuts the socket to take.
+    A right triangle with its square corner on the mouth plane: one leg runs
+    inboard along that plane, the other runs down the stanchion to the bottom of
+    the socket, and the hypotenuse closes them. So no length of the leg is ever
+    plain bar -- the triangle backs the whole of the spigot, and above the mouth
+    plane the knee takes over.
+
+    The short taper above the mouth plane is not structure, it is the printer's.
+    The frame lies roof-down with its feet uppermost, so the triangle's broad end
+    would otherwise be a ledge `FOOT_REACH` wide starting in mid-air. Running it
+    back to the face over the same `FOOT_REACH` makes that face a 45 degree
+    overhang, the steepest this model allows. The long taper below needs no such
+    care: it narrows as the print rises.
     """
     face = side * (foot.half - BAR / 2.0)
     tip = side * (foot.half - BAR / 2.0 - FOOT_REACH)
     with BuildPart() as wedge:
         with BuildSketch(Plane.YZ.offset(foot.station - BAR / 2.0)):
             Polygon(
-                (face, foot.base - FOOT_REACH),
+                (face, foot.socket_floor),
                 (face, foot.base + FOOT_REACH),
                 (tip, foot.base),
                 align=None,
@@ -744,11 +758,12 @@ def fit_awning(
             mouth = Pos(*place, foot.base - MOUTH_CHAMFER) * extrude(
                 Rectangle(bore, bore), amount=MOUTH_CHAMFER, taper=-45.0
             )
-            # The channel inboard of the bore that lets the foot's wedge down
+            # The channel inboard of the bore that lets the foot's triangle down
             # past the boss. Prismatic, so the frame still lifts straight out
-            # though the wedge inside it tapers.
+            # though the triangle inside it tapers, and the socket's own depth,
+            # since the triangle runs all the way to the bottom.
             run = FOOT_REACH
-            deep = FOOT_REACH + TOLERANCE + 1.0
+            deep = SOCKET_DEPTH + 1.0
             edge = foot.half - bore / 2.0
             channel = Pos(
                 foot.station,

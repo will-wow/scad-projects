@@ -294,6 +294,35 @@ class TestFrame:
                         f"{under:.2f} under its mouth"
                     )
 
+    def test_no_length_of_a_leg_is_left_plain_bar(self, upright, shape):
+        """What snaps is a straight stick, so there is not one. The foot is a
+        right triangle with its square corner on the mouth plane, running down
+        to the bottom of the socket, so every height of the spigot is backed;
+        above the mouth plane it tapers off, and the knee has taken over by
+        then.
+
+        Walked down the leg, measuring how far the foot stands in from the
+        stanchion's inboard face.
+        """
+        for foot in shape.feet:
+            for side in (-1.0, 1.0):
+                deep = foot.base - foot.socket_floor
+                for under in (0.2, 0.25 * deep, 0.5 * deep, 0.75 * deep, deep - 0.4):
+                    want = FOOT_REACH * (1.0 - under / deep)
+                    face = foot.half - BAR / 2.0
+                    for off, solid in ((-0.1, True), (0.1, False)):
+                        at = Vector(
+                            foot.station,
+                            side * (face - want - off),
+                            foot.base - under,
+                        )
+                        assert upright.is_inside(at) == solid, (
+                            f"the foot at {foot.station:.0f}mm is not {want:.2f}mm "
+                            f"in, {under:.2f}mm under its mouth"
+                        )
+                # The knee is already carrying the leg where the triangle ends.
+                assert FOOT_REACH > KNEE_CLEAR, "there is a plain band above the mouth plane"
+
     def test_the_corners_are_filled_to_the_roof(self, lines, shape):
         """The rails and crossbars stop at the stanchion's centre; the stanchion has to run
         up to their tops, or each end corner prints with a notch in the roof."""
@@ -467,13 +496,14 @@ class TestSockets:
         could never be made deeper. So the socket is a keyhole: a channel running
         inboard from the bore, which the foot's wedge comes down into.
 
-        Prismatic, though the wedge inside it tapers, or the frame would be a
-        dovetail and would not lift out.
+        Prismatic, though the triangle inside it tapers, or the frame would be
+        a dovetail and would not lift out -- and the socket's whole depth, since
+        the triangle runs to the bottom of it.
         """
         bore = BAR + 2.0 * rigging.TOLERANCE
         for foot in shape.feet:
             for side in (-1.0, 1.0):
-                for under in (0.1, FOOT_REACH - 0.2):
+                for under in (0.1, FOOT_REACH - 0.2, SOCKET_DEPTH - 0.3):
                     z = foot.base - under
                     for inboard in (bore / 2.0 + 0.2, bore / 2.0 + FOOT_REACH - 0.2):
                         at = Vector(foot.station, side * (foot.half - inboard), z)
