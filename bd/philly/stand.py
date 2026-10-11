@@ -78,7 +78,7 @@ class Line:
 class Lettering:
     """The name on the base, the first line innermost."""
 
-    lines: tuple[Line, ...] = (Line("USS PHILADELPHIA", 8.0), Line("1776 GUNBOAT", 6.0))
+    lines: tuple[Line, ...] = (Line("PHILADELPHIA", 8.0), Line("1776 US GUNDELO", 6.0))
     weight: float = 700.0
     """on the font's own axis, 400 to 700"""
     grow: float = 0.15
