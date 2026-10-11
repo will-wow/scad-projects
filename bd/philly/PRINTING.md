@@ -54,7 +54,7 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-sails.3mf`         | 69 x 174.5 x 6.5mm    | as exported, flat          | two separate sails in one file    |
 | `philadelphia-awning.3mf`        | 148.3 x 72.1 x 37.0mm | as exported, **roof down** | stanchions point up; do not flip it     |
 | `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.6mm  | as exported, flat          | print it with the sails' settings |
-| `philadelphia-stand.3mf`         | 20 x 80 x 120mm       | as exported, **on end**    | the X flat on the bed             |
+| `philadelphia-stand.3mf`         | 30 x 80 x 120mm       | as exported, **on end**    | the X flat on the bed             |
 
 The stand stands 120mm tall on its end so that every wall rises straight up:
 nothing overhangs but the lettering, whose undersides are ledges 0.6mm deep.

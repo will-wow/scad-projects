@@ -4,9 +4,11 @@
 
 The section is a bar along the bottom and another along the top, joined by an X
 whose arms meet in a solid neck, so the two triangles left either side are open
-right through. It prints standing on one end, the X flat on the bed: every wall
-then rises straight up and nothing overhangs but the lettering, which stands
-0.6mm proud.
+right through. The X is lopsided: its lower V rises far more steeply than its
+upper one, which tips the lettering on the base up toward someone looking down
+at it, while the cradle keeps the shallow upper V. It prints standing on one
+end, the X flat on the bed: every wall then rises straight up and nothing
+overhangs but the lettering, which stands 0.6mm proud.
 
 The cradle -- the word is Falconer's, for the frame a hull rests in ashore -- is
 the hull's own bottom, set out by a clearance so the boat lifts in and out.
@@ -109,9 +111,12 @@ class Stand:
     """the middle of the stand, as a fraction of the hull's length from the bow"""
     length: float = 120.0
     breadth: float = 80.0
-    height: float = 20.0
     base: float = 2.0
     """the bottom bar's thickness at the sides"""
+    base_v: float = 16.0
+    """how far the X's lower arms climb, from the bottom bar at the sides to the crossing"""
+    cradle_v: float = 6.0
+    """how far its upper arms climb, from the crossing to the top bar at the sides"""
     top: float = 6.0
     """the top bar's thickness at the sides"""
     neck: float = 24.0
@@ -123,14 +128,23 @@ class Stand:
     lettering: Lettering | None = field(default_factory=Lettering)
 
     @property
-    def slope(self) -> float:
-        """The rise of each arm of the X per millimetre across."""
-        return (self.height - self.top - self.base) / self.breadth
+    def height(self) -> float:
+        return self.base + self.base_v + self.cradle_v + self.top
 
     @property
     def crossing(self) -> float:
         """The height at which the arms of the X cross."""
-        return (self.base + self.height - self.top) / 2.0
+        return self.base + self.base_v
+
+    @property
+    def base_slope(self) -> float:
+        """The rise of a lower arm per millimetre inboard."""
+        return self.base_v / (self.breadth / 2.0)
+
+    @property
+    def cradle_slope(self) -> float:
+        """The rise of an upper arm per millimetre outboard."""
+        return self.cradle_v / (self.breadth / 2.0)
 
     @property
     def floor(self) -> float:
@@ -138,33 +152,28 @@ class Stand:
         return self.height - self.cradle
 
 
-def _extruded(points: list[tuple[float, float]], x0: float, length: float) -> Part:
-    """A section given as (y, z) points, run fore and aft from `x0`."""
-    face = make_face(Polyline(*[(x0, y, z) for y, z in points], close=True))
-    return extrude(face, amount=length, dir=(1.0, 0.0, 0.0))
-
-
 def _body(stand: Stand, x0: float) -> Part:
-    """The X, its bottom at z = 0: a block with the two triangles either side cut away.
+    """The X, its bottom at z = 0, run fore and aft from `x0`.
 
-    Each triangle is the space between the arms, stopped short of the crossing by
-    the neck.
+    One outline round the whole section; each side's notch is the gap between the
+    arms, stopped short of the crossing by the neck.
     """
     half = stand.breadth / 2.0
-    block = _extruded(
-        [(-half, 0.0), (half, 0.0), (half, stand.height), (-half, stand.height)], x0, stand.length
-    )
     inner = stand.neck / 2.0
-    spread = stand.slope * inner
-    for side in (-1.0, 1.0):
-        gap = [
-            (side * half, stand.base),
-            (side * inner, stand.crossing - spread),
-            (side * inner, stand.crossing + spread),
-            (side * half, stand.height - stand.top),
-        ]
-        block = as_part(block - _extruded(gap, x0, stand.length), "opening the X")
-    return block
+    below = stand.crossing - stand.base_slope * inner
+    above = stand.crossing + stand.cradle_slope * inner
+    eaves = stand.height - stand.top
+    starboard = [
+        (half, 0.0),
+        (half, stand.base),
+        (inner, below),
+        (inner, above),
+        (half, eaves),
+        (half, stand.height),
+    ]
+    section = starboard + [(-y, z) for y, z in reversed(starboard)]
+    face = make_face(Polyline(*[(x0, y, z) for y, z in section], close=True))
+    return extrude(face, amount=stand.length, dir=(1.0, 0.0, 0.0))
 
 
 def _cradle(stand: Stand, at: Scaled, x0: float, top: float) -> Part:
@@ -226,7 +235,7 @@ def _lettering(stand: Stand, lettering: Lettering, middle: float, z0: float) -> 
     """
     half = stand.breadth / 2.0
     run = half - stand.neck / 2.0
-    rise = stand.slope * run
+    rise = stand.base_slope * run
     across = float(np.hypot(run, rise))
 
     letters: list[Part] = []

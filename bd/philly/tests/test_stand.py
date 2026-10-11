@@ -80,10 +80,15 @@ def test_the_section_is_the_sketch(bare, frame):
     def solid(y: float, z: float) -> bool:
         return bare.is_inside(Vector(x0 + 5.0, y, z0 + z))
 
+    inboard = STAND.breadth / 2.0 - 26.0
+    lower = STAND.base + STAND.base_slope * inboard
+    upper = STAND.height - STAND.top - STAND.cradle_slope * inboard
     for side in (-1.0, 1.0):
-        assert solid(side * 30.0, 1.0), "the base"
-        assert solid(side * 39.0, 17.0), "the top, outboard of the cradle"
-        assert not solid(side * 26.0, 8.0), "the open triangle"
+        assert solid(side * 30.0, STAND.base / 2.0), "the base"
+        assert solid(side * 39.0, STAND.height - STAND.top / 2.0), "the top, outboard of the cradle"
+        assert solid(side * 26.0, lower - 0.5), "under the lower arm"
+        assert not solid(side * 26.0, (lower + upper) / 2.0), "the open triangle"
+        assert solid(side * 26.0, upper + 0.5), "over the upper arm"
         assert not solid(side * (STAND.neck / 2.0 + 0.5), STAND.crossing), (
             "just outboard of the neck"
         )
@@ -120,7 +125,7 @@ def test_the_cradle_leaves_a_floor_and_a_rim(at, frame):
     x0, _, z0 = frame
     for x in np.linspace(x0, x0 + STAND.length, 13):
         corner = at.inside(float(x), at.bottom(float(x)), -STAND.clearance)
-        underside = STAND.crossing + STAND.slope * corner
+        underside = STAND.crossing + STAND.cradle_slope * corner
         assert STAND.floor - underside >= 2.0
         mouth = at.inside(float(x), z0 + STAND.height, -STAND.clearance)
         assert STAND.breadth / 2.0 - mouth >= 2.0
