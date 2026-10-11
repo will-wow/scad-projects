@@ -157,20 +157,52 @@ Each one now carries **knees** where it meets the bars -- one into the crossbar
 and one into each rail it has -- because a dropped boat snapped a stanchion off
 at that corner. Each is a bar leaning 30 degrees off the stanchion, about 15mm
 along and 27 down, reaching to a millimetre above the boss, because a stanchion
-then broke under the toe of the old short one. They cost 2.02 cm³ and print as
-part of the stanchion: the outer face points up, the diagonal is anchored on the
-bar at its toe and leans away from there, and nothing in one bridges or
-overhangs. Each is 2.2mm wide rather than the bar's 3.4, which is the flat
-between the bar's rounded edges: as wide as the bar, a knee stood its outer lip
-on the round with nothing under it. Two sharing a short bar aft cross, which is
-a union and leaves an X-brace.
+then broke under the toe of the old short one. They print as part of the
+stanchion: the outer face points up, the diagonal is anchored on the bar at its
+toe and leans away from there, and nothing in one bridges or overhangs. Each is
+2.2mm wide rather than the bar's 3.4, which is the flat between the bar's
+rounded edges: as wide as the bar, a knee stood its outer lip on the round with
+nothing under it. Two sharing a short bar aft cross, which is a union and leaves
+an X-brace.
 
-Each stanchion now runs into its socket at full section rather than stepping down to a
-round peg, and **its foot is chamfered 0.8mm** against a **0.6mm chamfer round
-the mouth of each socket**, so the frame finds its holes when it is dropped in
-slightly askew. The feet are the last thing the printer lays,
-at the top of the part, so the chamfer faces up and asks nothing of it -- but it
-does mean the very tips are small and want the same slow walls the stanchion tops do.
+The diagonal itself is **2.4mm**, up from 1.4. At 1.4 it was the thinnest member
+in the part and a strut leaning 30 degrees off the vertical, and that is what it
+printed like: a couple of them cracked or shifted on the bed. At 2.4 the
+diagonal is 2.4 by 2.2 and carries **211 N** against the 123 it did, and the
+hole inside the knee shrinks to pay for it rather than the frame growing.
+
+And each stanchion has a **foot**: solid material down its inboard face,
+tapering off the leg at 30 degrees from an apex 8.5mm above the top of the boss
+to a toe standing 4mm in, and running straight from there to the bottom of the
+socket. The knees answer the head of a stanchion; the foot answers everything
+below them, which the knees had left as bare 3.4mm bar and which is where they
+keep snapping. Over the whole of that length the section is 3.4 by 7.4,
+25.16 mm², **4.7 times** the strength against the frame splaying.
+
+The socket is a **keyhole** rather than a hole -- the bore, with a slot beside
+it running toward the centreline, bored to the same depth. That matters most on
+the quarterdeck benches: a seat stands 6.2mm above the deck while the socket
+still reaches 8.5mm down, so a foot that stopped on the seat left 6.7mm of plain
+stick below it. The slot is cut clean through the bench instead.
+
+One thing to expect on the benches. The slot comes out through the front face
+of each seat, so there is an open notch there rather than a blind pocket, with
+the toe standing 0.25mm proud at the forward pair and 0.55 at the after one.
+That is deliberate, and it is what a 4mm toe costs.
+
+Nothing in the foot needs support. The frame lies roof-down with its feet
+uppermost, so the taper *grows* as the print rises -- 30 degrees off the
+vertical, inside the limit -- and the bottom of the leg is a top surface with
+nothing beneath it to bridge. Everything at and below the mouth plane is
+straight-sided, which is both what prints cleanly and what lets the frame lift
+back out: a slot cut to the taper's own shape would be a dovetail.
+
+Each stanchion runs into its socket at full section, and **the bottom of each
+leg is chamfered 0.8mm** all round -- across the foot as well as the bar --
+against a **0.6mm chamfer round the mouth of each socket**, so the frame finds
+its holes when it is dropped in slightly askew. The feet are the last thing the
+printer lays, at the top of the part, so the chamfer faces up and asks nothing
+of it.
 
 The bar across the forward well **bridges about 34.4mm on each side of the
 tube**. That is long, but the tube standing on the bottom halves what would

@@ -915,12 +915,14 @@ a brace. The stress concentration was most of the benefit anyway.
 
 ### Then it broke under the knee, so the knees went long and hollow
 
-Which is what the arithmetic above says should happen. The stanchion is a column
-pinned in its socket and built in at the frame's corner, so under racking the
-moment runs from nothing at the foot to its worst at the head: `M(z) = F·z`
+Which is what the arithmetic says should happen, if the foot is taken as a pin:
+a column pinned in its socket and built in at the frame's corner carries a
+moment running from nothing at the foot to its worst at the head, `M(z) = F·z`
 measured up from the socket. The knee carries the head, which moves the worst
 *plain* section down to its toe -- and at 6mm that toe still sat at **70%** of
 the peak. It broke there, exactly where the diagram says it should.
+
+That model is wrong, and the next two sections are the cost of it. Keep reading.
 
 The cure is a longer knee, and the cost of a longer solid one is a lot of
 material and a lot of hidden boat: a triangle's area goes as the square of its
@@ -972,7 +974,7 @@ rather than meeting a square face -- a short bridge, held at both ends, but a
 bridge. Cutting the land away took it with it: the neck falls inside the hole
 now, and there is no knee material at that height to hang over anything.
 
-### Why the second pair moved to 0.545
+### Why the second pair moved twice
 
 The knees reaching the boss is what found it. The after 9-pounder's carriage
 stands at 0.606 and runs 174.8 to 188.8 along the boat; the second pair of
@@ -983,11 +985,27 @@ clash test said so.
 
 Steepening the angle does not fix it: even at 20 degrees the knee still grazes
 the bracket's forward corner, because it is the *depth* near the stanchion that
-fouls, not the reach along the bar. What fixes it is the pair standing where its
-own docstring always said it did. Midway between the two carriages is x = 163.4,
-or 0.545 of the length, which leaves 11.5mm either side. The pair's offset from
-the centreline does not move at all -- it comes out at 33.75mm either way -- so
-nothing else in the frame notices.
+fouls, not the reach along the bar. So it went to midway between the carriages,
+x = 163.4 or 0.545, which leaves 11.5mm either side.
+
+Which turned out to be the one station it could not have. The middle platform
+carries a pair of knees at **0.544**, x = 163.2, and the awning's own boss was
+already taking the outboard 6mm of their low arms -- silently, because the one
+test that probes those arms probes them further inboard than a 7mm boss reaches.
+The foot made it plain: a foot notches its boss a bore's width to get down to
+the deck, and that notch cut what was left of them.
+
+Laid out, the room is thin. A pair bars 2.8mm either side of its own station,
+being half a notch plus half a knee's siding. The platform's knees bar
+126.2-133.9, 141.5-147.1, 160.4-166.0 and 174.5-180.1; the carriages bar
+137.9-151.9 and 174.8-188.8. Between the guns that leaves two windows,
+151.9-160.4 and 166.0-174.5 -- and the midpoint of the guns, the 163.4 above,
+falls between them.
+
+So **0.555**, x = 166.5: 3.3mm clear of the 0.544 knees and 8.3mm clear of the
+after carriage, which is more than twice the 3.8 that failed. The pair's offset
+from the centreline does not move -- 33.75mm at either station -- so nothing
+else in the frame notices.
 
 Hollowing is only safe because of what a knee is actually for. The obvious
 lightening -- throw the triangle away and keep just the 45 degree bar -- throws
@@ -1015,21 +1033,132 @@ the rail spans aft did the same by 6.5 and 9.4.
 It was buying nothing. Cutting the hole up through the bar's own face instead
 leaves the diagonal landing on the bar at a toe `KNEE_WEB / sin` long, and that
 is not an arbitrary number: it makes the bond and the diagonal it anchors
-equally strong at any angle. At 30 degrees the toe is 1.62mm, so 3.56mm² of
-layer bond taking the diagonal's thrust at 0.87 of its axis -- **123 N** -- and
-the diagonal is 1.4 by 2.2 taken across the layers at the same lean -- **123 N**.
+equally strong at any angle. At 30 degrees the toe is 2.77mm, so 6.10mm² of
+layer bond taking the diagonal's thrust at 0.87 of its axis -- **211 N** -- and
+the diagonal is 2.4 by 2.2 taken across the layers at the same lean -- **211 N**.
 The sine cancels, so steepening a knee does not change which end gives first.
 
 What a knee loses with the land is lever arm on nothing: the land is bonded
 along its whole length to a bar that is already the chord, and the only other
 thing it did was stiffen the rail in bending, which is not what breaks. The land
-down the **stanchion** stays, because at `KNEE_WEB` from the centreline it is
-inside the stanchion's own 1.7mm half-width -- invisible, and free.
+down the **stanchion** stays, because held to the stanchion's own 1.7mm
+half-width it is invisible, and free. It is held there rather than taken from
+`KNEE_WEB`, which is what it used to be: widening the web to 2.4 pushed it 0.7mm
+out past the face, and a rib down every leg for the knee's whole length -- four
+to a stanchion -- is not what anybody asked for. Nothing in the suite noticed,
+so there is a test for it now.
 
-So a knee is now its diagonal and its two toes: 11.90 cm³ of frame against
+So a knee is its diagonal and its two toes: 11.90 cm³ of frame against
 12.74. The corner itself is left to the stanchion, which runs up through the
 bars to the roof and fills it. And two knees sharing a short bar may now cross
 without consequence -- a union, and a genuine X-brace between those stanchions.
+
+### The foot is held, not hinged, and everything above was the wrong end
+
+Twice more a stanchion snapped, and both times just where it left its boss --
+which the model above says is the *least* loaded section in the whole column.
+
+The socket is 8.5mm deep and the foot has `TOLERANCE` to rock in, so it tilts
+4.0 degrees and then bears on the socket's walls. That is a built-in foot, not a
+pinned one, and a column built in at both ends carries `F·L/2` at each of them
+rather than `F·L` at one. So there is a second peak, as big as the one at the
+head, sitting exactly on the mouth plane.
+
+Every knee in this frame answers the head. Worse, they answer it so thoroughly
+-- tapering out a millimetre above the boss -- that every section above the
+mouth plane carries added material and the mouth plane carries none. The work in
+the sections above made the bare band at the bottom the weakest thing in the
+part.
+
+The first answer to it was nearly free. The mouth's lead-in chamfer is a 45
+degree funnel opening to 5.16mm at the boss's top face, and a plain square
+stanchion passes straight through it leaving that annulus full of air. A collar
+filling it put 4.6mm square on the mouth plane for 0.06 cm³, inheriting the
+bore's own clearance rather than needing one of its own.
+
+It is gone again, and the reason is worth keeping. It read as a neck on every
+stanchion, which is a lot of visual noise for what it bought -- and what it
+bought, once the triangle below arrived, was only section *fore and aft*: it
+carried that from 2.44x to 3.22x and left athwartships untouched. Athwartships is
+the way the frame fails. So it went, and the triangle grew instead.
+
+### A foot that is actually a foot
+
+The swell is all a closed socket can give, and it is not enough: a square peg in
+a round-or-square hole can never be thicker than its bore, so the mouth plane was
+capped at the bar's own section by the shape of the joint, not by any choice.
+
+Opening the boss toward the centreline lifts the cap. The stanchion grows solid
+material on its inboard face: a taper off the leg at `FOOT_ANGLE`, from an apex
+`FOOT_RISE` above the mouth plane down to a toe standing `FOOT_TOE` in, running
+straight from there to the bottom of the socket. The socket becomes a keyhole --
+the bore, and a slot beside it the same depth -- so the foot goes the whole way
+down with the leg.
+
+It took four tries, and each wrong one is worth keeping. A **kite**, widest on
+the mouth plane and tapering away either side, left 4.2mm of plain bar at the
+end of every leg -- the same straight stick as before, only shorter, and a stick
+is what snaps. Drawn **down into the socket** instead, it backed the spigot, but
+it also put a flat shelf the width of the reach out over open air, which
+printing feet-up means a cantilever with nothing beneath it.
+
+The third one **stood on the deck and stopped there**, sole flat on the ground.
+That one printed cleanly and looked right, and it was still wrong -- it took a
+screenshot of the sliced plate to see it. It is exactly right for a pair on bare
+deck, where the boss stands 8mm proud and the socket's floor is only half a
+millimetre below the sole. On the
+quarterdeck benches it is not: a seat is 6.2mm up and the socket still reaches
+8.5mm down, so **6.7mm of the leg below the sole was plain 3.4mm bar**, buried
+where nobody looks for it. Three pairs looked right and two broke.
+
+Laid out, the five pairs went:
+
+| pair | stands on | plain bar below the sole |
+| --- | --- | --- |
+| 123.6, 166.5 | deck | 0.50mm |
+| 222.0, 246.0 | **benches** | **6.70mm** |
+| 265.5 | deck | 0.50mm |
+
+So the foot runs to the bottom of the leg and the slot is bored the full depth
+of the socket, cut clean through the bench. There is no sole any more: the
+inboard face runs straight from the knuckle down to the socket's floor, and the
+leg's bottom is one face 3.4 by 7.4 with the lead-in chamfer round all of it.
+
+The taper's point is cut off at the toe so that **everything at and below the
+mouth plane is prismatic**, which is what lets the slot be a plain rectangular
+cut -- a slot following the taper would be a dovetail and the frame would never
+lift out. It is also less reach inboard toward the carriages: the old straight
+hypotenuse was 9.53mm in at the deck, this is 4.
+
+Printed feet-up the taper *grows* as the print rises, by `FOOT_ANGLE` off the
+vertical -- inside the limit -- and the bottom of the leg is a top surface
+wanting nothing under it. Nothing in the foot overhangs at all.
+
+The section stops being 3.4 square and becomes 3.4 by 7.4, 25.16 mm², and does
+so over the whole length of the leg rather than at one plane:
+
+| | section modulus | against a plain stanchion |
+| --- | --- | --- |
+| athwartships | 31.03 mm³ | **4.74x** |
+| fore and aft | 14.26 mm³ | **2.18x** |
+
+A little less at the mouth plane than the 5.97x the pointed foot gave there, and
+a great deal more everywhere else, which is where it was breaking.
+
+Inboard rather than any other way because the frame fails by splaying: a
+stanchion whose head goes outboard is in tension on its inboard face, which is
+where the material goes.
+
+The cost is paid by the benches. A 4mm toe is wider than the bench has room for:
+a bench reaches 8.8mm in from the side and those two pairs are pulled further
+inboard than the others by their own bosses, so the slot comes out through the
+front face of the seat. Measured on the built hull, the toe stands 0.25mm proud
+at 222 and 0.55mm at 246, and each bench carries an open notch at its front
+rather than a blind pocket. Taken deliberately: the alternative was a 3mm toe
+everywhere, which stays buried but gives up a quarter of the section modulus,
+and section is what this whole part keeps running out of.
+
+
 
 ### Why not a second rail under the first
 
