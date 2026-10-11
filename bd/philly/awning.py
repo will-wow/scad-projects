@@ -52,10 +52,9 @@ from rig import TOLERANCE, Rig, neck, neck_radius, sail
 BAR = 3.4
 
 # How a knee is proportioned: the angle its diagonal leans off the stanchion,
-# how far short of the boss its taper ends, and how wide the three bars it is
-# made of are. A knee is hollow -- what it is for is the taper at each toe and
-# the diagonal between them, and the middle of a solid one is material doing
-# nothing but hiding the boat.
+# how far short of the boss its taper ends, and how wide the diagonal is. A knee
+# is hollow -- what it is for is the diagonal and the taper at each toe, and the
+# middle of a solid one is material doing nothing but hiding the boat.
 #
 # Laid roof-down a knee's outer face points up, so its profile shrinks going up
 # whatever the angle; the only face that leans is the hole's, and leaning the
@@ -82,6 +81,16 @@ def knee_reach(free: float) -> tuple[float, float]:
     lean = np.tan(np.radians(KNEE_ANGLE))
     along = (free - KNEE_CLEAR) * lean + BAR / 2.0
     return float(along), float(along / lean)
+
+
+def knee_hollow(along: float, down: float) -> float:
+    """How far out the hole inside a knee is scaled, about the right angle.
+
+    Insetting the diagonal by `KNEE_WEB` from the hypotenuse scales the whole
+    triangle by this much, which is what leaves a diagonal of constant width
+    rather than a wedge. Below zero there is no room for a hole at all.
+    """
+    return 1.0 - KNEE_WEB * float(np.hypot(along, down)) / (along * down)
 
 
 def knee_section(edge: float) -> float:
@@ -186,8 +195,7 @@ class Awning:
     two windows between the guns, 151.9-160.4 and 166.0-174.5, and the midpoint
     between them -- 163.4 -- is in neither, the knees at 0.544 standing there.
     So 0.555: 3.3mm clear of those knees, 8.3mm clear of the after carriage, and
-    the gun can still run out under the frame.
-    The next two stand on the
+    the gun can still run out under the frame. The next two stand on the
     quarterdeck's benches, and the last on the deck just aft of them, which
     carries the frame nearly to the transom as the museum's model has it.
     Further aft the hull closes in fast -- the inside narrows from 15mm of
@@ -270,8 +278,7 @@ class Frame:
     top: float
     """the height of its top: planar, so one number"""
     feet: tuple[Foot, ...]
-    nodes: tuple[tuple[float, float], ...]
-    """the side rail as (station, half-width) points, one at each pair of stanchions"""
+    """every pair, in order bow to stern; the side rail runs through them"""
     clips: tuple[float, float]
     """how far out along the first and the last crossbar the canvas clips on"""
     neck: float
@@ -281,11 +288,7 @@ class Frame:
     @property
     def bars(self) -> tuple[float, ...]:
         """Crossbar stations: one over every pair of stanchions."""
-        return tuple(station for station, _ in self.nodes)
-
-    def half_at(self, station: float) -> float:
-        """The side rail's offset at any station, along the polyline through the feet."""
-        return float(np.interp(station, [n[0] for n in self.nodes], [n[1] for n in self.nodes]))
+        return tuple(foot.station for foot in self.feet)
 
 
 # Points round the outboard half of a boss, for measuring it against the side.
@@ -409,16 +412,13 @@ def frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | None = No
     return Frame(
         top=top,
         feet=tuple(feet),
-        nodes=tuple((f.station, f.half) for f in feet),
         clips=(clip(feet[0]), clip(feet[-1])),
         neck=neck_radius(spec, lines, rig),
         clip_length=rig.clip_length,
     )
 
 
-def _span(
-    a: tuple[float, float], b: tuple[float, float], z: float, section: float, edge: float
-) -> Part:
+def _span(a: tuple[float, float], b: tuple[float, float], z: float, edge: float) -> Part:
     """A bar between two points in plan, at height `z`.
 
     Placed by its midpoint and angle, which is the least fiddly way to lay a
@@ -428,7 +428,7 @@ def _span(
     """
     length = float(np.hypot(b[0] - a[0], b[1] - a[1]))
     angle = float(np.degrees(np.arctan2(b[1] - a[1], b[0] - a[0])))
-    bar = Box(length, section, section)
+    bar = Box(length, BAR, BAR)
     bar = fillet(bar.edges().filter_by(Axis.X), edge)
     middle = Pos(0.5 * (a[0] + b[0]), 0.5 * (a[1] + b[1]), z)
     return as_part(middle * (Rot(0.0, 0.0, angle) * bar), "a bar")
@@ -464,19 +464,17 @@ def _knee(
 
     `section` is the bar's flat, not the bar: see `knee_section`.
     """
-    # Insetting the diagonal by `KNEE_WEB` scales the triangle about its right
-    # angle, by `shrunk`. The hole's other two edges are the stanchion's land
-    # and the bar's face, which it is carried up through.
-    shrunk = 1.0 - KNEE_WEB * float(np.hypot(along, down)) / (along * down)
+    # The hole's other two edges are the stanchion's land and the bar's face,
+    # which it is carried up through.
+    shrunk = knee_hollow(along, down)
     land = min(KNEE_WEB, BAR / 2.0)
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
             Polygon((0.0, 0.0), (along, 0.0), (0.0, -down), align=None)
             if along * shrunk > 2.0 * KNEE_WEB:
-                over = BAR
                 Polygon(
-                    (land, over),
-                    (along * (shrunk + over / down), over),
+                    (land, BAR),
+                    (along * (shrunk + BAR / down), BAR),
                     (land, -down * (shrunk - land / along)),
                     align=None,
                     mode=Mode.SUBTRACT,
@@ -524,14 +522,14 @@ def _foot_block(foot: Foot, side: float) -> Part:
     return as_part(block.part, "a foot")
 
 
-def _crossbar(shape: Frame, station: float, edge: float, clip: float | None) -> Part:
-    """One crossbar, necked where the canvas clips on, if it does.
+def _crossbar(shape: Frame, foot: Foot, edge: float, clip: float | None) -> Part:
+    """One crossbar, over one pair, necked where the canvas clips on if it does.
 
     It runs athwartships, which is the way `rig.neck` cuts, so the yard's own
     neck serves here unchanged.
     """
-    half = shape.half_at(station)
-    bar = _span((station, -half), (station, half), shape.top, BAR, edge)
+    station = foot.station
+    bar = _span((station, -foot.half), (station, foot.half), shape.top, edge)
     if clip is None:
         return as_part(bar, "a crossbar")
     for side in (-1.0, 1.0):
@@ -546,12 +544,20 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
 
     parts = []
     for side in (-1.0, 1.0):
-        for a, b in zip(shape.nodes, shape.nodes[1:], strict=False):
+        for a, b in zip(shape.feet, shape.feet[1:], strict=False):
             parts.append(
-                _span((a[0], side * a[1]), (b[0], side * b[1]), shape.top, BAR, awning.edge)
+                _span(
+                    (a.station, side * a.half),
+                    (b.station, side * b.half),
+                    shape.top,
+                    awning.edge,
+                )
             )
-    necked = {shape.bars[0]: shape.clips[0], shape.bars[-1]: shape.clips[1]}
-    parts += [_crossbar(shape, x, awning.edge, necked.get(x)) for x in shape.bars]
+    clips = {0: shape.clips[0], len(shape.feet) - 1: shape.clips[1]}
+    parts += [
+        _crossbar(shape, foot, awning.edge, clips.get(index))
+        for index, foot in enumerate(shape.feet)
+    ]
 
     section = knee_section(awning.edge)
 
@@ -592,10 +598,10 @@ def upright_frame(spec: HullSpec, lines: HullLines, awning: Awning, rig: Rig | N
             along, down = knee_reach(free)
             parts.append(_knee(corner, -90.0 * side, section, along, down))
             for other in (index - 1, index + 1):
-                if not 0 <= other < len(shape.nodes):
+                if not 0 <= other < len(shape.feet):
                     continue
-                run = shape.nodes[other][0] - foot.station
-                reach = shape.nodes[other][1] - foot.half
+                run = shape.feet[other].station - foot.station
+                reach = shape.feet[other].half - foot.half
                 angle = float(np.degrees(np.arctan2(side * reach, run)))
                 parts.append(_knee(corner, angle, section, along, down))
 

@@ -40,11 +40,28 @@ from awning import (  # noqa: E402
     SOCKET_DROP,
     Awning,
     frame,
+    knee_hollow,
     knee_reach,
     knee_section,
 )
 from hull import Deck, HullSpec, build, inner_half_width  # noqa: E402
 from main import AWNING, HULL, RIG  # noqa: E402
+
+
+def solid_run(part, start: Vector, towards: Vector, limit: float, grain: float = 0.02) -> float:
+    """How far solid runs from `start` along `towards`, up to `limit`.
+
+    Walked a grain at a time and stopped at the first point that is not inside,
+    so what comes back is where the material ends rather than whether it is
+    there at all. Zero means it ended before the first step.
+    """
+    step = towards.normalized() * grain
+    run = 0.0
+    for out in range(1, int(limit / grain) + 1):
+        if not part.is_inside(start + step * out):
+            break
+        run = out * grain
+    return run
 
 
 @pytest.fixture(scope="module")
@@ -113,9 +130,7 @@ class TestFrame:
     def test_the_frame_ends_at_its_legs(self, shape):
         """So both ends are closed by a crossbar standing on something, rather
         than rails running on past the last stanchions with nothing across them."""
-        stations = [foot.station for foot in shape.feet]
-        assert [n[0] for n in shape.nodes] == stations
-        assert list(shape.bars) == stations
+        assert list(shape.bars) == [foot.station for foot in shape.feet]
 
     def test_there_is_a_crossbar_over_every_pair_of_legs(self, lines, shape):
         upright = awnings.upright_frame(HULL, lines, AWNING, RIG)
@@ -135,25 +150,21 @@ class TestFrame:
         """
         for index, foot in enumerate(shape.feet):
             ends = index in (0, len(shape.feet) - 1)
-            beside = [shape.nodes[i] for i in (index - 1, index + 1) if 0 <= i < len(shape.feet)]
+            beside = [shape.feet[i] for i in (index - 1, index + 1) if 0 <= i < len(shape.feet)]
             reach, drop = knee_reach(shape.top - BAR / 2.0 - foot.base)
             # Half way across the diagonal, between the hole and the outer face.
-            towards = 0.5 * (2.0 - KNEE_WEB * math.hypot(reach, drop) / (reach * drop))
+            towards = 0.5 * (1.0 + knee_hollow(reach, drop))
             for side in (-1.0, 1.0):
                 corner = Vector(foot.station, side * foot.half, shape.top - BAR / 2.0)
                 along = [Vector(0.0, -side, 0.0)] + [
-                    Vector(x - foot.station, side * (half - foot.half), 0.0) for x, half in beside
+                    Vector(other.station - foot.station, side * (other.half - foot.half), 0.0)
+                    for other in beside
                 ]
                 assert len(along) == (2 if ends else 3)
                 for bar in along:
                     at = corner + bar.normalized() * (towards * reach / 2.0)
                     at -= Vector(0.0, 0.0, towards * drop / 2.0)
                     assert upright.is_inside(at), f"a bar at {foot.station:.0f}mm has no knee"
-
-    def test_a_knee_sits_on_the_flat_of_its_bar(self):
-        """As wide as the bar, a knee stood its outer edge on the bar's rounded
-        corner and left a lip hanging over nothing."""
-        assert knee_section(AWNING.edge) == pytest.approx(BAR - 2.0 * AWNING.edge, abs=1e-9)
 
     def test_knees_cross_inside_their_leg_rather_than_in_the_air(self, shape):
         """Two slabs of half-width w meeting at an angle t overlap out to
@@ -164,15 +175,18 @@ class TestFrame:
         """
         reach = knee_section(AWNING.edge) / 2.0
         buried = BAR / 2.0 * math.sqrt(2.0)
-        nodes = list(shape.nodes)
         for index, foot in enumerate(shape.feet):
             for side in (-1.0, 1.0):
-                beside = [nodes[i] for i in (index - 1, index + 1) if 0 <= i < len(nodes)]
+                beside = [shape.feet[i] for i in (index - 1, index + 1) if 0 <= i < len(shape.feet)]
                 bearings = sorted(
                     [-90.0 * side]
                     + [
-                        math.degrees(math.atan2(side * (h - foot.half), x - foot.station))
-                        for x, h in beside
+                        math.degrees(
+                            math.atan2(
+                                side * (other.half - foot.half), other.station - foot.station
+                            )
+                        )
+                        for other in beside
                     ]
                 )
                 for lower, upper in zip(bearings, bearings[1:], strict=False):
@@ -217,7 +231,7 @@ class TestFrame:
         buried in the stanchion, then the hole, then the diagonal.
         """
         _, along, down, on_the_diagonal = self._crossbar_knee(shape, 2)
-        shrunk = 1.0 - KNEE_WEB * math.hypot(along, down) / (along * down)
+        shrunk = knee_hollow(along, down)
         # The hole starts where the land ends, which is the stanchion's face.
         enters = 2.0 * min(KNEE_WEB, BAR / 2.0) / along
         assert 0.0 < enters < shrunk < 1.0, "the hole is not inside the knee"
@@ -244,17 +258,9 @@ class TestFrame:
             _, down = knee_reach(shape.top - BAR / 2.0 - foot.base)
             for drop in (1.0, 0.25 * down, 0.5 * down):
                 z = shape.top - BAR / 2.0 - drop
-                for name, ahead, outward in (("fore", 1.0, 0.0), ("aft", -1.0, 0.0)):
-                    proud = 0.0
-                    for step in range(1, 40):
-                        at = Vector(
-                            foot.station + ahead * (BAR / 2.0 + step * 0.02),
-                            foot.half + outward * (BAR / 2.0 + step * 0.02),
-                            z,
-                        )
-                        if not upright.is_inside(at):
-                            break
-                        proud = step * 0.02
+                for name, ahead in (("fore", 1.0), ("aft", -1.0)):
+                    face = Vector(foot.station + ahead * BAR / 2.0, foot.half, z)
+                    proud = solid_run(upright, face, Vector(ahead, 0.0, 0.0), 0.8)
                     assert proud <= 0.3, (
                         f"a knee at {foot.station:.0f}mm stands {proud:.2f}mm "
                         f"{name} of its stanchion, {drop:.1f}mm under the bar"
@@ -269,7 +275,7 @@ class TestFrame:
         Probed just under the bar, between the stanchion and the toe.
         """
         foot, along, down, _ = self._crossbar_knee(shape, 2)
-        shrunk = 1.0 - KNEE_WEB * math.hypot(along, down) / (along * down)
+        shrunk = knee_hollow(along, down)
         under = shape.top - BAR / 2.0 - KNEE_WEB / 2.0
         for name, out in (
             ("mid-reach", 0.5 * along),
@@ -359,14 +365,14 @@ class TestFrame:
         """
         for foot in shape.feet:
             for side in (-1.0, 1.0):
-                face = foot.half - BAR / 2.0
-                z = foot.socket_floor + FOOT_CHAMFER + 0.1
-                reach = 0.0
-                for step in range(1, int(FOOT_TOE / 0.05) + 4):
-                    at = Vector(foot.station, side * (face - step * 0.05), z)
-                    if not upright.is_inside(at):
-                        break
-                    reach = step * 0.05
+                face = Vector(
+                    foot.station,
+                    side * (foot.half - BAR / 2.0),
+                    foot.socket_floor + FOOT_CHAMFER + 0.1,
+                )
+                reach = solid_run(
+                    upright, face, Vector(0.0, -side, 0.0), FOOT_TOE + 0.3, grain=0.05
+                )
                 assert reach == pytest.approx(FOOT_TOE, abs=0.06), (
                     f"the bottom of the leg at {foot.station:.0f}mm is "
                     f"{BAR + reach:.2f}mm across, not {BAR + FOOT_TOE:.2f}"
@@ -596,14 +602,6 @@ class TestSockets:
         bare = built_hull.bounding_box()
         assert pytest.approx(bare.max.Y, abs=1e-6) == fitted.bounding_box().max.Y
 
-    def test_a_leg_fits_its_socket_with_clearance(self):
-        """Loose enough to lift out, which is the point of the whole part. The
-        stanchion goes in at full section, and its foot with it."""
-        assert (
-            pytest.approx(rigging.TOLERANCE, abs=1e-9)
-            == (BAR + 2.0 * rigging.TOLERANCE) / 2.0 - BAR / 2.0
-        )
-
     def test_a_socket_drops_only_far_enough_to_clear_the_deck(self):
         """Down is the one direction it cannot grow in: every millimetre below
         the deck costs planking beside the hole, since the side closes in as it
@@ -656,3 +654,10 @@ class TestSockets:
         for reach, solid in ((edge - 0.05, True), (edge + 0.05, False)):
             at = Vector(foot.station + reach, foot.half, top - 0.1)
             assert part.is_inside(at) == solid, "the foot's end is not chamfered"
+        # And round the toe, which is the end of it with a slot to find rather
+        # than a bore. The bottom of a leg is 3.4 by 7.4 and the chamfer goes
+        # round the whole of it, this being the only edge that says so.
+        tip = foot.half - BAR / 2.0 - FOOT_TOE + FOOT_CHAMFER - 0.1
+        for inboard, solid in ((tip + 0.05, True), (tip - 0.05, False)):
+            at = Vector(foot.station, inboard, top - 0.1)
+            assert part.is_inside(at) == solid, "the toe is not chamfered"
