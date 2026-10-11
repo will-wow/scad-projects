@@ -157,13 +157,19 @@ Each one now carries **knees** where it meets the bars -- one into the crossbar
 and one into each rail it has -- because a dropped boat snapped a stanchion off
 at that corner. Each is a bar leaning 30 degrees off the stanchion, about 15mm
 along and 27 down, reaching to a millimetre above the boss, because a stanchion
-then broke under the toe of the old short one. They cost 2.02 cm³ and print as
-part of the stanchion: the outer face points up, the diagonal is anchored on the
-bar at its toe and leans away from there, and nothing in one bridges or
-overhangs. Each is 2.2mm wide rather than the bar's 3.4, which is the flat
-between the bar's rounded edges: as wide as the bar, a knee stood its outer lip
-on the round with nothing under it. Two sharing a short bar aft cross, which is
-a union and leaves an X-brace.
+then broke under the toe of the old short one. They print as part of the
+stanchion: the outer face points up, the diagonal is anchored on the bar at its
+toe and leans away from there, and nothing in one bridges or overhangs. Each is
+2.2mm wide rather than the bar's 3.4, which is the flat between the bar's
+rounded edges: as wide as the bar, a knee stood its outer lip on the round with
+nothing under it. Two sharing a short bar aft cross, which is a union and leaves
+an X-brace.
+
+The diagonal itself is **2.4mm**, up from 1.4. At 1.4 it was the thinnest member
+in the part and a strut leaning 30 degrees off the vertical, and that is what it
+printed like: a couple of them cracked or shifted on the bed. At 2.4 the
+diagonal is 2.4 by 2.2 and carries **211 N** against the 123 it did, and the
+hole inside the knee shrinks to pay for it rather than the frame growing.
 
 And each stanchion has a **foot**: solid material down its inboard face,
 tapering off the leg at 30 degrees from an apex 8.5mm above the top of the boss

@@ -218,7 +218,8 @@ class TestFrame:
         """
         _, along, down, on_the_diagonal = self._crossbar_knee(shape, 2)
         shrunk = 1.0 - KNEE_WEB * math.hypot(along, down) / (along * down)
-        enters = 2.0 * KNEE_WEB / along
+        # The hole starts where the land ends, which is the stanchion's face.
+        enters = 2.0 * min(KNEE_WEB, BAR / 2.0) / along
         assert 0.0 < enters < shrunk < 1.0, "the hole is not inside the knee"
         for towards, solid in (
             (0.5 * enters, True),
@@ -228,6 +229,36 @@ class TestFrame:
             assert upright.is_inside(on_the_diagonal(towards)) == solid, (
                 f"the knee is wrong {towards:.2f} of the way out to its diagonal"
             )
+
+    def test_a_knees_land_stays_inside_the_stanchion(self, upright, shape):
+        """The land down the stanchion is free only while it is buried in it.
+        Taken from `KNEE_WEB` it stopped being so when the web went to 2.4: it
+        stood 0.70mm out past the face and put a rib down every leg for the
+        knee's whole length, four to a stanchion, and nothing here noticed.
+
+        Measured outward from each face. Not quite zero is expected, because the
+        land is a rectangle and the rails aft run up to 26 degrees off the axis,
+        so a corner of one shows -- but by a fraction of a layer, not by a rib.
+        """
+        for foot in shape.feet:
+            _, down = knee_reach(shape.top - BAR / 2.0 - foot.base)
+            for drop in (1.0, 0.25 * down, 0.5 * down):
+                z = shape.top - BAR / 2.0 - drop
+                for name, ahead, outward in (("fore", 1.0, 0.0), ("aft", -1.0, 0.0)):
+                    proud = 0.0
+                    for step in range(1, 40):
+                        at = Vector(
+                            foot.station + ahead * (BAR / 2.0 + step * 0.02),
+                            foot.half + outward * (BAR / 2.0 + step * 0.02),
+                            z,
+                        )
+                        if not upright.is_inside(at):
+                            break
+                        proud = step * 0.02
+                    assert proud <= 0.3, (
+                        f"a knee at {foot.station:.0f}mm stands {proud:.2f}mm "
+                        f"{name} of its stanchion, {drop:.1f}mm under the bar"
+                    )
 
     def test_no_knee_leaves_a_land_lying_along_its_bar(self, upright, shape):
         """The hole is cut up through the bar's own face, so what meets the bar

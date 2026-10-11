@@ -62,9 +62,13 @@ BAR = 3.4
 # diagonal nearer the stanchion makes that one shallower. So the angle is free
 # to be chosen for strength, and the strongest place to take it is as far down
 # the stanchion as the boss allows.
+#
+# The web is the thinnest member in the part and it is a strut leaning off the
+# stanchion, so it is what cracks on the bed. At 2.4 it is 1.7 times the section
+# it was, and the hole inside the knee shrinks to pay for it.
 KNEE_ANGLE = 30.0
 KNEE_CLEAR = 1.0
-KNEE_WEB = 1.4
+KNEE_WEB = 2.4
 
 
 def knee_reach(free: float) -> tuple[float, float]:
@@ -448,7 +452,9 @@ def _knee(
     face, so the diagonal lands on the bar at a toe `KNEE_WEB / sin` long, which
     makes that bond and the diagonal it anchors equally strong whatever the
     angle. The land down the stanchion stays, being buried inside it and costing
-    nothing.
+    nothing -- which is why it is held to the stanchion's half-width rather than
+    to `KNEE_WEB`. Wider than that and it is a rib standing off every leg for
+    the knee's whole length.
 
     Laid roof-down nothing in it overhangs, at any angle. The outer face points
     up, so each layer of the triangle is narrower than the one beneath it
@@ -462,15 +468,16 @@ def _knee(
     # angle, by `shrunk`. The hole's other two edges are the stanchion's land
     # and the bar's face, which it is carried up through.
     shrunk = 1.0 - KNEE_WEB * float(np.hypot(along, down)) / (along * down)
+    land = min(KNEE_WEB, BAR / 2.0)
     with BuildPart() as knee:
         with BuildSketch(Plane.XZ.offset(-section / 2.0)):
             Polygon((0.0, 0.0), (along, 0.0), (0.0, -down), align=None)
             if along * shrunk > 2.0 * KNEE_WEB:
-                web, over = KNEE_WEB, BAR
+                over = BAR
                 Polygon(
-                    (web, over),
+                    (land, over),
                     (along * (shrunk + over / down), over),
-                    (web, -down * (shrunk - web / along)),
+                    (land, -down * (shrunk - land / along)),
                     align=None,
                     mode=Mode.SUBTRACT,
                 )

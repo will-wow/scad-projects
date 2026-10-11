@@ -1033,18 +1033,22 @@ the rail spans aft did the same by 6.5 and 9.4.
 It was buying nothing. Cutting the hole up through the bar's own face instead
 leaves the diagonal landing on the bar at a toe `KNEE_WEB / sin` long, and that
 is not an arbitrary number: it makes the bond and the diagonal it anchors
-equally strong at any angle. At 30 degrees the toe is 1.62mm, so 3.56mm² of
-layer bond taking the diagonal's thrust at 0.87 of its axis -- **123 N** -- and
-the diagonal is 1.4 by 2.2 taken across the layers at the same lean -- **123 N**.
+equally strong at any angle. At 30 degrees the toe is 2.77mm, so 6.10mm² of
+layer bond taking the diagonal's thrust at 0.87 of its axis -- **211 N** -- and
+the diagonal is 2.4 by 2.2 taken across the layers at the same lean -- **211 N**.
 The sine cancels, so steepening a knee does not change which end gives first.
 
 What a knee loses with the land is lever arm on nothing: the land is bonded
 along its whole length to a bar that is already the chord, and the only other
 thing it did was stiffen the rail in bending, which is not what breaks. The land
-down the **stanchion** stays, because at `KNEE_WEB` from the centreline it is
-inside the stanchion's own 1.7mm half-width -- invisible, and free.
+down the **stanchion** stays, because held to the stanchion's own 1.7mm
+half-width it is invisible, and free. It is held there rather than taken from
+`KNEE_WEB`, which is what it used to be: widening the web to 2.4 pushed it 0.7mm
+out past the face, and a rib down every leg for the knee's whole length -- four
+to a stanchion -- is not what anybody asked for. Nothing in the suite noticed,
+so there is a test for it now.
 
-So a knee is now its diagonal and its two toes: 11.90 cm³ of frame against
+So a knee is its diagonal and its two toes: 11.90 cm³ of frame against
 12.74. The corner itself is left to the stanchion, which runs up through the
 bars to the roof and fills it. And two knees sharing a short bar may now cross
 without consequence -- a union, and a genuine X-brace between those stanchions.
