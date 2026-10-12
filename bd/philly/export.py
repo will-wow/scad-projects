@@ -41,6 +41,7 @@ PARTS = (
     "cannon.cannon:nine_pounder=gun-9",
     "main:broadside_carriage=carriage-9",
     "cannon.trunnion:model=trunnion",
+    "main:stand=stand",
 )
 
 # Tessellation tolerance in millimetres of the finished model. Finer than a

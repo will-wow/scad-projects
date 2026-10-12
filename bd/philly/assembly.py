@@ -25,12 +25,14 @@ import awning as awnings
 import guns as ordnance
 import lines as hull_lines
 import rig as rigging
-from main import AWNING, GUNS, HULL, RIG, fitted
+import stand as stands
+from main import AWNING, GUNS, HULL, RIG, STAND, fitted
 
 # The guns bring their own colours (cannon/assembly.py). The hull is a darker
 # brown than their carriages so they stand out on its decks.
 HULL_WOOD = Color(0.40, 0.26, 0.15)
 SPAR = Color(0.58, 0.42, 0.26)
+WALNUT = Color(0.24, 0.15, 0.10)
 CANVAS = Color(0.95, 0.93, 0.87)
 
 
@@ -93,6 +95,7 @@ def parts(hull: Part | None = None) -> dict[str, Part | Compound]:
         # only way to see whether it clears the mast and its sails.
         "awning": (awnings.upright_frame(HULL, lines, AWNING, RIG), SPAR),
         "canvas": (awnings.rigged_canvas(HULL, lines, AWNING, RIG), CANVAS),
+        "stand": (stands.placed(HULL, lines, STAND), WALNUT),
     }
     for part, colour in painted.values():
         part.color = colour

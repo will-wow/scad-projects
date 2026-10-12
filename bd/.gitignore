@@ -3,3 +3,4 @@ __pycache__
 **/#*.dxf
 .venv
 .ruff_cache
+*.FCBak

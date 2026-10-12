@@ -17,6 +17,7 @@ import details as joinery
 import guns as ordnance
 import lines as hull_lines
 import rig as rigging
+import stand as stands
 from cannon.cannon import NINE_POUNDER
 from cannon.carriage import CarriageSpec, carriage
 from hull import Bench, Bottom, Bulge, Deck, HullSpec, Knee, Seams, Well, build
@@ -138,6 +139,11 @@ GUNS = (
     ordnance.Gun(station=0.606, side=1, carriage=BROADSIDE),
 )
 
+# Centred under the whole rigged boat's centre of mass, measured from the
+# assembly's solids: 0.456 of her length from the bow, a little aft of her
+# greatest breadth.
+STAND = stands.Stand(station=0.456)
+
 
 def fitted(lines: hull_lines.HullLines) -> Part:
     """The hull with its joinery, the mast's step, the awning's sockets and the guns' slides.
@@ -174,6 +180,11 @@ def awning() -> Part:
 def canvas() -> Part:
     """The awning's canvas, flat on the bed like the sails."""
     return awnings.canvas(HULL, hull_lines.load(), AWNING, RIG)
+
+
+def stand() -> Part:
+    """The stand, on end ready to print."""
+    return stands.printed(HULL, hull_lines.load(), STAND)
 
 
 def broadside_carriage() -> Part:

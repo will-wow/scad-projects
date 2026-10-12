@@ -54,6 +54,14 @@ orientation and a different profile. The rig and the hull:
 | `philadelphia-sails.3mf`         | 69 x 174.5 x 6.5mm    | as exported, flat          | two separate sails in one file    |
 | `philadelphia-awning.3mf`        | 148.3 x 72.1 x 37.0mm | as exported, **roof down** | stanchions point up; do not flip it     |
 | `philadelphia-awning-canvas.3mf` | 149.6 x 61.3 x 5.6mm  | as exported, flat          | print it with the sails' settings |
+| `philadelphia-stand.3mf`         | 30 x 80 x 120mm       | as exported, **on end**    | the X flat on the bed             |
+
+The stand stands 120mm tall on its end so that every wall rises straight up:
+nothing overhangs but the lettering, whose undersides are ledges 0.6mm deep.
+The letters are Libre Caslon fattened by 0.15mm, which puts their hairlines past
+0.4mm; a 0.4mm nozzle with Arachne walls draws them. The hull lifts in and out
+of its cradle with 0.6mm to spare at the sides -- if your printer runs holes
+tight, raise `Stand.clearance` rather than sanding.
 
 It also writes the gun parts -- `gun` and `carriage` for the 12-pounder,
 `gun-9` and `carriage-9` for the 9-pounders, and one `trunnion` bar for each of
